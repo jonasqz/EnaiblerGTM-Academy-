@@ -1,0 +1,30 @@
+# Local development services. The app itself runs with `npm run dev`.
+#   docker compose up -d
+#   npm run db:migrate && npm run tenant:apply -- config/tenants/*.yaml
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      ENAIBLER_DB: enaibler
+      ENAIBLER_OWNER_PASSWORD: owner
+      ENAIBLER_APP_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./deploy/postgres/init.sh:/docker-entrypoint-initdb.d/10-enaibler.sh:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  # Catches outgoing mail: web UI on http://localhost:8025, SMTP on :1025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  postgres-data:

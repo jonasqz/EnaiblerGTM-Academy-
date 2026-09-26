@@ -1,0 +1,44 @@
+# Sample spike: replace with the real assignment, rubric and exemplars of
+# tenant 0's course 1 (Validation Lab). Exemplar file names say what the
+# author expects: pass-*.md should pass, fail-*.md should not.
+locale: en
+tone: warm
+assignment:
+  artifact_name: Validated idea brief
+  prompt: |
+    Write a one-page brief for a product idea. Name the customer and their
+    problem, show what you learned from at least five customer interviews,
+    and end with the riskiest assumption you will test next and how.
+rubric:
+  pass_threshold: 60
+  criteria:
+    - id: problem
+      label: Customer and problem
+      description: Names a specific customer segment and a concrete, costly problem.
+      weight: 2
+      score_descriptors:
+        - { score: 0, description: "No customer or problem named." }
+        - { score: 1, description: "Generic customer or vague problem." }
+        - { score: 2, description: "Specific customer and problem, cost unclear." }
+        - { score: 3, description: "Specific customer, concrete problem and its cost." }
+    - id: evidence
+      label: Interview evidence
+      description: Uses at least five customer interviews; quotes or observations support the claims.
+      weight: 2
+      score_descriptors:
+        - { score: 0, description: "No interviews." }
+        - { score: 1, description: "Fewer than five interviews or only opinions." }
+        - { score: 2, description: "Five or more interviews, some claims unsupported." }
+        - {
+            score: 3,
+            description: "Five or more interviews; claims backed by quotes or observations.",
+          }
+    - id: next_test
+      label: Riskiest assumption
+      description: States the riskiest assumption and a concrete, cheap test with a success criterion.
+      weight: 1
+      score_descriptors:
+        - { score: 0, description: "Missing." }
+        - { score: 1, description: "Assumption named, no test." }
+        - { score: 2, description: "Test described, no success criterion." }
+        - { score: 3, description: "Test with a clear success criterion." }

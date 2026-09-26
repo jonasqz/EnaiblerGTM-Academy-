@@ -1,0 +1,37 @@
+import type { Queue } from "pg-boss";
+
+import type { OutgoingEmail } from "@/server/email/mailer";
+
+/**
+ * Background jobs (brief §11): pg-boss keeps the queue in Postgres, the worker
+ * container (src/worker) runs the handlers. Every job carries its tenant id
+ * and must be idempotent: pg-boss retries failed jobs.
+ */
+export const QUEUES = {
+  email: "email.send",
+  review: "review.run",
+  transcription: "transcription.run",
+  keyframes: "keyframes.extract",
+  lessonDraft: "lessons.draft",
+  imageRender: "image.render",
+} as const;
+
+export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
+
+export interface JobPayloads {
+  "email.send": { tenantId: string; email: OutgoingEmail };
+  "review.run": { tenantId: string; submissionId: string };
+  "transcription.run": { tenantId: string; sourceId: string };
+  "keyframes.extract": { tenantId: string; sourceId: string };
+  "lessons.draft": { tenantId: string; courseId: string };
+  "image.render": { tenantId: string; credentialId: string };
+}
+
+export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
+  "email.send": { retryLimit: 5, retryDelay: 30, retryBackoff: true, expireInSeconds: 120 },
+  "review.run": { retryLimit: 3, retryDelay: 20, retryBackoff: true, expireInSeconds: 300 },
+  "transcription.run": { retryLimit: 2, retryDelay: 60, expireInSeconds: 60 * 60 },
+  "keyframes.extract": { retryLimit: 2, retryDelay: 60, expireInSeconds: 30 * 60 },
+  "lessons.draft": { retryLimit: 2, retryDelay: 60, expireInSeconds: 15 * 60 },
+  "image.render": { retryLimit: 3, retryDelay: 10, expireInSeconds: 120 },
+};

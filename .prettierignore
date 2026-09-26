@@ -1,0 +1,6 @@
+.next
+node_modules
+drizzle/meta
+package-lock.json
+docs/product-brief-v2.md
+spikes/**/results

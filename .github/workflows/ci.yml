@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --project unit
+      - name: Tenant manifests are valid
+        run: npx tsx scripts/tenant-apply.ts --dry-run config/tenants/*.yaml
+      - run: npm run build
+
+  database:
+    name: Migrations and row-level security
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPASSWORD: postgres
+      TEST_DATABASE_URL: postgres://enaibler_app:app@localhost:5432/enaibler_test
+      TEST_DATABASE_MIGRATION_URL: postgres://enaibler_owner:owner@localhost:5432/enaibler_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Roles and database (same script as production)
+        run: ./deploy/postgres/init.sh
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          ENAIBLER_DB: enaibler_test
+          ENAIBLER_OWNER_PASSWORD: owner
+          ENAIBLER_APP_PASSWORD: app
+      - name: Migrations match the schema
+        run: |
+          npx drizzle-kit generate --name drift-check
+          git status --porcelain drizzle
+          test -z "$(git status --porcelain drizzle)"
+      - run: npm run test:db

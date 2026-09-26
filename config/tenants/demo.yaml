@@ -1,0 +1,22 @@
+# Local demo academy with enaibler's default theme and terminology.
+# Open http://demo.localhost:3000 after `npm run tenant:apply -- config/tenants/demo.yaml`.
+
+tenant:
+  slug: demo
+  domains: [demo.localhost]
+  locales: [en, de]
+  default_locale: en
+  author_display_name: "enaibler Demo Academy"
+  legal_links:
+    imprint: "https://example.com/imprint"
+    privacy: "https://example.com/privacy"
+    terms: "https://example.com/terms"
+  features: { paths: false, levels: false, ai_review: true }
+  verification_cta: { label: { en: "Start this course", de: "Kurs starten" } }
+
+courses:
+  - slug: idea-brief
+    delivery_mode: free_async
+    title: { en: "Write a validated idea brief", de: "Einen validierten Idea Brief schreiben" }
+    languages: [en, de]
+    est_minutes: 90

@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/*
+ * Tenant theme tokens are set per request on <html style> by the root layout
+ * (src/core/theme/css.ts). These fallbacks only apply without a tenant.
+ */
+:root {
+  --tenant-ink: #191b22;
+  --tenant-surface: #f6f5f1;
+  --tenant-card: #ffffff;
+  --tenant-primary: #3b5bdb;
+  --tenant-on-primary: #ffffff;
+  --tenant-font-display: ui-sans-serif, system-ui, sans-serif;
+  --tenant-font-body: ui-sans-serif, system-ui, sans-serif;
+  --tenant-radius: 14px;
+  --tenant-border-width: 1px;
+  --tenant-border-color: color-mix(in srgb, #191b22 14%, transparent);
+  --tenant-shadow: 0 6px 24px #191b2214;
+  --tenant-shadow-x: 0px;
+  --tenant-shadow-y: 6px;
+}
+
+/* Tailwind utilities that resolve to the tenant tokens: bg-primary, text-ink,
+   rounded-card, shadow-card, border-outline (width), border-line (colour), font-display … */
+@theme inline {
+  --color-ink: var(--tenant-ink);
+  --color-surface: var(--tenant-surface);
+  --color-card: var(--tenant-card);
+  --color-primary: var(--tenant-primary);
+  --color-on-primary: var(--tenant-on-primary);
+  --color-line: var(--tenant-border-color);
+  --color-accent-1: var(--tenant-accent-1, var(--tenant-primary));
+  --color-accent-2: var(--tenant-accent-2, var(--tenant-primary));
+  --color-accent-3: var(--tenant-accent-3, var(--tenant-primary));
+  --color-accent-4: var(--tenant-accent-4, var(--tenant-primary));
+  --font-display: var(--tenant-font-display);
+  --font-body: var(--tenant-font-body);
+  --radius-card: var(--tenant-radius);
+  --shadow-card: var(--tenant-shadow);
+  --border-width-outline: var(--tenant-border-width);
+}
+
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--tenant-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--tenant-card);
+    border: var(--tenant-border-width) solid var(--tenant-border-color);
+    border-radius: var(--tenant-radius);
+    box-shadow: var(--tenant-shadow);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    border: var(--tenant-border-width) solid var(--tenant-border-color);
+    border-radius: var(--tenant-radius);
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--tenant-primary);
+    color: var(--tenant-on-primary);
+    box-shadow: var(--tenant-shadow);
+  }
+  .btn-secondary {
+    background: var(--tenant-card);
+    color: var(--tenant-ink);
+  }
+
+  /* Interaction flavour per theme (theme.visual_style). */
+  :root[data-visual-style="soft"] .btn:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  :root[data-visual-style="outlined"] .btn:not(:disabled):hover {
+    transform: translate(-1px, -1px);
+  }
+  :root[data-visual-style="outlined"] .btn:not(:disabled):active {
+    transform: translate(var(--tenant-shadow-x), var(--tenant-shadow-y));
+    box-shadow: none;
+  }
+}

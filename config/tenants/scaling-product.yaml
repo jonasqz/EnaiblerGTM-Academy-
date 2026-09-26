@@ -1,0 +1,49 @@
+# Tenant 0: Scaling Product (brief Appendix A). Pure configuration: apply with
+#   npm run tenant:apply -- config/tenants/scaling-product.yaml
+# If something here cannot be expressed without a code change, the generic
+# model is missing something: extend src/core/tenant/manifest.ts instead.
+
+tenant:
+  slug: scaling-product
+  domains: [academy.scaling-product.com]
+  locales: [de, en]
+  default_locale: de
+  author_display_name: "Scaling Product Academy"
+  # TODO(tenant 0): replace with Scaling Product's exact imprint, privacy and terms pages before go-live.
+  legal_links:
+    imprint: "https://scaling-product.com/"
+    privacy: "https://scaling-product.com/"
+    terms: "https://scaling-product.com/"
+  features: { paths: true, levels: true, cohorts: false, ai_review: true, showcase: false }
+  # No url: the button leads to this academy's own /start link for the same course.
+  verification_cta: { label: { en: "Start this course", de: "Kurs starten" } }
+
+theme:
+  colors:
+    ink: "#2E2A36"
+    surface: "#F3EBDD" # paper
+    card: "#FBF6EC"
+    primary: "#DD7F6C" # accent
+    accents: ["#E6C878", "#93C6BF", "#AE9FD6", "#3B3553"] # mustard, teal, lavender, plum
+  fonts: { display: "Bungee", body: "Rubik" }
+  radius: 0
+  border_width: 3px
+  shadow: { x: 4px, y: 4px, blur: 0, color: "#2E2A36" } # hard offset; match the website's CLAUDE.md
+  visual_style: outlined
+
+terminology:
+  path:
+    { en: { one: "Character", other: "Characters" }, de: { one: "Charakter", other: "Charaktere" } }
+  artifact: { en: "Loot", de: "Loot" }
+
+paths: [Validator, Builder, Scaler, Navigator] # course order per path: set by author
+
+levels:
+  - { n: 1, name: Apprentice, rule: "courses_completed_in_path >= 1" }
+  - { n: 2, name: Practitioner, rule: "courses_completed_in_path >= 2" }
+  - { n: 3, name: Pro, rule: "path_complete" }
+  - { n: 4, name: Mentor, rule: "manual_grant" }
+
+courses:
+  - { slug: validation-lab, delivery_mode: free_async, launch: 2027-01 }
+  - { slug: market-sizing-with-ai, delivery_mode: free_async, launch: 2027-03 }
