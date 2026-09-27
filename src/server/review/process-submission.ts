@@ -13,6 +13,7 @@ import { findTenantById } from "@/db/tenants";
 import { issueCredential } from "@/server/credentials/issue";
 import { trackEvent } from "@/server/events";
 import type { LlmCaller } from "@/server/llm";
+import { queueReviewReady } from "@/server/notifications";
 import { runAiReview, type AiReviewRun } from "@/server/review/run-ai-review";
 import {
   readSubmissionFiles,
@@ -247,11 +248,19 @@ export async function processSubmission(
   });
 }
 
-/** Events and credential for a released decision. */
+/** Events, credential and the learner's mail for a released decision. */
 export async function recordDecision(
   tx: Transaction,
   tenant: TenantContext,
-  input: { userId: string; courseId: string; submissionId: string; pass: boolean; locale: string },
+  input: {
+    userId: string;
+    courseId: string;
+    submissionId: string;
+    pass: boolean;
+    locale: string;
+    /** A reviewer changed a result the learner had already received. */
+    secondLook?: boolean;
+  },
 ): Promise<void> {
   const base = {
     tenantId: tenant.id,
@@ -260,8 +269,15 @@ export async function recordDecision(
     locale: input.locale,
   };
   await trackEvent(tx, { ...base, name: "review_completed", props: { pass: input.pass } });
+  let levelUp: number | null = null;
   if (input.pass) {
     await trackEvent(tx, { ...base, name: "review_passed" });
-    await issueCredential(tx, tenant, input);
+    levelUp = (await issueCredential(tx, tenant, input)).levelUp?.n ?? null;
   }
+  await queueReviewReady(tx, tenant.id, {
+    userId: input.userId,
+    submissionId: input.submissionId,
+    levelUp,
+    secondLook: input.secondLook ?? false,
+  });
 }

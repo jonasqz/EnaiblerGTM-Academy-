@@ -3,7 +3,7 @@ import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AutoRefresh } from "@/components/studio/auto-refresh";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { SourceStatusBadge } from "@/components/studio/status-badges";
 import { formatClock } from "@/core/authoring/transcript";
 import { getDb } from "@/db/client";

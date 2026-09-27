@@ -2,10 +2,12 @@
  * Worker container: `npm run worker` (dev) / `node --import tsx src/worker/index.ts`.
  * Same repo and image as the web app, different command (brief §11).
  */
+import { eq } from "drizzle-orm";
 import { PgBoss, type Job } from "pg-boss";
 
 import { createDatabase, assertRlsEnforced } from "@/db/client";
 import { tenants } from "@/db/schema";
+import { findTenantById } from "@/db/tenants";
 import { runLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel } from "@/server/authoring/model";
 import { extractKeyframes, transcribeRecording } from "@/server/authoring/recordings";
@@ -15,6 +17,7 @@ import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
+import { dispatchNotifications } from "@/server/notifications";
 import { runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
 import { storageConfigured } from "@/server/storage";
@@ -41,9 +44,21 @@ for (const [name, options] of Object.entries(QUEUE_OPTIONS) as Array<
   await boss.createQueue(name, options);
 }
 
-await boss.work(QUEUES.email, { batchSize: 5 }, async (jobs: Job<JobPayloads["email.send"]>[]) => {
-  for (const job of jobs) await sendEmail(job.data.email);
+// Learner mail (review ready, level-up), every minute for every active academy.
+await boss.work(QUEUES.notifications, async () => {
+  for (const { id } of await db
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.status, "active"))) {
+    const tenant = await findTenantById(db, id);
+    if (!tenant) continue;
+    const result = await dispatchNotifications(db, tenant, { send: sendEmail });
+    if (result.sent + result.failed > 0) {
+      console.log(`[worker] mail for ${tenant.slug}: ${result.sent} sent, ${result.failed} failed`);
+    }
+  }
 });
+await boss.schedule(QUEUES.notifications, "* * * * *");
 
 // Without a gateway every submission goes to the human queue ("ai_unavailable").
 const llm = process.env.LLM_BASE_URL

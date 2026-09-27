@@ -257,6 +257,7 @@ export async function decideSubmission(
         submissionId,
         pass,
         locale,
+        secondLook: reverses,
       });
     }
     return { ok: true, pass, overridden: disagreesWithAi };

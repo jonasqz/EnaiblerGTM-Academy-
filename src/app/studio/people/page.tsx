@@ -1,4 +1,4 @@
-import { Award, Users, X } from "lucide-react";
+import { Award, Download, Users, X } from "lucide-react";
 import type { Metadata } from "next";
 
 import { grantLevelAction, revokeGrantAction } from "@/app/studio/paths/actions";
@@ -12,6 +12,7 @@ import { localize } from "@/core/i18n/locales";
 import { createTranslator } from "@/core/i18n/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { countContacts } from "@/server/consent";
 import { listPeople } from "@/server/studio/insights";
 import { listLevelGrants, listStudioPaths, loadLevels } from "@/server/studio/paths";
 
@@ -41,6 +42,7 @@ export default async function PeoplePage() {
     "path",
   );
   const contactable = people.filter((person) => person.contactEmail).length;
+  const contacts = can(roles, "contacts.export") ? await countContacts(getDb(), tenant.id) : null;
   const finished = people.filter((person) => person.completed > 0).length;
 
   return (
@@ -182,6 +184,53 @@ export default async function PeoplePage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {contacts && (
+        <section aria-labelledby="contacts-heading" className="card-flat space-y-4 p-5">
+          <div>
+            <h2 id="contacts-heading" className="text-lg font-semibold">
+              Contacts
+            </h2>
+            <p className="text-sm text-muted">
+              Learners who agreed to hear from you, for your newsletter or CRM. Only confirmed
+              consents; people can withdraw here at any time, so export again before each mailing.
+            </p>
+          </div>
+          <ul className="divide-y divide-line">
+            {[
+              {
+                list: "news",
+                title: "Newsletter",
+                hint: "Confirmed by double opt-in (the learner clicked the link we mailed).",
+                n: contacts.tenant_marketing,
+              },
+              {
+                list: "contact",
+                title: "Open to contact",
+                hint: "Agreed that you may contact them about your offers.",
+                n: contacts.lead_handoff,
+              },
+            ].map((row) => (
+              <li key={row.list} className="flex flex-wrap items-center gap-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    {row.title} <span className="font-normal text-muted">· {row.n}</span>
+                  </p>
+                  <p className="text-sm text-muted">{row.hint}</p>
+                </div>
+                {row.n > 0 && (
+                  <a
+                    href={`/studio/people/contacts?list=${row.list}`}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <Download aria-hidden size={16} /> CSV
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

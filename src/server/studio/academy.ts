@@ -7,6 +7,7 @@ import { themeContrastIssues } from "@/core/theme/contrast";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 import type { Database } from "@/db/client";
 import { tenants } from "@/db/schema";
+import type { StoredTenantConfig } from "@/db/schema/tenancy";
 import { clearTenantCache } from "@/server/tenant-resolver";
 
 /*
@@ -23,10 +24,23 @@ export interface AcademySettingsInput {
   locales: Locale[];
   defaultLocale: Locale;
   website: string | null;
+  /** Where learners' replies to academy mail go; unchanged when omitted. */
+  replyTo?: string | null;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
   ctaLabel: LocalizedText;
   /** Modules on or off; unchanged when omitted. */
   features?: Features;
+}
+
+/** Keeps a manifest's sender name and address; only the reply address is set here. */
+function emailSenderWith(
+  current: StoredTenantConfig["email_sender"],
+  replyTo: string | null | undefined,
+): StoredTenantConfig["email_sender"] {
+  if (replyTo === undefined) return current;
+  const next = { ...current, reply_to: replyTo ?? undefined };
+  if (!next.reply_to) delete next.reply_to;
+  return Object.keys(next).length > 0 ? next : undefined;
 }
 
 async function loadRow(db: Database, tenantId: string) {
@@ -50,6 +64,7 @@ export async function updateAcademySettings(
       locales: input.locales,
       default_locale: input.defaultLocale,
       website: input.website ?? undefined,
+      email_sender: emailSenderWith(row.config.email_sender, input.replyTo),
       legal_links: input.legalLinks,
       verification_cta: { ...row.config.verification_cta, label: input.ctaLabel },
       features: input.features ?? row.config.features,

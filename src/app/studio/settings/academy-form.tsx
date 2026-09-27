@@ -46,6 +46,9 @@ export function AcademyForm(props: {
   defaultLocale: Locale;
   allLocales: readonly Locale[];
   website: string;
+  /** "Name <address>" learners see on mails from the academy. */
+  sender: string;
+  replyTo: string;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
   ctaLabel: LocalizedText;
   features: Features;
@@ -143,6 +146,23 @@ export function AcademyForm(props: {
             defaultValue={props.website}
           />
           <p className="hint">Brand import reads your colours and fonts from here.</p>
+        </div>
+        <div className="field sm:col-span-2">
+          <label htmlFor="academy-reply-to" className="label">
+            Replies go to
+          </label>
+          <input
+            id="academy-reply-to"
+            name="replyTo"
+            type="email"
+            className="input"
+            placeholder="hello@your-company.com"
+            defaultValue={props.replyTo}
+          />
+          <p className="hint">
+            Mails to learners (sign-in links, feedback, levels) come from {props.sender}. When a
+            learner replies, the answer goes to this address.
+          </p>
         </div>
       </section>
 

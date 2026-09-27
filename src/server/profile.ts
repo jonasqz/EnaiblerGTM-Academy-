@@ -14,6 +14,7 @@ import {
   lessons,
   levelGrants,
   memberships,
+  notifications,
   paths,
   reviews,
   session,
@@ -183,7 +184,25 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
         })
         .from(files)
         .where(eq(files.ownerUserId, userId)),
-      consents: await tx.select().from(consents).where(eq(consents.userId, userId)),
+      consents: await tx
+        .select({
+          kind: consents.kind,
+          wording: consents.wording,
+          requestedAt: consents.requestedAt,
+          confirmedAt: consents.confirmedAt,
+          revokedAt: consents.revokedAt,
+        })
+        .from(consents)
+        .where(eq(consents.userId, userId)),
+      mails: await tx
+        .select({
+          kind: notifications.kind,
+          status: notifications.status,
+          createdAt: notifications.createdAt,
+          processedAt: notifications.processedAt,
+        })
+        .from(notifications)
+        .where(eq(notifications.userId, userId)),
       events: await tx
         .select({
           name: events.name,
@@ -234,6 +253,7 @@ export async function deleteMyData(
     await tx.delete(enrollments).where(eq(enrollments.userId, userId));
     await tx.delete(levelGrants).where(eq(levelGrants.userId, userId));
     await tx.delete(consents).where(eq(consents.userId, userId));
+    await tx.delete(notifications).where(eq(notifications.userId, userId));
     await tx.delete(learnerProfiles).where(eq(learnerProfiles.userId, userId));
     await tx.delete(files).where(eq(files.ownerUserId, userId));
     await tx.delete(memberships).where(eq(memberships.userId, userId));

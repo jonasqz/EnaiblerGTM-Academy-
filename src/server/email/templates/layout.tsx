@@ -1,7 +1,12 @@
 /* eslint-disable @next/next/no-head-element -- e-mail HTML, not a Next.js page */
 import type { ReactNode } from "react";
 
+import type { Translator } from "@/core/i18n/translator";
+import type { TenantContext } from "@/core/tenant/context";
+import { mostReadable } from "@/core/theme/color";
 import type { Theme } from "@/core/theme/schema";
+
+const FONT_STACK = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 /**
  * Table-based e-mail frame with the tenant's colours. Mail clients ignore
@@ -47,7 +52,7 @@ export function EmailLayout(props: {
                     backgroundColor: theme.colors.card,
                     border: `${theme.border_width} solid ${theme.colors.ink}`,
                     borderRadius: radius,
-                    fontFamily: "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    fontFamily: FONT_STACK,
                     color: theme.colors.ink,
                   }}
                 >
@@ -85,6 +90,7 @@ export function EmailLayout(props: {
                           padding: "16px 8px",
                           fontSize: 12,
                           lineHeight: 1.5,
+                          fontFamily: FONT_STACK,
                           color: theme.colors.ink,
                           opacity: 0.7,
                         }}
@@ -100,5 +106,64 @@ export function EmailLayout(props: {
         </table>
       </body>
     </html>
+  );
+}
+
+/** The primary button, in the academy's colours. */
+export function EmailButton(props: { theme: Theme; href: string; children: ReactNode }) {
+  const { theme } = props;
+  const text =
+    theme.colors.on_primary ?? mostReadable(theme.colors.primary, [theme.colors.ink, "#FFFFFF"]);
+  return (
+    <a
+      href={props.href}
+      style={{
+        display: "inline-block",
+        padding: "12px 20px",
+        backgroundColor: theme.colors.primary,
+        color: text,
+        border: `${theme.border_width} solid ${theme.colors.ink}`,
+        borderRadius: theme.radius === "0px" ? 0 : 10,
+        fontWeight: 700,
+        textDecoration: "none",
+      }}
+    >
+      {props.children}
+    </a>
+  );
+}
+
+/** Brand, legal links and "Powered by enaibler"; optionally why the mail came. */
+export function EmailFooter(props: { tenant: TenantContext; t: Translator; reason?: string }) {
+  const { tenant, t } = props;
+  const links = tenant.settings.legal_links;
+  return (
+    <>
+      {props.reason && (
+        <>
+          {props.reason}
+          <br />
+        </>
+      )}
+      {tenant.settings.author_display_name}
+      {links.imprint && (
+        <>
+          {" · "}
+          <a href={links.imprint} style={{ color: "inherit" }}>
+            {t.t("footer.imprint")}
+          </a>
+        </>
+      )}
+      {links.privacy && (
+        <>
+          {" · "}
+          <a href={links.privacy} style={{ color: "inherit" }}>
+            {t.t("footer.privacy")}
+          </a>
+        </>
+      )}
+      <br />
+      {t.t("app.poweredBy")}
+    </>
   );
 }

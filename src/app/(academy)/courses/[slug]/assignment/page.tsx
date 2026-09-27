@@ -6,6 +6,7 @@ import { SubmissionForm } from "@/app/(academy)/courses/[slug]/assignment/submis
 import { SubmittedFiles } from "@/components/submitted-files";
 import { uploadLabels } from "@/components/upload-labels";
 import { FeedbackView } from "@/components/feedback-view";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
@@ -15,6 +16,7 @@ import { canResubmit, type Outcome } from "@/core/review/outcome";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
+import { markResultSeen } from "@/server/notifications";
 import { getTranslator } from "@/server/request";
 
 const FILE_ACCEPT: Record<FileKind, string> = {
@@ -33,6 +35,8 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
 
   const fallback = [tenant.settings.default_locale];
   const latest = data.attempts[0] ?? null;
+  // Seen here, the result needs no "feedback is ready" mail.
+  if (latest?.unseen) await markResultSeen(getDb(), tenant.id, viewer.userId, latest.id);
   const outcomeBadge = (outcome: Outcome) =>
     outcome === "passed" ? (
       <Badge tone="good" icon={CircleCheck}>
@@ -50,6 +54,12 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
+      {/* Review status live (brief §5); after a quarter of an hour the mail takes over. */}
+      <AutoRefresh
+        active={latest?.outcome === "pending"}
+        everyMs={5_000}
+        stopAfterMs={15 * 60_000}
+      />
       <Link
         href={`/courses/${slug}`}
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"

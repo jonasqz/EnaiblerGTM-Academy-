@@ -1,5 +1,5 @@
-import { normalizeHost } from "@/core/tenant/context";
-import { env, isProduction } from "@/server/env";
+import { normalizeHost, type TenantContext } from "@/core/tenant/context";
+import { isProduction } from "@/server/env";
 
 /**
  * The platform site (self-serve signup) and where new academies live. One
@@ -48,11 +48,23 @@ export function isPlatformHost(hostHeader: string | null | undefined): boolean {
   return host !== null && host === platformConfig()?.host;
 }
 
-/** Host (with the dev port in development) and origin of an academy domain. */
+/**
+ * Host (with the dev port in development) and origin of an academy domain.
+ * Read by name: the worker links to academies in mails and has no env().
+ */
 export function academyOrigin(domain: string): { host: string; origin: string } {
-  const { APP_PROTOCOL, DEV_PORT } = env();
-  const host = isProduction() ? domain : `${domain}:${DEV_PORT}`;
-  return { host, origin: `${APP_PROTOCOL}://${host}` };
+  const production = process.env.NODE_ENV === "production";
+  const configured = process.env.APP_PROTOCOL?.trim();
+  const protocol =
+    configured === "http" || configured === "https" ? configured : production ? "https" : "http";
+  const port = Number(process.env.DEV_PORT?.trim() || 3000);
+  const host = production ? domain : `${domain}:${port}`;
+  return { host, origin: `${protocol}://${host}` };
+}
+
+/** An absolute link into an academy, for mails and exports. */
+export function academyUrl(tenant: TenantContext, path: string): string {
+  return `${academyOrigin(tenant.primaryDomain).origin}${path}`;
 }
 
 /**

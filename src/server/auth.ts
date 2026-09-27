@@ -6,8 +6,7 @@ import { nextCookies } from "better-auth/next-js";
 import { magicLink } from "better-auth/plugins";
 import { headers } from "next/headers";
 
-import { isLocale } from "@/core/i18n/locales";
-import { createTranslator } from "@/core/i18n/translator";
+import { tenantTranslator } from "@/core/i18n/tenant-translator";
 import type { TenantContext } from "@/core/tenant/context";
 import { getDb } from "@/db/client";
 import { account, session, user, verification } from "@/db/schema";
@@ -75,16 +74,7 @@ function createTenantAuth(tenant: TenantContext) {
         expiresIn: MAGIC_LINK_TTL_MINUTES * 60,
         storeToken: "hashed",
         sendMagicLink: async ({ email, url, metadata }) => {
-          const requested = metadata?.locale;
-          const locale =
-            isLocale(requested) && tenant.settings.locales.includes(requested)
-              ? requested
-              : tenant.settings.default_locale;
-          const t = createTranslator({
-            locale,
-            termOverrides: tenant.terminology,
-            messageOverrides: tenant.terminology.strings,
-          });
+          const t = tenantTranslator(tenant, metadata?.locale);
           const rendered = await renderMagicLinkEmail({
             tenant,
             t,

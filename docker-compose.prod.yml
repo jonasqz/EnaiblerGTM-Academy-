@@ -51,6 +51,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:?}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:?}
       SMTP_URL: ${SMTP_URL:?}
+      # Links in learner mail (review ready, level-up).
+      APP_PROTOCOL: https
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_REVIEW_MODEL: ${LLM_REVIEW_MODEL:-}

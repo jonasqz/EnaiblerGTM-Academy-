@@ -8,7 +8,7 @@ import {
   runCalibrationAction,
 } from "@/app/studio/courses/[courseId]/calibrate/actions";
 import { ExemplarForm } from "@/app/studio/courses/[courseId]/calibrate/exemplar-form";
-import { AutoRefresh } from "@/components/studio/auto-refresh";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";

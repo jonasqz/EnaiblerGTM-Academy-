@@ -64,7 +64,8 @@ const en = {
   "assignment.urlLabel": "Link to your work",
   "assignment.submit": "Submit for review",
   "assignment.submitting": "Submitting…",
-  "assignment.pending": "Your work is being reviewed. Feedback usually arrives within minutes.",
+  "assignment.pending":
+    "Your work is being reviewed. Feedback usually arrives within minutes. You can leave this page: we'll email you when it's ready.",
   "assignment.passed": "Passed",
   "assignment.needsRevision": "Needs revision",
   "assignment.inReview": "In review",
@@ -110,6 +111,18 @@ const en = {
   "me.contactTitle": "Contact from {academy}",
   "me.contactLabel": "{academy} may contact me about its offers.",
   "me.contactHint": "Optional and separate from your learning. You can withdraw at any time.",
+  "me.newsTitle": "News from {academy}",
+  "me.newsLabel":
+    "Yes, send me news and offers from {academy} by email. I can unsubscribe at any time.",
+  "me.newsHint": "Separate from your learning: mails about your feedback come either way.",
+  "me.newsSubscribe": "Subscribe",
+  "me.newsPending": "Almost done: open the link we sent to {email} to confirm.",
+  "me.newsResend": "Send the link again",
+  "me.newsCancel": "Cancel",
+  "me.newsConfirmed": "You get news from {academy}. Subscribed on {date}.",
+  "me.newsUnsubscribe": "Unsubscribe",
+  "me.newsSent": "Check your inbox: we sent you a confirmation link.",
+  "me.newsSendFailed": "The email could not be sent. Please try again later.",
   "me.dataTitle": "Your data",
   "me.export": "Download my data (ZIP with JSON and files)",
   "me.deleteBody":
@@ -147,6 +160,16 @@ const en = {
   "verify.makePublic": "Make public",
   "verify.makePrivate": "Make private",
 
+  "consent.confirmTitle": "Confirm news from {academy}",
+  "consent.confirmBody":
+    "Confirm that you want news and offers from {academy} by email. You can unsubscribe at any time in your profile.",
+  "consent.confirmButton": "Confirm",
+  "consent.confirmed": "Done: you'll get news from {academy}.",
+  "consent.confirmedBody": "You can unsubscribe at any time in your profile.",
+  "consent.invalid": "This link has expired or was already used.",
+  "consent.invalidBody": "You can ask for a new one in your profile.",
+  "consent.toProfile": "Go to your profile",
+
   "error.notFound": "Page not found",
 
   "email.magicLink.subject": "Your sign-in link for {academy}",
@@ -155,6 +178,28 @@ const en = {
     "Use the button below to sign in. The link expires in {minutes} minutes and works once.",
   "email.magicLink.button": "Sign in",
   "email.magicLink.ignore": "If you didn't request this email, you can safely ignore it.",
+  "email.reason": "You get this email because you learn at {academy}.",
+  "email.reviewReady.subject": "Feedback on “{artifact}” is ready",
+  "email.reviewReady.headingPassed": "You passed: {artifact}",
+  "email.reviewReady.headingRevise": "Your feedback on {artifact}",
+  "email.reviewReady.secondLook": "A reviewer took a second look at your work.",
+  "email.reviewReady.bodyPassed":
+    "Your work in “{course}” passed the review. Your {term.credential} is ready. It stays private until you choose to share it.",
+  "email.reviewReady.bodyRevise":
+    "Your work in “{course}” got feedback on every criterion. Revise it and hand it in again whenever you're ready.",
+  "email.reviewReady.levelUp": "You also reached {term.level} {n} · {name}.",
+  "email.reviewReady.button": "See your feedback",
+  "email.levelUp.subject": "New {term.level} at {academy}: {name}",
+  "email.levelUp.heading": "{term.level} {n} · {name}",
+  "email.levelUp.body": "The {academy} team gave you the {term.level} “{name}” in {path}.",
+  "email.levelUp.button": "Open your profile",
+  "email.news.subject": "Please confirm: news from {academy}",
+  "email.news.heading": "One click to confirm",
+  "email.news.body":
+    "You asked for news and offers from {academy} by email. Please confirm that it was you: nothing happens without your click.",
+  "email.news.button": "Yes, send me news",
+  "email.news.note":
+    "The link works for {days} days. If you didn't ask for this, ignore this email and you won't hear from us.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -220,7 +265,7 @@ const de: Record<MessageKey, string> = {
   "assignment.submit": "Zur Bewertung einreichen",
   "assignment.submitting": "Wird eingereicht…",
   "assignment.pending":
-    "Deine Arbeit wird bewertet. Feedback kommt meist innerhalb weniger Minuten.",
+    "Deine Arbeit wird bewertet. Feedback kommt meist innerhalb weniger Minuten. Du kannst die Seite verlassen: Wir schicken dir eine E-Mail, sobald es da ist.",
   "assignment.passed": "Bestanden",
   "assignment.needsRevision": "Überarbeiten",
   "assignment.inReview": "In Bewertung",
@@ -269,6 +314,19 @@ const de: Record<MessageKey, string> = {
   "me.contactTitle": "Kontakt durch {academy}",
   "me.contactLabel": "{academy} darf mich zu ihren Angeboten kontaktieren.",
   "me.contactHint": "Freiwillig und unabhängig vom Lernen. Jederzeit widerrufbar.",
+  "me.newsTitle": "Neuigkeiten von {academy}",
+  "me.newsLabel":
+    "Ja, schickt mir Neuigkeiten und Angebote von {academy} per E-Mail. Ich kann mich jederzeit abmelden.",
+  "me.newsHint": "Unabhängig vom Lernen: E-Mails zu deinem Feedback bekommst du so oder so.",
+  "me.newsSubscribe": "Anmelden",
+  "me.newsPending": "Fast geschafft: Öffne den Link, den wir an {email} geschickt haben.",
+  "me.newsResend": "Link noch einmal senden",
+  "me.newsCancel": "Abbrechen",
+  "me.newsConfirmed": "Du bekommst Neuigkeiten von {academy}. Angemeldet am {date}.",
+  "me.newsUnsubscribe": "Abmelden",
+  "me.newsSent": "Schau in dein Postfach: Wir haben dir einen Bestätigungslink geschickt.",
+  "me.newsSendFailed":
+    "Die E-Mail konnte nicht gesendet werden. Bitte versuch es später noch einmal.",
   "me.dataTitle": "Deine Daten",
   "me.export": "Meine Daten herunterladen (ZIP mit JSON und Dateien)",
   "me.deleteBody":
@@ -307,6 +365,16 @@ const de: Record<MessageKey, string> = {
   "verify.makePublic": "Öffentlich machen",
   "verify.makePrivate": "Privat machen",
 
+  "consent.confirmTitle": "Neuigkeiten von {academy} bestätigen",
+  "consent.confirmBody":
+    "Bestätige, dass du Neuigkeiten und Angebote von {academy} per E-Mail bekommen möchtest. Abmelden kannst du dich jederzeit in deinem Profil.",
+  "consent.confirmButton": "Bestätigen",
+  "consent.confirmed": "Erledigt: Du bekommst Neuigkeiten von {academy}.",
+  "consent.confirmedBody": "Abmelden kannst du dich jederzeit in deinem Profil.",
+  "consent.invalid": "Dieser Link ist abgelaufen oder wurde schon benutzt.",
+  "consent.invalidBody": "In deinem Profil kannst du einen neuen anfordern.",
+  "consent.toProfile": "Zum Profil",
+
   "error.notFound": "Seite nicht gefunden",
 
   "email.magicLink.subject": "Dein Anmeldelink für {academy}",
@@ -316,6 +384,30 @@ const de: Record<MessageKey, string> = {
   "email.magicLink.button": "Anmelden",
   "email.magicLink.ignore":
     "Wenn du diese E-Mail nicht angefordert hast, kannst du sie ignorieren.",
+  "email.reason": "Du bekommst diese E-Mail, weil du bei {academy} lernst.",
+  "email.reviewReady.subject": "Dein Feedback zu „{artifact}“ ist da",
+  "email.reviewReady.headingPassed": "Bestanden: {artifact}",
+  "email.reviewReady.headingRevise": "Dein Feedback zu {artifact}",
+  "email.reviewReady.secondLook":
+    "Jemand aus dem Team hat sich deine Arbeit noch einmal angesehen.",
+  "email.reviewReady.bodyPassed":
+    "Deine Arbeit in „{course}“ hat die Bewertung bestanden. Deine {term.credential} ist bereit. Sie bleibt privat, bis du sie teilst.",
+  "email.reviewReady.bodyRevise":
+    "Deine Arbeit in „{course}“ hat Feedback zu jedem Kriterium bekommen. Überarbeite sie und reiche sie wieder ein, wann immer du so weit bist.",
+  "email.reviewReady.levelUp": "Außerdem hast du {term.level} {n} · {name} erreicht.",
+  "email.reviewReady.button": "Feedback ansehen",
+  "email.levelUp.subject": "Neues {term.level} bei {academy}: {name}",
+  "email.levelUp.heading": "{term.level} {n} · {name}",
+  "email.levelUp.body":
+    "Das Team von {academy} hat dir das {term.level} „{name}“ in {path} gegeben.",
+  "email.levelUp.button": "Profil öffnen",
+  "email.news.subject": "Bitte bestätigen: Neuigkeiten von {academy}",
+  "email.news.heading": "Ein Klick zur Bestätigung",
+  "email.news.body":
+    "Du möchtest Neuigkeiten und Angebote von {academy} per E-Mail bekommen. Bitte bestätige, dass du das warst: Ohne deinen Klick passiert nichts.",
+  "email.news.button": "Ja, schickt mir Neuigkeiten",
+  "email.news.note":
+    "Der Link ist {days} Tage gültig. Wenn du das nicht angefordert hast, ignoriere diese E-Mail. Dann hörst du nichts von uns.",
 };
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = { en, de };

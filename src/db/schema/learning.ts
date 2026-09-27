@@ -101,6 +101,8 @@ export const submissions = pgTable(
     filesText: text("files_text"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** When the learner last saw the decided result; a result seen on the page needs no mail. */
+    resultSeenAt: timestamp("result_seen_at", { withTimezone: true }),
   },
   (table) => [
     unique("submissions_attempt").on(table.assignmentId, table.userId, table.attemptNo),

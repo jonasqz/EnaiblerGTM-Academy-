@@ -1,4 +1,4 @@
-import { Award, BookOpen, CircleCheck, Download, Globe, Lock } from "lucide-react";
+import { Award, BookOpen, CircleCheck, Download, Globe, Lock, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -6,16 +6,20 @@ import {
   deleteMyDataAction,
   saveContactOptInAction,
   saveDisplayNameAction,
+  subscribeNewsAction,
+  unsubscribeNewsAction,
 } from "@/app/(academy)/me/actions";
 import { setCredentialVisibility } from "@/app/(academy)/verify/[publicId]/actions";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
 import { localize } from "@/core/i18n/locales";
 import { pathColor } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
+import { loadMarketingConsent } from "@/server/consent";
 import { loadMe } from "@/server/profile";
 import { getTranslator } from "@/server/request";
 
@@ -24,10 +28,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.t("me.title"), robots: { index: false } };
 }
 
-export default async function MePage() {
+export default async function MePage({ searchParams }: PageProps<"/me">) {
+  const { news: newsNotice } = await searchParams;
   const { tenant, viewer } = await requireViewer("/me");
   const t = await getTranslator();
-  const me = await loadMe(getDb(), tenant, viewer.userId);
+  const [me, news] = await Promise.all([
+    loadMe(getDb(), tenant, viewer.userId),
+    loadMarketingConsent(getDb(), tenant.id, viewer.userId),
+  ]);
   const fallback = [tenant.settings.default_locale];
   const academy = tenant.settings.author_display_name;
   const named = Boolean(me.profile?.displayName);
@@ -42,7 +50,16 @@ export default async function MePage() {
             className="grid size-14 place-items-center rounded-control border-outline border-line font-display text-2xl"
             style={{ background: pathColor(tenant.theme, 0, me.path.color) }}
           >
-            {localize(me.path.title, t.locale, fallback).slice(0, 1)}
+            {me.path.visual?.svg || me.path.visual?.png ? (
+              // eslint-disable-next-line @next/next/no-img-element -- uploaded path picture
+              <img
+                src={me.path.visual.svg ?? me.path.visual.png}
+                alt=""
+                className="size-11 object-contain"
+              />
+            ) : (
+              localize(me.path.title, t.locale, fallback).slice(0, 1)
+            )}
           </span>
           <div>
             <p className="eyebrow">{t.t("me.yourPath")}</p>
@@ -194,6 +211,63 @@ export default async function MePage() {
             {t.t("me.save")}
           </button>
         </form>
+      </section>
+
+      <section
+        id="news"
+        className="card-flat scroll-mt-8 space-y-3 p-5"
+        aria-labelledby="news-heading"
+      >
+        <h2 id="news-heading" className="flex items-center gap-2 font-semibold">
+          <Mail aria-hidden size={18} /> {t.t("me.newsTitle", { academy })}
+        </h2>
+        {newsNotice === "sent" && news.state === "pending" && (
+          <Notice tone="good" title={t.t("me.newsSent")} />
+        )}
+        {newsNotice === "failed" && <Notice tone="critical" title={t.t("me.newsSendFailed")} />}
+        {news.state === "confirmed" ? (
+          <form action={unsubscribeNewsAction} className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 text-sm">
+              {t.t("me.newsConfirmed", {
+                academy,
+                date: news.confirmedAt!.toLocaleDateString(t.locale === "de" ? "de-DE" : "en-GB", {
+                  dateStyle: "medium",
+                }),
+              })}
+            </p>
+            <button type="submit" className="btn btn-secondary btn-sm">
+              {t.t("me.newsUnsubscribe")}
+            </button>
+          </form>
+        ) : news.state === "pending" ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {newsNotice !== "sent" && (
+              <p className="w-full text-sm">{t.t("me.newsPending", { email: viewer.email })}</p>
+            )}
+            <form action={subscribeNewsAction}>
+              <input type="hidden" name="agree" value="on" />
+              <button type="submit" className="btn btn-secondary btn-sm">
+                {t.t("me.newsResend")}
+              </button>
+            </form>
+            <form action={unsubscribeNewsAction}>
+              <button type="submit" className="btn btn-ghost btn-sm">
+                {t.t("me.newsCancel")}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <form action={subscribeNewsAction} className="space-y-3">
+            <label className="flex items-start gap-3">
+              <input type="checkbox" name="agree" required className="mt-1 size-4" />
+              <span className="text-sm">{t.t("me.newsLabel", { academy })}</span>
+            </label>
+            <button type="submit" className="btn btn-secondary btn-sm">
+              {t.t("me.newsSubscribe")}
+            </button>
+          </form>
+        )}
+        <p className="hint">{t.t("me.newsHint")}</p>
       </section>
 
       <section id="data" className="card-flat space-y-4 p-5" aria-labelledby="data-heading">

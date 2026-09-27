@@ -80,9 +80,14 @@ export const featuresSchema = z.strictObject({
 });
 export type Features = z.output<typeof featuresSchema>;
 
+/**
+ * Each part falls back: the name to the academy's name, the address to the
+ * platform sender (a custom address needs the relay to sign for its domain).
+ * Self-serve academies set only where replies go.
+ */
 export const emailSenderSchema = z.strictObject({
-  name: z.string().trim().min(1).max(80),
-  address: z.email(),
+  name: z.string().trim().min(1).max(80).optional(),
+  address: z.email().optional(),
   reply_to: z.email().optional(),
 });
 
@@ -328,8 +333,8 @@ export function manifestWarnings(manifest: TenantManifest): string[] {
     warnings.push("Cohorts are a phase 2 feature and are not available yet.");
   if (tenant.features.showcase)
     warnings.push("Showcase is a phase 2 feature and is not available yet.");
-  if (!tenant.email_sender)
-    warnings.push("No email_sender set: mail goes out from the platform address.");
+  if (!tenant.email_sender?.address)
+    warnings.push("No email_sender address set: mail goes out from the platform address.");
 
   const legal = Object.values(tenant.legal_links).filter((url): url is string => Boolean(url));
   if (new Set(legal).size < legal.length || legal.some((url) => new URL(url).pathname === "/")) {

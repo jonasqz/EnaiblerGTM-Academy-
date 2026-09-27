@@ -19,6 +19,8 @@ export const CAPABILITIES = [
   "people.view",
   /** Academy settings: name, languages, legal pages, brand. */
   "academy.manage",
+  /** E-mail addresses of learners who agreed to hear from the academy. */
+  "contacts.export",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 

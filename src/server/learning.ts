@@ -53,6 +53,8 @@ export interface LearnerAttempt {
     overall: ReviewOverall;
     reviewer: "ai" | "human";
   } | null;
+  /** A decided result the learner has not looked at yet (its mail is still due). */
+  unseen: boolean;
 }
 
 export async function loadLearnerCourse(
@@ -144,6 +146,10 @@ export async function loadLearnerCourse(
           feedback: shown
             ? { criteria: shown.criteria, overall: shown.overall, reviewer: shown.reviewerType }
             : null,
+          unseen:
+            outcome !== "pending" &&
+            row.decidedAt !== null &&
+            (row.resultSeenAt === null || row.resultSeenAt < row.decidedAt),
         });
       }
     }

@@ -15,7 +15,7 @@ import { notFound } from "next/navigation";
 
 import { createLessonAction, deleteLessonAction, moveLessonAction } from "@/app/studio/actions";
 import { draftLessonsAction } from "@/app/studio/courses/[courseId]/sources/actions";
-import { AutoRefresh } from "@/components/studio/auto-refresh";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";

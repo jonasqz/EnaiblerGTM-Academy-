@@ -19,6 +19,7 @@ import {
 import { withTenant } from "@/db/tenant-scope";
 import { trackEvent } from "@/server/events";
 import { fileBytes, fileUrl, loadFile, storeFile } from "@/server/files";
+import { queueLevelUp } from "@/server/notifications";
 
 /*
  * Paths and levels in the Studio (brief §4, optional modules). Manifests can
@@ -339,6 +340,11 @@ export async function grantLevel(
         userId: input.userId,
         pathId: input.pathId,
         props: { level: input.levelN, manual: true },
+      });
+      await queueLevelUp(tx, tenant.id, {
+        userId: input.userId,
+        pathId: input.pathId,
+        level: input.levelN,
       });
     }
     return { ok: true, levelUp };

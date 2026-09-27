@@ -44,6 +44,7 @@ export async function saveAcademySettingsAction(
     locales: [defaultLocale, ...locales.filter((locale) => locale !== defaultLocale)],
     defaultLocale,
     website: httpsUrl(text(formData, "website")) ?? null,
+    replyTo: text(formData, "replyTo") || null,
     legalLinks: {
       imprint: httpsUrl(text(formData, "imprint")),
       privacy: httpsUrl(text(formData, "privacy")),
@@ -90,6 +91,7 @@ function readable(error: string): string {
     [/^tenant\.author_display_name: /, "Academy name: "],
     [/^tenant\.legal_links\.(\w+): /, "Legal page ($1): "],
     [/^tenant\.website: /, "Website: "],
+    [/^tenant\.email_sender\.reply_to: /, "Replies go to: "],
     [/^tenant\.verification_cta\.label[.\w]*: /, "Certificate button: "],
     [/^tenant\.[\w.]+: /, ""],
   ];

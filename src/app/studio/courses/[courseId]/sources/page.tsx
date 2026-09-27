@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 
 import { deleteSourceAction } from "@/app/studio/courses/[courseId]/sources/actions";
 import { AddSource } from "@/app/studio/courses/[courseId]/sources/add-source";
-import { AutoRefresh } from "@/components/studio/auto-refresh";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { SourceStatusBadge } from "@/components/studio/status-badges";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";

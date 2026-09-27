@@ -1,6 +1,7 @@
 import { AcademyForm } from "@/app/studio/settings/academy-form";
 import { SUPPORTED_LOCALES } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
+import { senderFor } from "@/server/email/mailer";
 import { academyOrigin } from "@/server/platform/config";
 
 export default async function AcademySettingsPage() {
@@ -14,6 +15,8 @@ export default async function AcademySettingsPage() {
       defaultLocale={settings.default_locale}
       allLocales={SUPPORTED_LOCALES}
       website={settings.website ?? ""}
+      sender={`${senderFor(tenant).name} <${senderFor(tenant).address}>`}
+      replyTo={settings.email_sender?.reply_to ?? ""}
       legalLinks={settings.legal_links}
       ctaLabel={settings.verification_cta.label}
       features={settings.features}

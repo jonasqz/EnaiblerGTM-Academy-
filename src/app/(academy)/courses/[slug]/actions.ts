@@ -55,5 +55,6 @@ export async function submitAssignmentAction(
   );
   if (!result.ok) return { status: "error", error: result.error, fieldErrors: result.fieldErrors };
   revalidatePath(`/courses/${slug}/assignment`);
-  redirect(`/courses/${slug}/assignment#attempts`);
+  // A new address, not just a new #hash: a hash-only redirect keeps the old page on screen.
+  redirect(`/courses/${slug}/assignment?attempt=${result.attemptNo}#attempts`);
 }
