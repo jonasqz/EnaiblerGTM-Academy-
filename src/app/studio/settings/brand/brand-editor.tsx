@@ -18,7 +18,7 @@ import {
   type ShadowKind,
   type ThemeDraft,
 } from "@/app/studio/settings/brand/theme-draft";
-import { ThemePreview } from "@/app/studio/settings/brand/theme-preview";
+import { ThemePreview, type PreviewSample } from "@/app/studio/settings/brand/theme-preview";
 import { saveThemeAction } from "@/app/studio/settings/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
@@ -92,8 +92,7 @@ export function BrandEditor(props: {
   initial: Theme;
   isDefault: boolean;
   academyName: string;
-  courseTerm: string;
-  lessonTerm: string;
+  sample: PreviewSample;
   website: string;
   fonts: readonly BundledFont[];
 }) {
@@ -737,8 +736,7 @@ export function BrandEditor(props: {
           variables={variables}
           logo={draft.logo}
           academyName={props.academyName}
-          courseTerm={props.courseTerm}
-          lessonTerm={props.lessonTerm}
+          sample={props.sample}
         />
         {issues.length > 0 && (
           <FormFeedback
