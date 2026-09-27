@@ -39,4 +39,16 @@ describe("the platform host behind the academies' report link", () => {
     vi.stubEnv("PLATFORM_ABUSE_EMAIL", " abuse@enaibler.app ");
     expect(platformConfig()?.abuseEmail).toBe("abuse@enaibler.app");
   });
+
+  it("ignores a legal link to the website's own page, which would redirect to itself", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PLATFORM_HOST", "enaibler.app");
+    vi.stubEnv("ACADEMY_DOMAIN", "academies.enaibler.app");
+    vi.stubEnv("PLATFORM_TERMS_URL", "https://enaibler.app/terms");
+    vi.stubEnv("PLATFORM_DPA_URL", "https://legal.example.com/dpa");
+    expect(platformConfig()?.links).toMatchObject({
+      terms: undefined,
+      dpa: "https://legal.example.com/dpa",
+    });
+  });
 });

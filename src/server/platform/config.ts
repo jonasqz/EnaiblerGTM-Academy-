@@ -35,14 +35,21 @@ export function platformConfig(): PlatformConfig | null {
     trimmed(process.env.ACADEMY_DOMAIN) ?? (production ? undefined : "localhost"),
   );
   if (!host || !academyDomain) return null;
+  // A link to this website is no document kept elsewhere: its built-in page
+  // stays, and counts only once final (redirecting to itself would loop).
+  const elsewhere = (value: string | undefined) => {
+    const url = trimmed(value);
+    if (!url || !URL.canParse(url)) return url;
+    return normalizeHost(new URL(url).host) === host ? undefined : url;
+  };
   return {
     host,
     academyDomain,
     links: {
-      terms: trimmed(process.env.PLATFORM_TERMS_URL),
-      dpa: trimmed(process.env.PLATFORM_DPA_URL),
-      privacy: trimmed(process.env.PLATFORM_PRIVACY_URL),
-      imprint: trimmed(process.env.PLATFORM_IMPRINT_URL),
+      terms: elsewhere(process.env.PLATFORM_TERMS_URL),
+      dpa: elsewhere(process.env.PLATFORM_DPA_URL),
+      privacy: elsewhere(process.env.PLATFORM_PRIVACY_URL),
+      imprint: elsewhere(process.env.PLATFORM_IMPRINT_URL),
       // An academy visitors of the website can look around in.
       demo: trimmed(process.env.PLATFORM_DEMO_URL),
     },
