@@ -61,6 +61,14 @@ export async function recordAiUsage(
   }
 }
 
+/** Told what one request used; services outside LlmCaller (Whisper, embeddings) report through it. */
+export type UsageCallback = (amount: UsageAmount) => Promise<void>;
+
+/** Records each request a service reports for this academy. */
+export function usageRecorder(db: Database, scope: UsageScope): UsageCallback {
+  return (amount) => recordAiUsage(db, scope, amount);
+}
+
 /** The same caller, recording each call it makes for this academy. */
 export function meteredLlm(db: Database, llm: LlmCaller, scope: UsageScope): LlmCaller {
   return async (options) => {

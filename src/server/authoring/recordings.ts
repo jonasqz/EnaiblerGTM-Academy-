@@ -17,7 +17,8 @@ import { isLocale, type Locale } from "@/core/i18n/locales";
 import { JobFailure, jobErrorCode } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import type { TranscriptSegment } from "@/db/schema/authoring";
-import type { AuthoringModel } from "@/server/authoring/model";
+import { usageRecorder } from "@/server/ai-usage";
+import { meteredModel, type AuthoringModel } from "@/server/authoring/model";
 import {
   downloadFile,
   extractAudio,
@@ -112,12 +113,23 @@ export async function transcribeRecording(
     const audio = join(dir.path, "audio.mp3");
     await extractAudio(input, audio);
     const locale = isLocale(source.locale) ? source.locale : null;
-    const segments = await transcribe(deps.whisper, audio, locale);
+    const scope = { tenantId, courseId: source.courseId, refId: sourceId };
+    const segments = await transcribe(
+      deps.whisper,
+      audio,
+      locale,
+      usageRecorder(db, { ...scope, kind: "transcription" }),
+    );
     if (segments.length === 0) throw new JobFailure("no_speech");
 
     const topics =
-      (deps.model && locale ? await topicsFromModel(deps.model, segments, locale) : null) ??
-      groupByTime(segments);
+      (deps.model && locale
+        ? await topicsFromModel(
+            meteredModel(db, deps.model, { ...scope, kind: "recording_topics" }),
+            segments,
+            locale,
+          )
+        : null) ?? groupByTime(segments);
     const transcript: TranscriptSegment[] = topics.map((topic) => ({
       startSec: Math.round(topic.startSec * 10) / 10,
       endSec: Math.round(topic.endSec * 10) / 10,

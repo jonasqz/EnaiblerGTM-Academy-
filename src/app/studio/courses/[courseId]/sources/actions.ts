@@ -13,7 +13,7 @@ import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { suggestInterviewQuestions } from "@/server/authoring/interview";
 import { requestLessonDraft } from "@/server/authoring/lesson-drafting";
-import { authoringModel } from "@/server/authoring/model";
+import { authoringModel, meteredModel } from "@/server/authoring/model";
 import { createSource, deleteSource, loadSource, recheckSource } from "@/server/authoring/sources";
 import { normalizeWebsite } from "@/server/brand/import";
 import { loadFile } from "@/server/files";
@@ -113,7 +113,7 @@ export type QuestionsState = { questions: string[]; message?: string };
 
 /** Questions tailored to this course's artifact and criteria (defaults without a model). */
 export async function suggestQuestionsAction(formData: FormData): Promise<QuestionsState> {
-  const { tenant, editor, languages } = await courseFor(formData);
+  const { tenant, editor, courseId, languages } = await courseFor(formData);
   const locale = isLocale(text(formData, "locale"))
     ? (text(formData, "locale") as Locale)
     : languages[0]!;
@@ -130,7 +130,12 @@ export async function suggestQuestionsAction(formData: FormData): Promise<Questi
     };
   }
   const rubric = rubricSchema.parse(editor.rubric.definition);
-  const questions = await suggestInterviewQuestions(model, {
+  const metered = meteredModel(getDb(), model, {
+    tenantId: tenant.id,
+    kind: "interview",
+    courseId,
+  });
+  const questions = await suggestInterviewQuestions(metered, {
     locale,
     artifactName: artifact,
     assignmentPrompt: localize(editor.assignment.prompt, locale, languages),

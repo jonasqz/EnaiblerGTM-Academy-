@@ -4,6 +4,7 @@ import type { StudioText } from "@/core/i18n/studio/translator";
 import type { ThemeInput } from "@/core/theme/schema";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { meteredLlm } from "@/server/ai-usage";
 import { fontFromUpload, logoFromUpload } from "@/server/brand/assets";
 import { importBrand, type BrandNote } from "@/server/brand/import";
 import { env } from "@/server/env";
@@ -44,7 +45,11 @@ export async function importBrandAction(
   }
   const { LLM_BASE_URL, LLM_API_KEY, LLM_BRAND_MODEL, LLM_REVIEW_MODEL } = env();
   const llm = LLM_BASE_URL
-    ? createLlmCaller({ baseUrl: LLM_BASE_URL, apiKey: LLM_API_KEY, timeoutMs: 30_000 })
+    ? meteredLlm(
+        getDb(),
+        createLlmCaller({ baseUrl: LLM_BASE_URL, apiKey: LLM_API_KEY, timeoutMs: 30_000 }),
+        { tenantId: tenant.id, kind: "brand_import" },
+      )
     : null;
   const url = formData.get("url");
   const result = await importBrand(typeof url === "string" ? url : "", {

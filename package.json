@@ -26,6 +26,7 @@
     "tenant:apply": "tsx --env-file-if-exists=.env.local scripts/tenant-apply.ts",
     "tenant:validate": "tsx scripts/tenant-apply.ts --dry-run",
     "role:grant": "tsx --env-file-if-exists=.env.local scripts/grant-role.ts",
+    "usage:report": "tsx --env-file-if-exists=.env.local scripts/usage-report.ts",
     "review:spike": "tsx --env-file-if-exists=.env.local scripts/review-spike.ts"
   },
   "dependencies": {

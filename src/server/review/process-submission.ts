@@ -10,6 +10,7 @@ import type { Database, Transaction } from "@/db/client";
 import { assignments, courses, enrollments, reviews, rubrics, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
+import { meteredLlm } from "@/server/ai-usage";
 import { completeCourse } from "@/server/courses/completion";
 import { trackEvent } from "@/server/events";
 import type { LlmCaller } from "@/server/llm";
@@ -141,7 +142,13 @@ export async function processSubmission(
   } else {
     try {
       const outcome = await runAiReview({
-        llm: deps.llm,
+        // Every call counts, retries and unusable answers included: the model ran.
+        llm: meteredLlm(db, deps.llm, {
+          tenantId: tenant.id,
+          kind: "review",
+          courseId: context.assignment.courseId,
+          refId: context.submission.id,
+        }),
         model: deps.model,
         prompt: {
           locale: context.locale,

@@ -30,6 +30,7 @@ import {
 } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
+import { meteredLlm, usageRecorder, type UsageCallback } from "@/server/ai-usage";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { embed, type EmbeddingConfig } from "@/server/authoring/speech";
 import type { Enqueue } from "@/server/jobs/producer";
@@ -100,6 +101,7 @@ async function gatherMaterial(
   courseId: string,
   criteria: ReadonlyArray<{ label: string; description: string }>,
   embeddings: EmbeddingConfig | null,
+  onUsage: UsageCallback,
 ): Promise<Material> {
   const material: Material = { passages: [], sourceOf: new Map(), keyframes: new Map() };
   let budget = PASSAGE_BUDGET;
@@ -186,7 +188,7 @@ async function gatherMaterial(
     let best: typeof chunks = [];
     if (embeddings) {
       const vector = (
-        await embed(embeddings, [query], EMBEDDING_DIMENSIONS).catch(() => null)
+        await embed(embeddings, [query], EMBEDDING_DIMENSIONS, onUsage).catch(() => null)
       )?.[0];
       if (vector) {
         best = await withTenant(db, tenantId, (tx) =>
@@ -286,7 +288,16 @@ export async function runLessonDraft(
     label: localize(criterion.label, locale, fallback),
     description: localize(criterion.description, locale, fallback),
   }));
-  const material = await gatherMaterial(db, tenantId, run.courseId, criteria, deps.embeddings);
+  const scope = { tenantId, courseId: run.courseId, refId: draftId };
+  const material = await gatherMaterial(
+    db,
+    tenantId,
+    run.courseId,
+    criteria,
+    deps.embeddings,
+    usageRecorder(db, { ...scope, kind: "embedding" }),
+  );
+  const llm = meteredLlm(db, deps.model.llm, { ...scope, kind: "lesson_draft" });
   const prompt = buildLessonDraftPrompt({
     locale,
     artifactName: localize(context.assignment.artifactName, locale, fallback),
@@ -307,7 +318,7 @@ export async function runLessonDraft(
   let model = deps.model.model;
   try {
     for (let attempt = 0; attempt < 2 && !parsed.ok; attempt++) {
-      const call = await deps.model.llm({
+      const call = await llm({
         model: deps.model.model,
         temperature: 0.4,
         maxTokens: 12_000,

@@ -9,6 +9,7 @@ import { assignments, calibrationRuns, courses, rubrics } from "@/db/schema";
 import type { CalibrationResult } from "@/db/schema/authoring";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
+import { meteredLlm } from "@/server/ai-usage";
 import type { Enqueue } from "@/server/jobs/producer";
 import { QUEUES } from "@/server/jobs/queues";
 import type { LlmCaller } from "@/server/llm";
@@ -96,6 +97,12 @@ export async function runCalibration(
     tx.update(calibrationRuns).set({ status: "running" }).where(eq(calibrationRuns.id, runId)),
   );
 
+  const llm = meteredLlm(db, deps.llm, {
+    tenantId,
+    kind: "calibration",
+    courseId: context.run.courseId,
+    refId: runId,
+  });
   const rubric = rubricSchema.parse(context.rubricRow.definition);
   const locale = (context.course.languages[0] ?? tenant.settings.default_locale) as Locale;
   const fallback = [tenant.settings.default_locale];
@@ -115,7 +122,7 @@ export async function runCalibration(
         ...(exemplar.expected_scores ? { expectedScores: exemplar.expected_scores } : {}),
       };
       const outcome = await runAiReview({
-        llm: deps.llm,
+        llm,
         model: deps.model,
         prompt: {
           locale,
