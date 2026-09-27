@@ -219,6 +219,21 @@ describe.skipIf(!hasDatabase)("credentials, phase 2", () => {
         }),
       ).toEqual({ ok: false, error: "not_found" });
 
+      // A certificate earned by the test alone has no work to show.
+      await withTenant(dbs.app.db, tenant.id, (tx) =>
+        tx.update(credentials).set({ basis: "test" }).where(eq(credentials.id, row!.id)),
+      );
+      expect(
+        await saveShowcase(dbs.app.db, tenant, {
+          userId: row!.userId,
+          publicId: row!.publicId,
+          showcase: { text: "All five answers right.", fileIds: [] },
+        }),
+      ).toEqual({ ok: false, error: "not_found" });
+      await withTenant(dbs.app.db, tenant.id, (tx) =>
+        tx.update(credentials).set({ basis: "work" }).where(eq(credentials.id, row!.id)),
+      );
+
       // Taken off the page, the picture is deleted.
       await saveShowcase(dbs.app.db, tenant, {
         userId: row!.userId,

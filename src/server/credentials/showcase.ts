@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { hasBlockingWording, lintWording } from "@/core/compliance/wording-lint";
+import { requiresWork } from "@/core/courses/completion";
 import { normalizePublicId } from "@/core/credentials/public-id";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
@@ -11,7 +12,8 @@ import { attachFiles, deleteFiles } from "@/server/files";
 /*
  * Showcase (brief §6, phase 2): the learner may show an excerpt of their
  * work on the verification page. Opt-in per credential, shown only while
- * the credential is public, removable at any time.
+ * the credential is public, removable at any time; only for credentials
+ * earned with work.
  */
 
 export const SHOWCASE_MAX_TEXT = 2_000;
@@ -64,7 +66,7 @@ export async function saveShowcase(
   try {
     await withTenant(db, tenant.id, async (tx) => {
       const [credential] = await tx
-        .select({ id: credentials.id, showcase: credentials.showcase })
+        .select({ id: credentials.id, showcase: credentials.showcase, basis: credentials.basis })
         .from(credentials)
         .where(
           and(
@@ -78,6 +80,8 @@ export async function saveShowcase(
 
       let showcase: Showcase | null = null;
       if (next && (next.text || next.fileIds.length > 0)) {
+        // Earned by the test alone, there is no work to show.
+        if (!requiresWork(credential.basis)) throw new Error("not_found");
         const kept = new Set(credential.showcase?.fileIds ?? []);
         const fresh = next.fileIds.filter((id) => !kept.has(id));
         // New pictures are this learner's pending uploads; attaching them fails otherwise.

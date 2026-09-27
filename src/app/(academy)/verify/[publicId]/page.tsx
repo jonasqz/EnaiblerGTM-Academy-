@@ -7,6 +7,7 @@ import { SharePanel } from "@/app/(academy)/verify/[publicId]/share-panel";
 import { ShowcaseEditor } from "@/app/(academy)/verify/[publicId]/showcase-editor";
 import { uploadLabels } from "@/components/upload-labels";
 import { Markdown } from "@/components/ui/markdown";
+import { requiresWork } from "@/core/courses/completion";
 import {
   ctaPath,
   previewDescription,
@@ -78,7 +79,8 @@ export default async function VerifyPage({
   const isOwner = credential.userId === viewer?.userId;
   const via = shareChannelOf(query.via);
   const fallback = [tenant.settings.default_locale];
-  const showcaseOn = tenant.settings.features.showcase;
+  // A credential earned by the test alone has no work to show.
+  const showcaseOn = tenant.settings.features.showcase && requiresWork(credential.basis);
   const showcase =
     showcaseOn && credential.showcase && (credential.visibility === "public" || isOwner)
       ? credential.showcase
