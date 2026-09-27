@@ -2,7 +2,7 @@ import { render } from "@react-email/render";
 
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
-import { EmailButton, EmailFooter, EmailLayout } from "@/server/email/templates/layout";
+import { EmailButton, EmailFooter, EmailLayout, emailLogo } from "@/server/email/templates/layout";
 
 export interface MagicLinkEmailInput {
   tenant: TenantContext;
@@ -24,6 +24,7 @@ export async function renderMagicLinkEmail(
       theme={theme}
       lang={t.locale}
       academyName={academy}
+      logo={emailLogo(tenant)}
       preview={subject}
       footer={<EmailFooter tenant={tenant} t={t} />}
     >

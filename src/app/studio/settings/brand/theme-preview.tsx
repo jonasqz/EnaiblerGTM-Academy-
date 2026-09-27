@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import type { Logo } from "@/core/theme/schema";
 
 /**
  * A miniature academy in the draft theme: the same component classes the
@@ -11,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 export function ThemePreview(props: {
   variables: Record<string, string>;
   academyName: string;
+  logo?: Logo | null;
   courseTerm: string;
   lessonTerm: string;
 }) {
@@ -22,7 +24,15 @@ export function ThemePreview(props: {
       aria-label="Preview of your academy"
     >
       <div className="flex items-center justify-between gap-3 border-b-outline border-line bg-card px-4 py-3">
-        <span className="truncate font-display text-base leading-tight">{props.academyName}</span>
+        <span className="flex min-w-0 items-center gap-2 font-display text-base leading-tight">
+          {props.logo && (
+            // eslint-disable-next-line @next/next/no-img-element -- uploaded logo
+            <img src={props.logo.src} alt="" className="h-7 w-auto max-w-32 object-contain" />
+          )}
+          {(!props.logo || props.logo.show_name) && (
+            <span className="truncate">{props.academyName}</span>
+          )}
+        </span>
         <span className="btn btn-secondary btn-sm pointer-events-none">Sign in</span>
       </div>
       <div className="space-y-5 p-5">

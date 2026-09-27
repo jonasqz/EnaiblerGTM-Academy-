@@ -5,6 +5,7 @@ import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
 import { mostReadable } from "@/core/theme/color";
 import type { Theme } from "@/core/theme/schema";
+import { academyUrl } from "@/server/platform/config";
 
 const FONT_STACK = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
@@ -13,10 +14,33 @@ const FONT_STACK = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-se
  * CSS variables and web fonts, so tokens are inlined and fonts fall back to
  * system stacks.
  */
+export interface EmailLogo {
+  /** Absolute URL of a PNG (mail clients do not show SVG). */
+  url: string;
+  width: number;
+  height: number;
+  showName: boolean;
+}
+
+/** The academy's logo for mail, when it has a PNG version. */
+export function emailLogo(tenant: TenantContext): EmailLogo | undefined {
+  const logo = tenant.theme.logo;
+  const png = logo?.png ?? (logo?.src.endsWith(".png") ? logo.src : undefined);
+  if (!logo || !png) return undefined;
+  const height = 32;
+  return {
+    url: academyUrl(tenant, png),
+    width: Math.round(height * (logo.ratio ?? 1)),
+    height,
+    showName: logo.show_name,
+  };
+}
+
 export function EmailLayout(props: {
   theme: Theme;
   lang: string;
   academyName: string;
+  logo?: EmailLogo;
   preview: string;
   footer: ReactNode;
   children: ReactNode;
@@ -66,7 +90,17 @@ export function EmailLayout(props: {
                           letterSpacing: 0.4,
                         }}
                       >
-                        {props.academyName}
+                        {props.logo && (
+                          // eslint-disable-next-line @next/next/no-img-element -- e-mail HTML
+                          <img
+                            src={props.logo.url}
+                            width={props.logo.width}
+                            height={props.logo.height}
+                            alt={props.logo.showName ? "" : props.academyName}
+                            style={{ display: "block", border: 0, marginBottom: 8 }}
+                          />
+                        )}
+                        {(!props.logo || props.logo.showName) && props.academyName}
                       </td>
                     </tr>
                     <tr>

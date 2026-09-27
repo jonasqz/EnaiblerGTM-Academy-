@@ -82,7 +82,13 @@ function createTenantAuth(tenant: TenantContext) {
             expiresInMinutes: MAGIC_LINK_TTL_MINUTES,
           });
           const from = senderFor(tenant);
-          await sendEmail({ to: email, from, replyTo: from.replyTo, ...rendered });
+          await sendEmail({
+            to: email,
+            from: { name: from.name, address: from.address },
+            replyTo: from.replyTo,
+            ...rendered,
+            headers: { "Auto-Submitted": "auto-generated" },
+          });
         },
       }),
       nextCookies(),

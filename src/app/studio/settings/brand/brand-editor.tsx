@@ -1,10 +1,15 @@
 "use client";
 
-import { Sparkles, Wand2 } from "lucide-react";
+import { ImageUp, Sparkles, Trash, Type, Upload, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { FormState } from "@/app/studio/actions";
-import { importBrandAction, type BrandImportState } from "@/app/studio/settings/brand/actions";
+import {
+  importBrandAction,
+  prepareFontAction,
+  prepareLogoAction,
+  type BrandImportState,
+} from "@/app/studio/settings/brand/actions";
 import {
   draftFromTheme,
   parseDraft,
@@ -16,13 +21,27 @@ import {
 import { ThemePreview } from "@/app/studio/settings/brand/theme-preview";
 import { saveThemeAction } from "@/app/studio/settings/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { uploadFile } from "@/components/ui/file-upload";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { themeContrastIssues } from "@/core/theme/contrast";
-import { themeToCssVariables } from "@/core/theme/css";
-import type { BundledFont } from "@/core/theme/fonts";
+import { fontFaceCss, themeToCssVariables } from "@/core/theme/css";
+import {
+  FONT_WEIGHT_NAMES,
+  guessFontFace,
+  uploadedFamilies,
+  type BundledFont,
+} from "@/core/theme/fonts";
 import { themeSchema, type Theme } from "@/core/theme/schema";
+
+const UPLOAD_ERRORS: Record<string, string> = {
+  too_large: "The file is too large.",
+  type_not_allowed: "This type of file is not accepted here.",
+  unknown_type: "This type of file is not accepted here.",
+  invalid_content: "The file could not be read.",
+  rate_limited: "Too many uploads. Try again later.",
+};
 
 const COLOR_FIELDS: Array<{
   key: "primary" | "ink" | "surface" | "card";
@@ -94,14 +113,113 @@ export function BrandEditor(props: {
   );
 
   const save = useActionForm<FormState>(saveThemeAction, {});
+  // Presets and imports change the look; the logo and uploaded fonts stay.
+  const setLook = (look: Partial<ThemeDraft>) =>
+    setDraft((current) => ({
+      ...current,
+      ...look,
+      logo: current.logo,
+      fontFiles: current.fontFiles,
+      sourceUrls: current.sourceUrls,
+    }));
   const importer = useActionForm<BrandImportState>(
     async (previous, formData) => {
       const result = await importBrandAction(previous, formData);
-      if (result.status === "done") setDraft(draftFromTheme(themeSchema.parse(result.theme)));
+      if (result.status === "done") setLook(draftFromTheme(themeSchema.parse(result.theme)));
       return result;
     },
     { status: "idle" },
   );
+
+  const [logoStatus, setLogoStatus] = useState<string | null>(null);
+  const uploadLogo = async (file: File | undefined) => {
+    if (!file) return;
+    setLogoStatus("Uploading…");
+    const uploaded = await uploadFile("/api/uploads?purpose=brand_logo", file, () => undefined);
+    if (!uploaded.ok) {
+      setLogoStatus(UPLOAD_ERRORS[uploaded.error] ?? "The logo could not be uploaded.");
+      return;
+    }
+    const prepared = await prepareLogoAction(uploaded.file.id);
+    if (!prepared.ok) {
+      setLogoStatus(prepared.error);
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      logo: { ...prepared.logo, show_name: current.logo?.show_name ?? true },
+    }));
+    setLogoStatus(null);
+  };
+
+  const [licensed, setLicensed] = useState(false);
+  const [fontStatus, setFontStatus] = useState<string | null>(null);
+  const [pendingFont, setPendingFont] = useState<{
+    src: string;
+    family: string;
+    weight: number;
+    italic: boolean;
+  } | null>(null);
+  const uploadFont = async (file: File | undefined) => {
+    if (!file) return;
+    setFontStatus("Uploading…");
+    const uploaded = await uploadFile("/api/uploads?purpose=brand_font", file, () => undefined);
+    if (!uploaded.ok) {
+      setFontStatus(UPLOAD_ERRORS[uploaded.error] ?? "The font could not be uploaded.");
+      return;
+    }
+    const prepared = await prepareFontAction(uploaded.file.id);
+    if (!prepared.ok) {
+      setFontStatus(prepared.error);
+      return;
+    }
+    const guess = guessFontFace(file.name);
+    setPendingFont({
+      src: prepared.src,
+      family: guess.family,
+      weight: guess.weight,
+      italic: guess.style === "italic",
+    });
+    setFontStatus(null);
+  };
+  const addPendingFont = () => {
+    if (!pendingFont) return;
+    const family = pendingFont.family.trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(family) || family.length > 60) {
+      setFontStatus("Use letters, digits, spaces, _ and - for the font name.");
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      fontFiles: [
+        ...current.fontFiles,
+        {
+          family,
+          weight: pendingFont.weight,
+          style: pendingFont.italic ? "italic" : "normal",
+          src: pendingFont.src,
+        },
+      ],
+    }));
+    setPendingFont(null);
+    setFontStatus(null);
+  };
+  const removeFontFile = (src: string) =>
+    setDraft((current) => {
+      const fontFiles = current.fontFiles.filter((file) => file.src !== src);
+      const left = uploadedFamilies(fontFiles);
+      const keep = (family: string) =>
+        props.fonts.some((font) => font.family === family) || left.includes(family)
+          ? family
+          : "Inter";
+      return {
+        ...current,
+        fontFiles,
+        display: keep(current.display),
+        body: keep(current.body),
+      };
+    });
+  const ownFamilies = uploadedFamilies(draft.fontFiles);
 
   const style = (value: ThemeDraft["style"]) =>
     set(
@@ -181,7 +299,7 @@ export function BrandEditor(props: {
                 key={preset.name}
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => setDraft(preset.draft)}
+                onClick={() => setLook(preset.draft)}
               >
                 <span aria-hidden className="flex">
                   {[preset.draft.primary, preset.draft.accents[0], preset.draft.ink].map(
@@ -198,6 +316,74 @@ export function BrandEditor(props: {
               </button>
             ))}
           </div>
+        </section>
+
+        <section aria-labelledby="logo-heading" className="card-flat space-y-4 p-5 sm:p-6">
+          <div>
+            <h2 id="logo-heading" className="text-lg font-semibold">
+              Logo
+            </h2>
+            <p className="hint">
+              In the header, on mails and on shared certificate images. SVG works best; PNG or WebP
+              with a transparent background too.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {draft.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo
+              <img
+                src={draft.logo.src}
+                alt="Current logo"
+                className="h-14 w-auto max-w-56 rounded-control border border-line bg-card object-contain p-2"
+              />
+            ) : (
+              <p className="text-sm text-muted">No logo yet: the academy name stands alone.</p>
+            )}
+            <label className="btn btn-secondary btn-sm cursor-pointer">
+              <ImageUp aria-hidden size={16} /> {draft.logo ? "Replace logo" : "Upload logo"}
+              <input
+                type="file"
+                accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) => {
+                  void uploadLogo(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {draft.logo && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => set({ logo: null })}
+              >
+                <Trash aria-hidden size={16} /> Remove
+              </button>
+            )}
+          </div>
+          {logoStatus && (
+            <p role="status" className="text-sm font-semibold">
+              {logoStatus}
+            </p>
+          )}
+          {draft.logo && (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.logo.show_name}
+                onChange={(event) =>
+                  set({ logo: { ...draft.logo!, show_name: event.target.checked } })
+                }
+                className="mt-0.5 size-4 accent-(--tenant-primary)"
+              />
+              <span>
+                Show the academy name next to the logo
+                <span className="block text-xs text-muted">
+                  Turn it off when the logo already spells out the name.
+                </span>
+              </span>
+            </label>
+          )}
         </section>
 
         <section aria-labelledby="colours-heading" className="card-flat space-y-4 p-5 sm:p-6">
@@ -294,22 +480,173 @@ export function BrandEditor(props: {
                 onChange={(event) => set({ [slot]: event.target.value })}
                 style={{ fontFamily: `"${draft[slot]}"` }}
               >
-                {props.fonts.map((font) => (
-                  <option
-                    key={font.family}
-                    value={font.family}
-                    style={{ fontFamily: `"${font.family}"` }}
-                  >
-                    {font.family}
-                  </option>
-                ))}
+                {ownFamilies.length > 0 && (
+                  <optgroup label="Your fonts">
+                    {ownFamilies.map((family) => (
+                      <option key={family} value={family} style={{ fontFamily: `"${family}"` }}>
+                        {family}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Open-source fonts">
+                  {props.fonts.map((font) => (
+                    <option
+                      key={font.family}
+                      value={font.family}
+                      style={{ fontFamily: `"${font.family}"` }}
+                    >
+                      {font.family}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
           ))}
           <p className="hint sm:col-span-2">
-            Open-source fonts, hosted by us in the EU. Your own licensed font can be added on
-            request.
+            Open-source fonts are hosted by us in the EU. Your own fonts are served from your
+            academy’s address too, never from a font service.
           </p>
+
+          <div className="space-y-3 border-t border-line pt-4 sm:col-span-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Type aria-hidden size={16} /> Your own fonts
+            </h3>
+            {draft.fontFiles.length > 0 && (
+              <ul className="divide-y divide-line rounded-control border border-line">
+                {draft.fontFiles.map((file) => (
+                  <li key={file.src} className="flex items-center gap-3 px-3 py-2 text-sm">
+                    <span
+                      className="min-w-0 flex-1 truncate"
+                      style={{
+                        fontFamily: `"${file.family}"`,
+                        fontWeight: file.weight,
+                        fontStyle: file.style,
+                      }}
+                    >
+                      {file.family}
+                    </span>
+                    <span className="text-muted">
+                      {FONT_WEIGHT_NAMES[file.weight] ?? file.weight}
+                      {file.style === "italic" ? " italic" : ""} ·{" "}
+                      {file.src.split(".").pop()?.toUpperCase()}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      aria-label={`Remove ${file.family} ${FONT_WEIGHT_NAMES[file.weight] ?? ""}`}
+                      onClick={() => removeFontFile(file.src)}
+                    >
+                      <Trash aria-hidden size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {pendingFont ? (
+              <div className="grid gap-3 rounded-control border border-line p-3 sm:grid-cols-[1fr_10rem_auto]">
+                <div className="field">
+                  <label htmlFor="font-family-name" className="text-sm font-semibold">
+                    Font name
+                  </label>
+                  <input
+                    id="font-family-name"
+                    className="input"
+                    value={pendingFont.family}
+                    maxLength={60}
+                    onChange={(event) =>
+                      setPendingFont({ ...pendingFont, family: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="font-weight" className="text-sm font-semibold">
+                    Weight
+                  </label>
+                  <select
+                    id="font-weight"
+                    className="select"
+                    value={pendingFont.weight}
+                    onChange={(event) =>
+                      setPendingFont({ ...pendingFont, weight: Number(event.target.value) })
+                    }
+                  >
+                    {Object.entries(FONT_WEIGHT_NAMES).map(([weight, name]) => (
+                      <option key={weight} value={weight}>
+                        {weight} · {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 self-end pb-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={pendingFont.italic}
+                    onChange={(event) =>
+                      setPendingFont({ ...pendingFont, italic: event.target.checked })
+                    }
+                    className="size-4 accent-(--tenant-primary)"
+                  />
+                  Italic
+                </label>
+                <div className="flex gap-2 sm:col-span-3">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={addPendingFont}
+                  >
+                    Add font
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setPendingFont(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={licensed}
+                    onChange={(event) => setLicensed(event.target.checked)}
+                    className="mt-0.5 size-4 accent-(--tenant-primary)"
+                  />
+                  <span>
+                    We hold a licence to use this font on the web
+                    <span className="block text-xs text-muted">
+                      One file per weight: .woff2 is best; .woff, .ttf or .otf also work (and are
+                      used for share images).
+                    </span>
+                  </span>
+                </label>
+                <label
+                  className={`btn btn-secondary btn-sm ${licensed ? "cursor-pointer" : "pointer-events-none opacity-50"}`}
+                  aria-disabled={!licensed}
+                >
+                  <Upload aria-hidden size={16} /> Upload font file
+                  <input
+                    type="file"
+                    accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                    className="sr-only"
+                    disabled={!licensed}
+                    onChange={(event) => {
+                      void uploadFont(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+            {fontStatus && (
+              <p role="status" className="text-sm font-semibold">
+                {fontStatus}
+              </p>
+            )}
+          </div>
         </section>
 
         <section
@@ -395,8 +732,12 @@ export function BrandEditor(props: {
 
       <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
         <p className="eyebrow">Preview</p>
+        {parsed && parsed.fonts.files.length > 0 && (
+          <style dangerouslySetInnerHTML={{ __html: fontFaceCss(parsed) }} />
+        )}
         <ThemePreview
           variables={variables}
+          logo={draft.logo}
           academyName={props.academyName}
           courseTerm={props.courseTerm}
           lessonTerm={props.lessonTerm}

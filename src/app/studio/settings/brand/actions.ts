@@ -1,7 +1,9 @@
 "use server";
 
 import type { ThemeInput } from "@/core/theme/schema";
+import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { fontFromUpload, logoFromUpload } from "@/server/brand/assets";
 import { importBrand } from "@/server/brand/import";
 import { env } from "@/server/env";
 import { createLlmCaller } from "@/server/llm";
@@ -47,4 +49,23 @@ export async function importBrandAction(
     notes: result.notes,
     usedAi: result.usedAi,
   };
+}
+
+export type LogoUploadState =
+  { ok: true; logo: { src: string; png?: string; ratio?: number } } | { ok: false; error: string };
+
+/** Turns an uploaded logo into theme values (PNG copy for mail and share images). */
+export async function prepareLogoAction(fileId: string): Promise<LogoUploadState> {
+  const { tenant, viewer } = await requireCapability("academy.manage", "/studio/settings/brand");
+  const logo = await logoFromUpload(getDb(), tenant.id, fileId, viewer.userId).catch(() => null);
+  return logo ? { ok: true, logo } : { ok: false, error: "The logo could not be read." };
+}
+
+/** The address of an uploaded font file for the theme. */
+export async function prepareFontAction(
+  fileId: string,
+): Promise<{ ok: true; src: string } | { ok: false; error: string }> {
+  const { tenant } = await requireCapability("academy.manage", "/studio/settings/brand");
+  const src = await fontFromUpload(getDb(), tenant.id, fileId);
+  return src ? { ok: true, src } : { ok: false, error: "This is not a font file we can use." };
 }

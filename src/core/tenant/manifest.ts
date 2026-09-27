@@ -23,7 +23,7 @@ import { slugSchema, slugify } from "@/core/shared/slug";
 import { termOverrideEntries, termOverrideSchema } from "@/core/terminology/terms";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { themeContrastIssues } from "@/core/theme/contrast";
-import { isBundledFont } from "@/core/theme/fonts";
+import { isBundledFont, uploadedFamilies } from "@/core/theme/fonts";
 import { hexColorSchema, themeSchema } from "@/core/theme/schema";
 
 /**
@@ -352,10 +352,11 @@ export function manifestWarnings(manifest: TenantManifest): string[] {
     if (issue.severity === "warning") warnings.push(issue.message);
   }
 
+  const uploaded = uploadedFamilies(theme.fonts.files);
   for (const family of new Set([theme.fonts.display, theme.fonts.body])) {
-    if (!isBundledFont(family) && theme.fonts.source_urls.length === 0) {
+    if (!isBundledFont(family) && !uploaded.includes(family) && !theme.fonts.source_urls.length) {
       warnings.push(
-        `Font "${family}" is not bundled and no source_urls are given: browsers will fall back.`,
+        `Font "${family}" is neither bundled nor uploaded and no source_urls are given: browsers will fall back.`,
       );
     }
   }

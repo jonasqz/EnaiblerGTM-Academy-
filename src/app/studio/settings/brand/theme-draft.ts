@@ -1,4 +1,11 @@
-import { themeSchema, type Theme, type ThemeInput, type VisualStyle } from "@/core/theme/schema";
+import {
+  themeSchema,
+  type FontFile,
+  type Logo,
+  type Theme,
+  type ThemeInput,
+  type VisualStyle,
+} from "@/core/theme/schema";
 
 /*
  * The brand editor works on a small, form-friendly draft and turns it into
@@ -21,7 +28,15 @@ export interface ThemeDraft {
   borderWidth: number;
   shadow: ShadowKind;
   style: VisualStyle;
+  /** Brand assets: presets and imports keep them. */
+  logo: Logo | null;
+  fontFiles: FontFile[];
+  /** From a manifest; the editor keeps them as they are. */
+  sourceUrls: string[];
 }
+
+/** What presets and the website import suggest: the look, not the assets. */
+export type LookDraft = Omit<ThemeDraft, "logo" | "fontFiles" | "sourceUrls">;
 
 function px(length: string): number {
   const value = Number.parseFloat(length);
@@ -57,6 +72,9 @@ export function draftFromTheme(theme: Theme): ThemeDraft {
     borderWidth: Math.round(px(theme.border_width)),
     shadow: blur === 0 && offset ? "hard" : blur > 0 ? "soft" : "none",
     style: theme.visual_style,
+    logo: theme.logo ?? null,
+    fontFiles: theme.fonts.files,
+    sourceUrls: theme.fonts.source_urls,
   };
 }
 
@@ -76,11 +94,17 @@ export function themeFromDraft(draft: ThemeDraft): ThemeInput {
       ...(draft.onPrimary ? { on_primary: draft.onPrimary } : {}),
       accents: draft.accents,
     },
-    fonts: { display: draft.display, body: draft.body },
+    fonts: {
+      display: draft.display,
+      body: draft.body,
+      source_urls: draft.sourceUrls,
+      files: draft.fontFiles,
+    },
     radius: `${draft.radius}px`,
     border_width: `${draft.borderWidth}px`,
     shadow,
     visual_style: draft.style,
+    ...(draft.logo ? { logo: draft.logo } : {}),
   };
 }
 
@@ -90,7 +114,7 @@ export function parseDraft(draft: ThemeDraft): Theme | null {
 }
 
 /** Starting points; everything stays editable. */
-export const PRESETS: Array<{ name: string; draft: ThemeDraft }> = [
+export const PRESETS: Array<{ name: string; draft: LookDraft }> = [
   {
     name: "Clean",
     draft: {

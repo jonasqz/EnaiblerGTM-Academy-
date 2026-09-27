@@ -57,6 +57,38 @@ export const fontSourceUrlSchema = z
     return !BLOCKED_FONT_HOSTS.includes(new URL(value).hostname);
   }, "Self-host fonts: third-party font CDNs leak learner IP addresses");
 
+/** A file in the academy's own storage, as the app serves it: /files/<id>.<ext>. */
+function storedFileSchema(extensions: readonly string[], what: string) {
+  const pattern = new RegExp(`^/files/[0-9a-f-]{36}\\.(?:${extensions.join("|")})$`);
+  return z.string().regex(pattern, `Upload the ${what} in the brand editor`);
+}
+
+export const FONT_FILE_EXTENSIONS = ["woff2", "woff", "ttf", "otf"] as const;
+
+/**
+ * The academy's own font (licensed for the web), uploaded to our storage and
+ * served from the academy's domain like everything else.
+ */
+export const fontFileSchema = z.strictObject({
+  family: fontFamilySchema,
+  weight: z.number().int().min(100).max(900).multipleOf(100).default(400),
+  style: z.enum(["normal", "italic"]).default("normal"),
+  src: storedFileSchema(FONT_FILE_EXTENSIONS, "font file"),
+});
+export type FontFile = z.output<typeof fontFileSchema>;
+
+export const logoSchema = z.strictObject({
+  /** As uploaded: SVG, PNG or WebP. */
+  src: storedFileSchema(["svg", "png", "webp"], "logo"),
+  /** PNG for mail and share images, rendered at upload when the logo is SVG or WebP. */
+  png: storedFileSchema(["png"], "logo").optional(),
+  /** Width ÷ height, so mail clients that ignore CSS still draw it undistorted. */
+  ratio: z.number().positive().max(20).optional(),
+  /** A symbol stands next to the academy name; a wordmark replaces it. */
+  show_name: z.boolean().default(true),
+});
+export type Logo = z.output<typeof logoSchema>;
+
 export const VISUAL_STYLES = ["soft", "outlined"] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number];
 
@@ -79,7 +111,10 @@ export const themeSchema = z.strictObject({
     display: fontFamilySchema,
     body: fontFamilySchema,
     source_urls: z.array(fontSourceUrlSchema).max(6).default([]),
+    /** Uploaded font files: one per weight and style of a family. */
+    files: z.array(fontFileSchema).max(12).default([]),
   }),
+  logo: logoSchema.optional(),
   radius: cssLengthSchema,
   border_width: cssLengthSchema,
   shadow: z.strictObject({

@@ -2,7 +2,7 @@ import { render } from "@react-email/render";
 
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
-import { EmailButton, EmailFooter, EmailLayout } from "@/server/email/templates/layout";
+import { EmailButton, EmailFooter, EmailLayout, emailLogo } from "@/server/email/templates/layout";
 
 export interface NoticeEmailInput {
   tenant: TenantContext;
@@ -27,6 +27,7 @@ export async function renderNoticeEmail(
       theme={tenant.theme}
       lang={t.locale}
       academyName={tenant.settings.author_display_name}
+      logo={emailLogo(tenant)}
       preview={input.subject}
       footer={<EmailFooter tenant={tenant} t={t} reason={input.reason} />}
     >

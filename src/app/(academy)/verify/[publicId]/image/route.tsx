@@ -7,7 +7,7 @@ import { credentialCopy } from "@/server/credential-copy";
 import { canView, loadCredential } from "@/server/credentials";
 import { getDb } from "@/db/client";
 import { fileBytes, loadFile } from "@/server/files";
-import { imageFonts } from "@/server/og-fonts";
+import { imageFonts, type UploadedFontLoader } from "@/server/og-fonts";
 import { getOrigin, getTenant, getTranslator } from "@/server/request";
 
 const SIZES = {
@@ -15,14 +15,41 @@ const SIZES = {
   card: { width: 1200, height: 848 }, // download
 } as const;
 
-/** The path picture as a data URL (PNG from our storage; SVGs were rendered to PNG on upload). */
-async function pathPng(tenantId: string, url: string | undefined): Promise<string | null> {
+/**
+ * A PNG from the academy's storage as a data URL: the path picture or the
+ * logo (SVGs were rendered to PNG on upload).
+ */
+async function storedPng(
+  tenantId: string,
+  url: string | undefined,
+  purpose: "path_visual" | "brand_logo",
+): Promise<string | null> {
   const id = url?.match(/^\/files\/([0-9a-f-]{36})\.png$/)?.[1];
   if (!id) return null;
   const record = await loadFile(getDb(), tenantId, id);
-  if (!record || record.contentType !== "image/png" || record.purpose !== "path_visual")
-    return null;
+  if (!record || record.contentType !== "image/png" || record.purpose !== purpose) return null;
   return `data:image/png;base64,${Buffer.from(await fileBytes(record)).toString("base64")}`;
+}
+
+// Uploaded fonts never change (new upload, new id), so a few stay in memory.
+const fontCache = new Map<string, Promise<Buffer | null>>();
+
+function uploadedFontLoader(tenantId: string): UploadedFontLoader {
+  return (src) => {
+    const key = `${tenantId}:${src}`;
+    let pending = fontCache.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const id = src.match(/^\/files\/([0-9a-f-]{36})\./)?.[1];
+        const record = id ? await loadFile(getDb(), tenantId, id) : null;
+        if (!record || record.purpose !== "brand_font") return null;
+        return Buffer.from(await fileBytes(record));
+      })();
+      if (fontCache.size >= 24) fontCache.delete(fontCache.keys().next().value!);
+      fontCache.set(key, pending);
+    }
+    return pending;
+  };
 }
 
 /** Credential image rendered from the tenant theme (brief §6, §11: Satori via next/og). */
@@ -46,7 +73,9 @@ export async function GET(
     ? pathColor(theme, credential.path.position, credential.path.color)
     : theme.colors.primary;
   const outlined = theme.visual_style === "outlined";
-  const pathPicture = await pathPng(tenant.id, credential.path?.visual?.png);
+  const pathPicture = await storedPng(tenant.id, credential.path?.visual?.png, "path_visual");
+  const logo = theme.logo;
+  const logoPicture = logo ? await storedPng(tenant.id, logo.png ?? logo.src, "brand_logo") : null;
   const border = `${theme.border_width} solid ${outlined ? theme.colors.ink : `${theme.colors.ink}26`}`;
 
   const headers: Record<string, string> = {
@@ -91,7 +120,18 @@ export async function GET(
             fontSize: 26,
           }}
         >
-          <div style={{ display: "flex", fontWeight: 700 }}>{copy.academy}</div>
+          <div style={{ display: "flex", alignItems: "center", fontWeight: 700 }}>
+            {logoPicture && (
+              // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text -- Satori renders plain img
+              <img
+                src={logoPicture}
+                height={48}
+                width={Math.round(48 * (logo?.ratio ?? 1))}
+                style={{ marginRight: logo?.show_name ? 16 : 0 }}
+              />
+            )}
+            {(!logoPicture || logo?.show_name) && copy.academy}
+          </div>
           {copy.pathTitle && (
             <div style={{ display: "flex", alignItems: "center" }}>
               {pathPicture ? (
@@ -176,6 +216,6 @@ export async function GET(
         </div>
       </div>
     </div>,
-    { ...size, fonts: await imageFonts(theme), headers },
+    { ...size, fonts: await imageFonts(theme, uploadedFontLoader(tenant.id)), headers },
   );
 }

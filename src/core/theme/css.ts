@@ -79,3 +79,24 @@ export function pathColor(theme: Theme, index: number, own?: string | null): str
   const { accents, primary } = theme.colors;
   return accents.length > 0 ? (accents[index % accents.length] ?? primary) : primary;
 }
+
+const FONT_FORMATS: Record<string, string> = {
+  woff2: "woff2",
+  woff: "woff",
+  ttf: "truetype",
+  otf: "opentype",
+};
+
+/**
+ * @font-face rules for the academy's uploaded fonts. Safe to inline: family
+ * names and file paths are validated by the theme schema (no quotes, no
+ * parentheses), and fonts download only where a page uses them.
+ */
+export function fontFaceCss(theme: Theme): string {
+  return theme.fonts.files
+    .map((file) => {
+      const format = FONT_FORMATS[file.src.split(".").pop() ?? ""] ?? "woff2";
+      return `@font-face{font-family:"${file.family}";src:url("${file.src}") format("${format}");font-weight:${file.weight};font-style:${file.style};font-display:swap}`;
+    })
+    .join("\n");
+}

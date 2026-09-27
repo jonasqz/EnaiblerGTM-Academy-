@@ -221,7 +221,7 @@ describe("manifest validation", () => {
     });
     if (!result.ok) throw new Error(result.errors.join("\n"));
     expect(result.warnings.join("\n")).toMatch(/Paid courses stay blocked/);
-    expect(result.warnings.join("\n")).toMatch(/Font "Lobster" is not bundled/);
+    expect(result.warnings.join("\n")).toMatch(/Font "Lobster" is neither bundled nor uploaded/);
   });
 
   it("rejects unknown keys so typos do not pass silently", () => {

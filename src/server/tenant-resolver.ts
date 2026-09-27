@@ -11,7 +11,12 @@ const TTL_MS = 30_000;
 const MISS_TTL_MS = 5_000;
 const MAX_ENTRIES = 1_000;
 
-const cache = new Map<string, { value: TenantContext | null; expires: number }>();
+type Cache = Map<string, { value: TenantContext | null; expires: number }>;
+
+// One cache per process: Next loads this module separately for pages, route
+// handlers and the proxy, and clearing it after a Studio save must reach all.
+const shared = globalThis as typeof globalThis & { __enaiblerTenantCache?: Cache };
+const cache: Cache = (shared.__enaiblerTenantCache ??= new Map());
 
 async function lookup(host: string): Promise<TenantContext | null> {
   const db = getDb();

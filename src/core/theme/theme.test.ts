@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { contrastRatio, mostReadable } from "@/core/theme/color";
 import { themeContrastIssues } from "@/core/theme/contrast";
-import { pathColor, themeToCssVariables } from "@/core/theme/css";
+import { fontFaceCss, pathColor, themeToCssVariables } from "@/core/theme/css";
 import { DEFAULT_THEME, enaiblerTokens } from "@/core/theme/enaibler-tokens";
-import { closestBundledFont } from "@/core/theme/fonts";
+import { closestBundledFont, guessFontFace } from "@/core/theme/fonts";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 
 const tenant0: ThemeInput = {
@@ -129,5 +129,66 @@ describe("theme readability", () => {
     expect(closestBundledFont("Source Sans Pro")).toBe("Open Sans");
     expect(closestBundledFont("-apple-system")).toBe("Inter");
     expect(closestBundledFont("Helvetica Neue")).toBe("Inter");
+  });
+});
+
+describe("uploaded fonts and logo", () => {
+  const theme = (extra: Record<string, unknown>) =>
+    themeSchema.safeParse({ ...structuredClone(DEFAULT_THEME), ...extra });
+  const id = "0b7a1f6e-8a51-4d1c-9a55-3f0c2f7f9b10";
+
+  it("takes font files only from our own storage", () => {
+    const fonts = (src: string, family = "Acme Sans") => ({
+      fonts: { ...DEFAULT_THEME.fonts, files: [{ family, src, weight: 700 }] },
+    });
+    expect(theme(fonts(`/files/${id}.woff2`)).success).toBe(true);
+    expect(theme(fonts("https://cdn.example.com/acme.woff2")).success).toBe(false);
+    expect(theme(fonts(`/files/${id}.woff2") ; x`)).success).toBe(false);
+    expect(theme(fonts(`/files/${id}.woff2`, 'Acme"} body{'))).toMatchObject({ success: false });
+  });
+
+  it("writes @font-face rules for uploaded fonts", () => {
+    const parsed = themeSchema.parse({
+      ...structuredClone(DEFAULT_THEME),
+      fonts: {
+        display: "Acme Sans",
+        body: "Inter",
+        files: [
+          { family: "Acme Sans", src: `/files/${id}.woff2`, weight: 700 },
+          { family: "Acme Sans", src: `/files/${id}.ttf`, style: "italic" },
+        ],
+      },
+    });
+    expect(fontFaceCss(parsed)).toBe(
+      [
+        `@font-face{font-family:"Acme Sans";src:url("/files/${id}.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}`,
+        `@font-face{font-family:"Acme Sans";src:url("/files/${id}.ttf") format("truetype");font-weight:400;font-style:italic;font-display:swap}`,
+      ].join("\n"),
+    );
+    expect(fontFaceCss(DEFAULT_THEME)).toBe("");
+  });
+
+  it("guesses family, weight and style from the file name", () => {
+    expect(guessFontFace("AcmeSans-SemiBoldItalic.woff2")).toEqual({
+      family: "Acme Sans",
+      weight: 600,
+      style: "italic",
+    });
+    expect(guessFontFace("acme_grotesk_extrabold.ttf")).toMatchObject({
+      family: "acme",
+      weight: 800,
+    });
+    expect(guessFontFace("Brandon-Regular.otf")).toEqual({
+      family: "Brandon",
+      weight: 400,
+      style: "normal",
+    });
+  });
+
+  it("keeps a logo with its PNG copy", () => {
+    expect(
+      theme({ logo: { src: `/files/${id}.svg`, png: `/files/${id}.png`, ratio: 3.2 } }),
+    ).toMatchObject({ success: true, data: { logo: { show_name: true } } });
+    expect(theme({ logo: { src: "https://example.com/logo.svg" } }).success).toBe(false);
   });
 });

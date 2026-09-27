@@ -4,6 +4,7 @@
  * next.config.ts). Academies pick from these by name; brand import maps a
  * website's fonts to the closest one, because a site's own web fonts are
  * usually licensed and cannot simply be copied. Other families need
+ * an upload (`theme.fonts.files`, served from our storage) or
  * `theme.fonts.source_urls` pointing at self-hosted @font-face CSS.
  */
 export type FontCategory = "sans" | "geometric" | "rounded" | "serif" | "display";
@@ -34,6 +35,11 @@ export const FONT_LIBRARY: readonly BundledFont[] = [
 ];
 
 export const BUNDLED_FONT_FAMILIES = FONT_LIBRARY.map((font) => font.family);
+
+/** Families an academy uploaded itself (theme.fonts.files), in upload order. */
+export function uploadedFamilies(files: ReadonlyArray<{ family: string }>): string[] {
+  return [...new Set(files.map((file) => file.family))];
+}
 
 export function bundledFont(family: string): BundledFont | undefined {
   const wanted = family.trim().toLowerCase();
@@ -110,4 +116,51 @@ export function closestBundledFont(family: string): string {
   if (has("roboto", "arimo")) return "Roboto";
   if (has("black", "heavy", "poster", "bungee", "anton", "bebas", "oswald")) return "Bungee";
   return "Inter";
+}
+
+export const FONT_WEIGHT_NAMES: Record<number, string> = {
+  100: "Thin",
+  200: "Extra light",
+  300: "Light",
+  400: "Regular",
+  500: "Medium",
+  600: "Semibold",
+  700: "Bold",
+  800: "Extra bold",
+  900: "Black",
+};
+
+// First match wins: "SemiBold" and "ExtraBold" before "Bold", "ExtraLight" before "Light".
+const WEIGHT_WORDS: Array<[RegExp, number]> = [
+  [/thin|hairline/i, 100],
+  [/(extra|ultra)[-_ ]?light/i, 200],
+  [/light/i, 300],
+  [/medium/i, 500],
+  [/(semi|demi)[-_ ]?bold/i, 600],
+  [/(extra|ultra)[-_ ]?bold/i, 800],
+  [/black|heavy/i, 900],
+  [/bold/i, 700],
+];
+
+/**
+ * Family, weight and style guessed from a font file's name
+ * ("AcmeSans-SemiBoldItalic.woff2" → Acme Sans, 600, italic), as a starting
+ * point the person uploading can correct.
+ */
+export function guessFontFace(fileName: string): {
+  family: string;
+  weight: number;
+  style: "normal" | "italic";
+} {
+  const base = fileName.replace(/\.(woff2?|ttf|otf)$/i, "");
+  const [first = ""] = base.split(/[-_.]/);
+  const family =
+    first
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[^A-Za-z0-9 _-]/g, "")
+      .trim()
+      .slice(0, 60) || "Brand";
+  const rest = base.slice(first.length);
+  const weight = WEIGHT_WORDS.find(([pattern]) => pattern.test(rest))?.[1] ?? 400;
+  return { family, weight, style: /italic|oblique/i.test(rest) ? "italic" : "normal" };
 }

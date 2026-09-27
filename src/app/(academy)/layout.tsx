@@ -13,6 +13,7 @@ export default async function AcademyLayout({ children }: LayoutProps<"/">) {
     <>
       <SiteHeader
         academyName={tenant.settings.author_display_name}
+        logo={tenant.theme.logo}
         t={t}
         locales={tenant.settings.locales}
         signedIn={session !== null}
