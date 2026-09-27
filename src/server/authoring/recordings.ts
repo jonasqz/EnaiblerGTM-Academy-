@@ -17,7 +17,7 @@ import { isLocale, type Locale } from "@/core/i18n/locales";
 import { JobFailure, jobErrorCode } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import type { TranscriptSegment } from "@/db/schema/authoring";
-import { recordingUsage } from "@/server/ai-usage";
+import { usageRecorder } from "@/server/ai-usage";
 import { meteredModel, type AuthoringModel } from "@/server/authoring/model";
 import {
   downloadFile,
@@ -118,7 +118,7 @@ export async function transcribeRecording(
       deps.whisper,
       audio,
       locale,
-      recordingUsage(db, { ...scope, kind: "transcription" }),
+      usageRecorder(db, { ...scope, kind: "transcription" }),
     );
     if (segments.length === 0) throw new JobFailure("no_speech");
 

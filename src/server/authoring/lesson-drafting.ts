@@ -30,7 +30,7 @@ import {
 } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
-import { meteredLlm, recordingUsage, type UsageCallback } from "@/server/ai-usage";
+import { meteredLlm, usageRecorder, type UsageCallback } from "@/server/ai-usage";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { embed, type EmbeddingConfig } from "@/server/authoring/speech";
 import type { Enqueue } from "@/server/jobs/producer";
@@ -295,7 +295,7 @@ export async function runLessonDraft(
     run.courseId,
     criteria,
     deps.embeddings,
-    recordingUsage(db, { ...scope, kind: "embedding" }),
+    usageRecorder(db, { ...scope, kind: "embedding" }),
   );
   const llm = meteredLlm(db, deps.model.llm, { ...scope, kind: "lesson_draft" });
   const prompt = buildLessonDraftPrompt({

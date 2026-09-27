@@ -65,7 +65,7 @@ export async function recordAiUsage(
 export type UsageCallback = (amount: UsageAmount) => Promise<void>;
 
 /** Records each request a service reports for this academy. */
-export function recordingUsage(db: Database, scope: UsageScope): UsageCallback {
+export function usageRecorder(db: Database, scope: UsageScope): UsageCallback {
   return (amount) => recordAiUsage(db, scope, amount);
 }
 
