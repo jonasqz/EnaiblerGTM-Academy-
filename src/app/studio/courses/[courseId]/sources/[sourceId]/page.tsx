@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { SourceStatusBadge } from "@/components/studio/status-badges";
 import { formatClock } from "@/core/authoring/transcript";
+import { jobErrorText } from "@/core/i18n/studio/helpers";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { loadSource } from "@/server/authoring/sources";
@@ -60,7 +61,7 @@ export default async function SourcePage({
         </p>
         {source.error && (
           <p className="font-semibold" style={{ color: "var(--status-critical)" }}>
-            {source.error}
+            {jobErrorText(t, source.error)}
           </p>
         )}
       </header>

@@ -24,6 +24,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { formatClock } from "@/core/authoring/transcript";
 import { isLocale } from "@/core/i18n/locales";
 import type { StudioKey } from "@/core/i18n/studio/index";
+import { jobErrorText } from "@/core/i18n/studio/helpers";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listSources } from "@/server/authoring/sources";
@@ -149,7 +150,7 @@ export default async function SourcesPage({
                       className="text-sm font-semibold"
                       style={{ color: "var(--status-critical)" }}
                     >
-                      {row.error}
+                      {jobErrorText(t, row.error)}
                     </p>
                   )}
                 </div>

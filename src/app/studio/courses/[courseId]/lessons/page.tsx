@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
-import { languageName } from "@/core/i18n/studio/helpers";
+import { jobErrorText, languageName } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -134,7 +134,7 @@ export default async function LessonsPage({
                 )}
                 <span className="text-muted">
                   {languageName(t, run.locale)} · {t.date(run.createdAt, "dateTime")}
-                  {run.error ? ` · ${run.error}` : ""}
+                  {run.error ? ` · ${jobErrorText(t, run.error)}` : ""}
                   {run.notes.length > 0 ? ` · ${run.notes.join(" ")}` : ""}
                 </span>
               </p>
