@@ -177,7 +177,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - A course that ends with a final test goes through end to end: a failed attempt, a retake and the credential saying "Final Test passed".
 - Mail: the domain of `EMAIL_FROM_ADDRESS` has SPF, DKIM and a DMARC policy at the SMTP relay, and a magic link lands in the inbox (not spam) at Gmail, Outlook and GMX/Web.de.
 - Backups: Postgres and storage from the same night have been restored once into a scratch stack, and that stack starts.
-- After every deploy: `npm run smoke -- --academy https://<an academy> --platform https://<PLATFORM_HOST>` passes (health, pages, security headers, no tracking cookies, link previews, signup).
+- After every deploy: `npm run smoke -- --academy https://<an academy> --platform https://<PLATFORM_HOST>` passes (health, pages, security headers, no tracking cookies, link previews, signup, legal pages, content reports).
 
 ## 11. AI usage per academy
 

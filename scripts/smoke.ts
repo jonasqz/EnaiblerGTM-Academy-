@@ -164,6 +164,28 @@ if (platform) {
     const reply = await get(platform, "/create?lang=en");
     return reply.body.includes('name="slug"') ? true : "the signup form is not shown";
   });
+  for (const path of ["/imprint", "/privacy", "/terms", "/dpa"]) {
+    await check(`website: ${path}`, async () => {
+      const reply = await get(platform, `${path}?lang=en`);
+      // A PLATFORM_*_URL sends the page on to the operator's own document.
+      if ([307, 308].includes(reply.status)) {
+        return header(reply, "location") ? true : `status ${reply.status} without a target`;
+      }
+      return reply.status === 200 ? true : `status ${reply.status}`;
+    });
+  }
+  await check("website: content reports reach an inbox", async () => {
+    const reply = await get(platform, "/report?lang=en");
+    if (reply.status !== 200) return `status ${reply.status}`;
+    if (!reply.body.includes('name="explanation"')) return "no report form";
+    return reply.body.includes("<fieldset disabled")
+      ? "the form is closed: set PLATFORM_ABUSE_EMAIL"
+      : true;
+  });
+  await check("academy: pages link to content reports", async () => {
+    const reply = await get(academy, "/");
+    return reply.body.includes("/report?url=") ? true : "no “Report content” link";
+  });
 }
 
 const width = Math.max(...results.map((result) => result.name.length));

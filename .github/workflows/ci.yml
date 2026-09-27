@@ -129,6 +129,7 @@ jobs:
             -e APP_PROTOCOL=http \
             -e PLATFORM_HOST=platform.localhost -e ACADEMY_DOMAIN=academies.localhost \
             -e PLATFORM_TERMS_URL=https://example.com/terms -e PLATFORM_DPA_URL=https://example.com/dpa \
+            -e PLATFORM_ABUSE_EMAIL=abuse@example.com \
             enaibler-web
           for i in $(seq 1 30); do
             curl -sf -H 'Host: demo.localhost' http://127.0.0.1:3000/api/health && exit 0
