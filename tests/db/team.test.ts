@@ -11,6 +11,7 @@ import {
   cohorts,
   courses,
   enrollments,
+  events,
   memberships,
   notifications,
   submissions,
@@ -258,6 +259,29 @@ describe.skipIf(!hasDatabase)("the academy's team", () => {
     expect(
       await resendInvitation(dbs.app.db, tenant, { actorId: admin, userId, locale: "en" }),
     ).toEqual({ ok: false, error: "signed_in" });
+  });
+
+  it("does not count the team's first sign-in as a learner signing up", async () => {
+    const signUps = (userId: string) =>
+      withTenant(dbs.app.db, tenant.id, (tx) =>
+        tx
+          .select({ id: events.id })
+          .from(events)
+          .where(and(eq(events.userId, userId), eq(events.name, "signup_completed"))),
+      );
+    expect(await invite(at("first.reviewer"), ["reviewer"])).toMatchObject({ ok: true });
+    const { userId } = await ensureAccount(dbs.app.db, at("first.reviewer"));
+    await signIn(tenant, userId);
+    expect(await rolesIn(tenant, userId)).toContain("learner");
+    expect(await signUps(userId)).toHaveLength(0);
+
+    const learner = await createUser(dbs.app.db);
+    await signIn(tenant, learner);
+    expect(await signUps(learner)).toHaveLength(1);
+    // The review alerts below count who may decide.
+    expect(await removeFromTeam(dbs.app.db, tenant, { actorId: admin, userId })).toEqual({
+      ok: true,
+    });
   });
 
   it("limits invitations per academy and day", async () => {

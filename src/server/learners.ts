@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
+import { ACADEMY_ROLES } from "@/core/access/team";
 import type { EntryContext } from "@/core/entry/context";
 import type { Locale } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
@@ -9,7 +10,10 @@ import { trackEvent } from "@/server/events";
 
 /**
  * Makes the user a learner of this academy (membership + profile). Returns
- * whether this is their first time here, i.e. a completed sign-up.
+ * whether this is their first time here. That is a completed sign-up unless
+ * they already work in the Studio: admins, authors and reviewers sign in
+ * through here too, and must not count as learners who signed up (or reach
+ * the academy's webhooks as such).
  */
 export async function ensureLearner(
   tx: Transaction,
@@ -43,7 +47,7 @@ export async function ensureLearner(
     .onConflictDoNothing();
 
   const created = inserted.length > 0;
-  if (created) {
+  if (created && !(await onStudioTeam(tx, userId))) {
     await trackEvent(tx, {
       tenantId: tenant.id,
       name: "signup_completed",
@@ -54,6 +58,16 @@ export async function ensureLearner(
     });
   }
   return { created };
+}
+
+/** The same people the Studio leaves out of its learner numbers (studio/insights.ts). */
+async function onStudioTeam(tx: Transaction, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(and(eq(memberships.userId, userId), inArray(memberships.role, [...ACADEMY_ROLES])))
+    .limit(1);
+  return row !== undefined;
 }
 
 /** Enrolls the learner in a published course; idempotent. The entry context is kept on the enrollment. */
