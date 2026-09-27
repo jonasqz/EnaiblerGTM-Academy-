@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
 
+import { Notice } from "@/components/ui/notice";
+import { Progress } from "@/components/ui/progress";
 import { StatTile } from "@/components/ui/stat-tile";
 import type { StudioText } from "@/core/i18n/studio/translator";
 import {
@@ -13,6 +15,7 @@ import {
 } from "@/core/usage/ai-usage";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { aiAllowanceStatus } from "@/server/ai-allowance";
 import { studioUsage } from "@/server/studio/usage";
 import { getStudioText } from "@/server/studio-text";
 
@@ -76,10 +79,45 @@ function MonthlyBars(props: {
   );
 }
 
+/** This month's allowance: the share used, when it starts again and what happens once it is used up. */
+function AllowanceCard(props: {
+  t: StudioText;
+  month: string;
+  percent: number;
+  usedUp: boolean;
+  resetsAt: Date;
+}) {
+  const { t } = props;
+  return (
+    <section aria-labelledby="allowance-heading" className="card-flat space-y-4 p-5 sm:p-6">
+      <div className="space-y-1">
+        <h2 id="allowance-heading" className="text-lg font-semibold">
+          {t.t("settings.usage.allowance.heading", { month: props.month })}
+        </h2>
+        <p className="text-sm text-muted">{t.t("settings.usage.allowance.intro")}</p>
+      </div>
+      <div className="space-y-2">
+        <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="font-semibold tabular-nums">
+            {t.t("settings.usage.allowance.used", { percent: props.percent })}
+          </span>
+          <span className="text-sm text-muted">
+            {t.t("settings.usage.allowance.resets", { date: t.date(props.resetsAt) })}
+          </span>
+        </p>
+        <Progress value={props.percent} label={t.t("settings.usage.allowance.meter")} />
+      </div>
+      {props.usedUp && <Notice tone="warning" title={t.t("settings.usage.allowance.usedUp")} />}
+      <p className="text-sm text-muted">{t.t("settings.usage.allowance.whenUsedUp")}</p>
+    </section>
+  );
+}
+
 /**
  * How much the academy used the AI in a month. Amounts only, never what the
  * calls cost: provider costs are enaibler's own, and what an academy pays for
- * AI review will be priced separately (brief §15, decision 6).
+ * AI review will be priced separately (brief §15, decision 6). The monthly
+ * allowance shows as the share used, for the same reason.
  */
 export default async function UsagePage({ searchParams }: PageProps<"/studio/settings/usage">) {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings/usage");
@@ -88,12 +126,25 @@ export default async function UsagePage({ searchParams }: PageProps<"/studio/set
   const { month: requested } = await searchParams;
   const month = months.find((candidate) => candidate === requested) ?? months[0]!;
   const usage = await studioUsage(getDb(), tenant, month);
+  const allowance = await aiAllowanceStatus(getDb(), tenant.id);
   const monthName = (value: string) => t.date(midMonth(value), "month");
   const selected = monthName(month);
   const requests = REQUEST_KINDS.reduce((sum, kind) => sum + usage.kinds[kind].calls, 0);
 
   return (
     <div className="max-w-4xl space-y-6">
+      {/* Academies without a limit have nothing to show here. */}
+      {allowance.percentUsed !== null && (
+        <AllowanceCard
+          t={t}
+          month={monthName(allowance.month)}
+          // The last call of a month can go a little over; the academy sees it as used up.
+          percent={Math.min(allowance.percentUsed, 100)}
+          usedUp={allowance.level === "used_up"}
+          resetsAt={allowance.resetsAt}
+        />
+      )}
+
       <section aria-labelledby="usage-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div className="space-y-1">
           <h2 id="usage-heading" className="text-lg font-semibold">

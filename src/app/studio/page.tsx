@@ -4,6 +4,7 @@ import {
   Circle,
   CircleCheck,
   ClipboardCheck,
+  Gauge,
   Hammer,
   ListChecks,
   PencilLine,
@@ -36,6 +37,7 @@ import { getDb } from "@/db/client";
 import { MentorOverview } from "@/app/studio/mentor-overview";
 import { SharingCard } from "@/app/studio/sharing-card";
 import { requireCapability } from "@/server/access";
+import { aiAllowanceStatus } from "@/server/ai-allowance";
 import { listCourses } from "@/server/studio/courses";
 import { studioOverview } from "@/server/studio/insights";
 import { listReviewQueue } from "@/server/studio/reviews";
@@ -63,6 +65,9 @@ export default async function StudioOverviewPage({ searchParams }: PageProps<"/s
   const queue = can(roles, "reviews.decide") ? await listReviewQueue(db, tenant.id) : [];
   const toDecide = queue.filter((row) => row.kind === "decide").length;
   const spotChecks = queue.length - toDecide;
+  // From 80 % of the month's AI allowance on; academies without a limit never see it.
+  const allowance = await aiAllowanceStatus(db, tenant.id);
+  const allowanceLow = allowance.level === "warning" || allowance.level === "used_up";
   const canEdit = can(roles, "courses.edit");
   const fallback = [tenant.settings.default_locale];
   // First steps of a new academy, until each one is done.
@@ -192,12 +197,31 @@ export default async function StudioOverviewPage({ searchParams }: PageProps<"/s
       {(toDecide > 0 ||
         spotChecks > 0 ||
         overview.draftCourses > 0 ||
+        allowanceLow ||
         (canEdit && overview.flaggedLessons.count > 0)) && (
         <section aria-labelledby="attention-heading" className="space-y-3">
           <h2 id="attention-heading" className="text-lg font-semibold">
             {t.t("overview.attention")}
           </h2>
           <ul className="grid gap-3 md:grid-cols-3">
+            {allowanceLow && (
+              <AttentionCard
+                // Only admins may open the usage page; everyone else still learns why AI help pauses.
+                href={can(roles, "academy.manage") ? "/studio/settings/usage" : undefined}
+                icon={<Gauge aria-hidden size={20} />}
+                title={
+                  allowance.level === "used_up"
+                    ? t.t("overview.attention.allowanceUsedUp")
+                    : t.t("overview.attention.allowance", { percent: allowance.percentUsed })
+                }
+                body={t.t(
+                  allowance.level === "used_up"
+                    ? "overview.attention.allowanceUsedUpBody"
+                    : "overview.attention.allowanceBody",
+                  { date: t.date(allowance.resetsAt) },
+                )}
+              />
+            )}
             {toDecide > 0 && (
               <AttentionCard
                 href="/studio/reviews"
@@ -365,18 +389,28 @@ export default async function StudioOverviewPage({ searchParams }: PageProps<"/s
   );
 }
 
-function AttentionCard(props: { href: Route; icon: ReactNode; title: string; body: string }) {
+/** Links where the viewer can act; without an href it only informs. */
+function AttentionCard(props: { href?: Route; icon: ReactNode; title: string; body: string }) {
+  const content = (
+    <>
+      <span className="grid size-10 shrink-0 place-items-center rounded-control bg-primary-soft">
+        {props.icon}
+      </span>
+      <span>
+        <span className="block font-semibold">{props.title}</span>
+        <span className="text-sm text-muted">{props.body}</span>
+      </span>
+    </>
+  );
   return (
     <li>
-      <Link href={props.href} className="card card-interactive flex h-full gap-3 p-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-control bg-primary-soft">
-          {props.icon}
-        </span>
-        <span>
-          <span className="block font-semibold">{props.title}</span>
-          <span className="text-sm text-muted">{props.body}</span>
-        </span>
-      </Link>
+      {props.href ? (
+        <Link href={props.href} className="card card-interactive flex h-full gap-3 p-4">
+          {content}
+        </Link>
+      ) : (
+        <div className="card flex h-full gap-3 p-4">{content}</div>
+      )}
     </li>
   );
 }
