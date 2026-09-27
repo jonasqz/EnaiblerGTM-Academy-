@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { completeLessonAction } from "@/app/(academy)/courses/[slug]/actions";
+import { KnowledgeCheck } from "@/components/knowledge-check";
+import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
 import { courseProgress, neighbours, type LessonProgressMap } from "@/core/courses/lessons";
@@ -10,7 +12,7 @@ import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
-import { markdownOf } from "@/server/studio/lessons";
+import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 import { getTranslator } from "@/server/request";
 
 /** Lesson player (brief §5): short, resumable, works on a phone. */
@@ -30,6 +32,8 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
   const { previous } = neighbours(keys, key);
   const done = Boolean(progressMap[key]);
   const body = markdownOf(lesson.blocks);
+  // Answer key included: knowledge checks are practice, checked in the browser.
+  const questions = checkQuestionsOf(lesson.blocks);
   const courseTitle = localize(data.course.title, data.locale, [tenant.settings.default_locale]);
 
   const syllabus = (
@@ -112,6 +116,14 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
             <p className="text-muted">{t.t("lesson.empty")}</p>
           )}
         </div>
+        {questions.length > 0 && (
+          <KnowledgeCheck
+            key={key}
+            questions={questions}
+            labels={knowledgeCheckLabels(t)}
+            className="mt-10 border-t border-line pt-8"
+          />
+        )}
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
           {previous ? (
             <Link href={`/courses/${slug}/learn/${previous}`} className="btn btn-ghost">

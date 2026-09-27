@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { lessonKeyFor } from "@/core/courses/lessons";
 import type { Locale } from "@/core/i18n/locales";
 import type { CheckQuestion } from "@/core/questions/questions";
+import { sameJson } from "@/core/shared/json";
 import type { Database } from "@/db/client";
 import { assignments, courses, lessons, lessonVersions, rubrics, sources } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
@@ -25,6 +26,14 @@ export function markdownOf(blocks: readonly LessonBlock[]): string {
 /** The lesson's knowledge check questions (none when it has no check). */
 export function checkQuestionsOf(blocks: readonly LessonBlock[]): CheckQuestion[] {
   return blocks.flatMap((block) => (block.type === "check" ? block.questions : []));
+}
+
+/** The text, then the knowledge check at the end; a lesson without questions has no check. */
+function lessonBlocks(markdown: string, questions: CheckQuestion[]): LessonBlock[] {
+  return [
+    { type: "markdown", markdown },
+    ...(questions.length > 0 ? [{ type: "check" as const, questions }] : []),
+  ];
 }
 
 export async function createLesson(
@@ -135,10 +144,15 @@ export async function loadLessonEditor(db: Database, tenantId: string, lessonId:
       .orderBy(asc(sources.createdAt));
     return {
       lesson,
+      questions: checkQuestionsOf(lesson.blocks),
       course: course!,
       rubric: rubric ?? null,
       versions,
-      translations,
+      // With their questions: a translation is written next to the original's check.
+      translations: translations.map((row) => ({
+        ...row,
+        questions: checkQuestionsOf(row.blocks),
+      })),
       sources: courseSources,
     };
   });
@@ -185,20 +199,31 @@ export async function setLessonSources(
   });
 }
 
-/** Saves a new version; unchanged content saves nothing. */
+/**
+ * Saves a new version; unchanged content saves nothing. The knowledge check
+ * is part of the content (versions keep it); left out, it stays as it is.
+ */
 export async function updateLesson(
   db: Database,
   tenantId: string,
   lessonId: string,
-  input: { title: string; markdown: string; criterionIds: string[]; userId: string },
+  input: {
+    title: string;
+    markdown: string;
+    criterionIds: string[];
+    questions?: CheckQuestion[];
+    userId: string;
+  },
 ): Promise<{ version: number; changed: boolean }> {
   return withTenant(db, tenantId, async (tx) => {
     const [lesson] = await tx.select().from(lessons).where(eq(lessons.id, lessonId));
     if (!lesson) throw new Error("Lesson not found");
-    const blocks: LessonBlock[] = [{ type: "markdown", markdown: input.markdown }];
+    const questions = input.questions ?? checkQuestionsOf(lesson.blocks);
+    const blocks = lessonBlocks(input.markdown, questions);
     const unchanged =
       lesson.title === input.title &&
       markdownOf(lesson.blocks) === input.markdown &&
+      sameJson(checkQuestionsOf(lesson.blocks), questions) &&
       JSON.stringify([...lesson.criterionIds].sort()) ===
         JSON.stringify([...input.criterionIds].sort());
     if (unchanged) return { version: lesson.version, changed: false };
@@ -234,7 +259,13 @@ export async function restoreLessonVersion(
       .from(lessons)
       .where(eq(lessons.id, lessonId));
     return row && lesson
-      ? { title: row.title, markdown: markdownOf(row.blocks), criterionIds: lesson.criterionIds }
+      ? {
+          title: row.title,
+          markdown: markdownOf(row.blocks),
+          // The check as it was then: restoring a version without one removes today's.
+          questions: checkQuestionsOf(row.blocks),
+          criterionIds: lesson.criterionIds,
+        }
       : null;
   });
   if (!snapshot) throw new Error("Version not found");

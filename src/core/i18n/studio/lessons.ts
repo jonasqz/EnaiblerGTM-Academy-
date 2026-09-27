@@ -191,6 +191,48 @@ export const en = {
   "lessons.interview.limit": "Too many requests this hour.",
   "lessons.interview.standard": "Using the standard questions.",
   "lessons.interview.answerOne": "Answer at least one question.",
+
+  // Knowledge check: optional practice questions at the end of a lesson (lesson editor)
+  "lessons.check.title": "Knowledge check",
+  "lessons.check.count.one": "{n} question",
+  "lessons.check.count.other": "{n} questions",
+  "lessons.check.intro":
+    "Practice at the end of the lesson: learners check their own answers. Not graded, not stored, no AI.",
+  "lessons.check.empty":
+    "Let learners practise what this lesson teaches with a few multiple-choice questions: not graded, no AI involved.",
+  "lessons.check.addFirst": "Add a first question",
+  "lessons.check.add": "Add a question",
+  "lessons.check.limit": "A lesson can have up to {max} questions.",
+  "lessons.check.question": "Question {n}",
+  "lessons.check.prompt": "Question text",
+  "lessons.check.answers": "Answers",
+  "lessons.check.answersHint":
+    "Tick the right answer. If several are right, learners are asked to choose all that apply.",
+  "lessons.check.answer": "Answer {n}",
+  "lessons.check.right": "Right answer",
+  "lessons.check.addAnswer": "Add an answer",
+  "lessons.check.removeAnswer": "Remove answer {n}",
+  "lessons.check.noRight": "Tick at least one right answer.",
+  "lessons.check.explanation": "Explanation",
+  "lessons.check.explanationHint":
+    "Learners see it after checking their answers, whether they were right or not.",
+  "lessons.check.moveUp": "Move question {n} up",
+  "lessons.check.moveDown": "Move question {n} down",
+  "lessons.check.remove": "Remove question {n}",
+  "lessons.check.removeConfirm": "Remove question {n} with its answers?",
+  "lessons.check.error.unreadable":
+    "The knowledge check could not be read. Reload the page and try again.",
+  "lessons.check.error.tooMany": "A lesson can have up to {max} knowledge check questions.",
+  "lessons.check.error.promptMissing": "Question {n} has no text yet.",
+  "lessons.check.error.promptLong": "Question {n} is too long (up to {max} characters).",
+  "lessons.check.error.optionsFew": "Question {n} needs at least {min} answers.",
+  "lessons.check.error.optionsMany": "Question {n} can have up to {max} answers.",
+  "lessons.check.error.optionMissing": "Question {n}: answer {answer} is empty.",
+  "lessons.check.error.optionLong":
+    "Question {n}: answer {answer} is too long (up to {max} characters).",
+  "lessons.check.error.noRight": "Question {n}: tick at least one right answer.",
+  "lessons.check.error.explanationLong":
+    "Question {n}: the explanation is too long (up to {max} characters).",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -383,4 +425,45 @@ export const de: Record<keyof typeof en, string> = {
   "lessons.interview.limit": "Zu viele Anfragen in dieser Stunde.",
   "lessons.interview.standard": "Es werden die Standardfragen verwendet.",
   "lessons.interview.answerOne": "Beantworte mindestens eine Frage.",
+
+  "lessons.check.title": "Wissenscheck",
+  "lessons.check.count.one": "{n} Frage",
+  "lessons.check.count.other": "{n} Fragen",
+  "lessons.check.intro":
+    "Zum Üben am Ende der Lektion: Lernende prüfen ihre Antworten selbst. Ohne Bewertung, ohne Speichern, ohne KI.",
+  "lessons.check.empty":
+    "Lass Lernende mit ein paar Multiple-Choice-Fragen üben, was diese Lektion vermittelt: ohne Bewertung und ohne KI.",
+  "lessons.check.addFirst": "Erste Frage hinzufügen",
+  "lessons.check.add": "Frage hinzufügen",
+  "lessons.check.limit": "Eine Lektion kann bis zu {max} Fragen haben.",
+  "lessons.check.question": "Frage {n}",
+  "lessons.check.prompt": "Fragetext",
+  "lessons.check.answers": "Antworten",
+  "lessons.check.answersHint":
+    "Hak die richtige Antwort an. Sind mehrere richtig, sollen Lernende alle zutreffenden wählen.",
+  "lessons.check.answer": "Antwort {n}",
+  "lessons.check.right": "Richtige Antwort",
+  "lessons.check.addAnswer": "Antwort hinzufügen",
+  "lessons.check.removeAnswer": "Antwort {n} entfernen",
+  "lessons.check.noRight": "Hak mindestens eine richtige Antwort an.",
+  "lessons.check.explanation": "Erklärung",
+  "lessons.check.explanationHint":
+    "Lernende sehen sie, nachdem sie ihre Antworten geprüft haben, ob richtig oder nicht.",
+  "lessons.check.moveUp": "Frage {n} nach oben verschieben",
+  "lessons.check.moveDown": "Frage {n} nach unten verschieben",
+  "lessons.check.remove": "Frage {n} entfernen",
+  "lessons.check.removeConfirm": "Frage {n} mit ihren Antworten entfernen?",
+  "lessons.check.error.unreadable":
+    "Der Wissenscheck konnte nicht gelesen werden. Lade die Seite neu und versuch es noch einmal.",
+  "lessons.check.error.tooMany": "Eine Lektion kann bis zu {max} Fragen im Wissenscheck haben.",
+  "lessons.check.error.promptMissing": "Frage {n} hat noch keinen Text.",
+  "lessons.check.error.promptLong": "Frage {n} ist zu lang (höchstens {max} Zeichen).",
+  "lessons.check.error.optionsFew": "Frage {n} braucht mindestens {min} Antworten.",
+  "lessons.check.error.optionsMany": "Frage {n} kann höchstens {max} Antworten haben.",
+  "lessons.check.error.optionMissing": "Frage {n}: Antwort {answer} ist leer.",
+  "lessons.check.error.optionLong":
+    "Frage {n}: Antwort {answer} ist zu lang (höchstens {max} Zeichen).",
+  "lessons.check.error.noRight": "Frage {n}: Hak mindestens eine richtige Antwort an.",
+  "lessons.check.error.explanationLong":
+    "Frage {n}: Die Erklärung ist zu lang (höchstens {max} Zeichen).",
 };

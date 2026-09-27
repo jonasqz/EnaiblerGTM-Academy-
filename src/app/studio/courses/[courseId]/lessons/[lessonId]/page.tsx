@@ -11,11 +11,13 @@ import {
   setLessonSourcesAction,
 } from "@/app/studio/actions";
 import { LessonEditor } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/lesson-editor";
+import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { changedSourceOf } from "@/core/authoring/auto-update";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
+import { tenantTranslator } from "@/core/i18n/tenant-translator";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
@@ -125,13 +127,16 @@ export default async function LessonEditorPage({
             description: localize(criterion.description, locale),
           }))}
           selected={lesson.criterionIds}
+          questions={data.questions}
           academyTheme={themeToCssVariables(tenant.theme)}
+          checkLabels={knowledgeCheckLabels(tenantTranslator(tenant, locale))}
           reference={
             reference && isLocale(reference.locale)
               ? {
                   locale: reference.locale,
                   title: reference.title,
                   markdown: markdownOf(reference.blocks),
+                  questions: reference.questions,
                 }
               : null
           }
