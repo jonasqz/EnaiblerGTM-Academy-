@@ -324,7 +324,6 @@ export interface CourseStats {
   aiReviews: number;
   /** AI verdicts a human also judged, and how often both agreed (brief §8 agreement rate). */
   agreement: AgreementStats | null;
-  avgCostMicroUsd: number | null;
   /** The final test: every hand-in, learners who took it, learners who passed it. */
   test: { attempts: number; takers: number; passed: number };
 }
@@ -369,7 +368,6 @@ export async function courseStats(
             submissionId: reviews.submissionId,
             reviewerType: reviews.reviewerType,
             overall: reviews.overall,
-            costMicroUsd: reviews.costMicroUsd,
           })
           .from(reviews)
           .where(
@@ -382,7 +380,6 @@ export async function courseStats(
       : [];
 
     const ai = reviewRows.filter((row) => row.reviewerType === "ai");
-    const costs = ai.flatMap((row) => (row.costMicroUsd === null ? [] : [row.costMicroUsd]));
     const pairs = subs.flatMap((submission) => {
       // Rows are newest first: compare the latest AI and the latest human verdict.
       const aiVerdict = ai.find((row) => row.submissionId === submission.id);
@@ -403,9 +400,6 @@ export async function courseStats(
       publicCredentials: creds.filter((row) => row.visibility === "public").length,
       aiReviews: ai.length,
       agreement: computeAgreement(pairs),
-      avgCostMicroUsd: costs.length
-        ? Math.round(costs.reduce((sum, cost) => sum + cost, 0) / costs.length)
-        : null,
       test: test ?? { attempts: 0, takers: 0, passed: 0 },
     };
   });

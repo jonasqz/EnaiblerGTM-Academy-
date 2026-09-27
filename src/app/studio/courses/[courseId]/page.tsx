@@ -29,12 +29,6 @@ const STATE_ICON = {
   attention: { icon: TriangleAlert, color: "var(--status-warning)" },
 } as const;
 
-const USD: Intl.NumberFormatOptions = {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 4,
-};
-
 export default async function StudioCoursePage({
   params,
 }: PageProps<"/studio/courses/[courseId]">) {
@@ -260,18 +254,6 @@ export default async function StudioCoursePage({
                       <span className="font-normal text-muted">
                         {t.t("courses.overview.review.noChecks")}
                       </span>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-muted">{t.t("courses.overview.review.cost")}</dt>
-                  <dd className="font-semibold tabular-nums">
-                    {stats.avgCostMicroUsd === null ? (
-                      <span className="font-normal text-muted">
-                        {t.t("courses.overview.review.notReported")}
-                      </span>
-                    ) : (
-                      t.number(stats.avgCostMicroUsd / 1_000_000, USD)
                     )}
                   </dd>
                 </div>
