@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { linkedInAddToProfileUrl, linkedInShareUrl } from "@/core/credentials/linkedin";
+import { linkedInTarget, shareChannelOf } from "@/core/credentials/share";
 import { getDb } from "@/db/client";
 import { withTenant } from "@/db/tenant-scope";
 import { getViewer } from "@/server/auth";
@@ -30,7 +30,7 @@ export async function GET(
 
   const t = await getTranslator();
   const copy = credentialCopy(tenant, credential, t, origin);
-  const target = request.nextUrl.searchParams.get("to") === "profile" ? "profile" : "post";
+  const target = shareChannelOf(request.nextUrl.searchParams.get("to")) ?? "post";
 
   await withTenant(getDb(), tenant.id, (tx) =>
     trackEvent(tx, {
@@ -44,16 +44,13 @@ export async function GET(
     }),
   );
 
-  const url =
-    target === "profile"
-      ? linkedInAddToProfileUrl({
-          name: copy.linkedInName,
-          organizationName: copy.academy,
-          organizationId: tenant.settings.linkedin_organization_id,
-          issuedAt: credential.issuedAt,
-          certUrl: copy.verificationUrl,
-          certId: copy.credentialId,
-        })
-      : linkedInShareUrl(copy.verificationUrl);
+  const url = linkedInTarget(target, {
+    verificationUrl: copy.verificationUrl,
+    name: copy.linkedInName,
+    academy: copy.academy,
+    organizationId: tenant.settings.linkedin_organization_id,
+    issuedAt: credential.issuedAt,
+    credentialId: copy.credentialId,
+  });
   return NextResponse.redirect(url, 303);
 }

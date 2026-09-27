@@ -165,6 +165,21 @@ export async function setContactOptIn(
   });
 }
 
+/** Whether the learner agreed to be contacted by the academy and has not withdrawn. */
+export async function hasContactOptIn(
+  db: Database,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  const [handoff] = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ confirmedAt: consents.confirmedAt, revokedAt: consents.revokedAt })
+      .from(consents)
+      .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff"))),
+  );
+  return Boolean(handoff?.confirmedAt && !handoff.revokedAt);
+}
+
 /** Everything this academy stores about the learner, as JSON (brief §9). */
 export async function exportMyData(db: Database, tenant: TenantContext, userId: string) {
   const [account] = await db

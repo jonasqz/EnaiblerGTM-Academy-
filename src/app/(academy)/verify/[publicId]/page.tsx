@@ -2,30 +2,40 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { setCredentialVisibility } from "@/app/(academy)/verify/[publicId]/actions";
+import { AboutCourse } from "@/app/(academy)/verify/[publicId]/about-course";
+import { SharePanel } from "@/app/(academy)/verify/[publicId]/share-panel";
 import { ShowcaseEditor } from "@/app/(academy)/verify/[publicId]/showcase-editor";
 import { uploadLabels } from "@/components/upload-labels";
 import { Markdown } from "@/components/ui/markdown";
+import {
+  ctaPath,
+  previewDescription,
+  shareChannelOf,
+  sharedUrl,
+  suggestedPost,
+} from "@/core/credentials/share";
 import { localize } from "@/core/i18n/locales";
 import { isBot } from "@/core/shared/bots";
 import { pathColor } from "@/core/theme/css";
 import { getDb } from "@/db/client";
-import { withTenant } from "@/db/tenant-scope";
 import { getViewer } from "@/server/auth";
 import { credentialCopy } from "@/server/credential-copy";
 import { canView, loadCredential } from "@/server/credentials";
+import { loadLandingCourse, recordLandingEvent } from "@/server/credentials/landing";
 import {
   SHOWCASE_MAX_PICTURES,
   SHOWCASE_MAX_TEXT,
   showcaseDraft,
 } from "@/server/credentials/showcase";
-import { trackEvent } from "@/server/events";
+import { hasContactOptIn } from "@/server/profile";
 import { getOrigin, getTenant, getTranslator } from "@/server/request";
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<"/verify/[publicId]">): Promise<Metadata> {
   const { publicId } = await params;
+  const via = shareChannelOf((await searchParams).via);
   const tenant = await getTenant();
   const t = await getTranslator();
   const credential = await loadCredential(tenant, publicId);
@@ -35,23 +45,30 @@ export async function generateMetadata({
 
   const copy = credentialCopy(tenant, credential, t, await getOrigin());
   const title = `${copy.credentialTerm}: ${copy.courseTitle}`;
-  const description = `${copy.displayName} · ${copy.proofLine}`;
+  const description = previewDescription([copy.displayName, copy.proofLine]);
   const image = { url: `/verify/${credential.publicId}/image?format=og`, width: 1200, height: 630 };
+  // LinkedIn links a post's preview to og:url, so the channel stays with the click.
+  const url = via ? sharedUrl(copy.verificationUrl, via) : copy.verificationUrl;
   return {
     title,
     description,
     robots: { index: false },
-    openGraph: { title, description, url: copy.verificationUrl, type: "website", images: [image] },
+    openGraph: { title, description, url, type: "website", images: [image] },
     twitter: { card: "summary_large_image", title, description, images: [image.url] },
   };
 }
 
 /**
- * Verification page (brief §6). Doubles as a landing page for the tenant:
- * the call to action leads new learners into the same course.
+ * Verification page (brief §6). For its owner, the place to share it; for
+ * everyone else, the academy's landing page: the credential first, then the
+ * course behind it and a call to action into the same course (brief §2 step 8).
  */
-export default async function VerifyPage({ params }: PageProps<"/verify/[publicId]">) {
+export default async function VerifyPage({
+  params,
+  searchParams,
+}: PageProps<"/verify/[publicId]">) {
   const { publicId } = await params;
+  const query = await searchParams;
   const tenant = await getTenant();
   const t = await getTranslator();
   const viewer = await getViewer(tenant);
@@ -59,56 +76,61 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
   if (!credential || !canView(credential, viewer?.userId ?? null)) notFound();
 
   const isOwner = credential.userId === viewer?.userId;
+  const via = shareChannelOf(query.via);
+  const fallback = [tenant.settings.default_locale];
   const showcaseOn = tenant.settings.features.showcase;
   const showcase =
     showcaseOn && credential.showcase && (credential.visibility === "public" || isOwner)
       ? credential.showcase
       : null;
-  const draft =
-    showcaseOn && isOwner ? await showcaseDraft(getDb(), tenant.id, credential.id) : null;
+  const [draft, contactOptIn, landing] = await Promise.all([
+    showcaseOn && isOwner ? showcaseDraft(getDb(), tenant.id, credential.id) : null,
+    isOwner ? hasContactOptIn(getDb(), tenant.id, credential.userId) : null,
+    isOwner ? null : loadLandingCourse(getDb(), tenant.id, credential.courseId),
+  ]);
   const copy = credentialCopy(tenant, credential, t, await getOrigin());
   const color = credential.path
     ? pathColor(tenant.theme, credential.path.position, credential.path.color)
     : tenant.theme.colors.primary;
 
   if (!isOwner && !isBot((await headers()).get("user-agent"))) {
-    await withTenant(getDb(), tenant.id, (tx) =>
-      trackEvent(tx, {
-        tenantId: tenant.id,
-        name: "verification_page_viewed",
-        courseId: credential.courseId,
-        pathId: credential.path?.id,
-        locale: t.locale,
-      }),
-    );
+    await recordLandingEvent(getDb(), tenant.id, "verification_page_viewed", credential, {
+      locale: t.locale,
+      via,
+    });
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {isOwner && (
-        <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
-          <p>
-            {credential.visibility === "public"
-              ? t.t("verify.publicNotice")
-              : t.t("verify.privateNotice")}
-          </p>
-          <form action={setCredentialVisibility}>
-            <input type="hidden" name="publicId" value={credential.publicId} />
-            <input
-              type="hidden"
-              name="visibility"
-              value={credential.visibility === "public" ? "private" : "public"}
-            />
-            <button type="submit" className="btn btn-secondary">
-              {credential.visibility === "public"
-                ? t.t("verify.makePrivate")
-                : t.t("verify.makePublic")}
-            </button>
-          </form>
-        </section>
+        <SharePanel
+          publicId={credential.publicId}
+          isPublic={credential.visibility === "public"}
+          hasName={credential.displayName !== ""}
+          showcase={showcaseOn}
+          post={suggestedPost(
+            t,
+            {
+              basis: credential.basis,
+              course: copy.courseTitle,
+              academy: copy.academy,
+              artifact: credential.artifactName,
+              proof: copy.proofLine,
+              url: sharedUrl(copy.verificationUrl, "post"),
+            },
+            {
+              // The academy's own text where it wrote one in the learner's language.
+              template: tenant.settings.sharing.post_text?.[t.locale] ?? null,
+              hashtags: tenant.settings.sharing.hashtags,
+            },
+          )}
+          contact={contactOptIn ? (query.contact === "saved" ? "saved" : null) : "ask"}
+          academy={copy.academy}
+          t={t}
+        />
       )}
 
-      <article className="card overflow-hidden">
+      <article id="credential" className="card scroll-mt-8 overflow-hidden">
         <div className="h-3" style={{ background: color }} />
         <div className="space-y-6 p-6 sm:p-10">
           <header className="space-y-2">
@@ -220,27 +242,8 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
         />
       )}
 
-      <div className="flex flex-wrap gap-3">
-        {isOwner && credential.visibility === "public" && (
-          <>
-            <a href={`/verify/${credential.publicId}/share?to=post`} className="btn btn-primary">
-              {t.t("verify.share")}
-            </a>
-            <a
-              href={`/verify/${credential.publicId}/share?to=profile`}
-              className="btn btn-secondary"
-            >
-              {t.t("verify.addToProfile")}
-            </a>
-            <a
-              href={`/verify/${credential.publicId}/image?format=card&download=1`}
-              className="btn btn-secondary"
-            >
-              {t.t("verify.downloadCard")}
-            </a>
-          </>
-        )}
-        {isOwner && (
+      {isOwner ? (
+        <div className="flex flex-wrap gap-3">
           <a
             href={`/verify/${credential.publicId}/open-badge`}
             className="btn btn-secondary"
@@ -248,15 +251,18 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
           >
             {t.t("verify.openBadge")}
           </a>
-        )}
-        {!isOwner && (
-          <a href={`/verify/${credential.publicId}/cta`} className="btn btn-primary">
-            {localize(tenant.settings.verification_cta.label, t.locale, [
-              tenant.settings.default_locale,
-            ])}
-          </a>
-        )}
-      </div>
+        </div>
+      ) : (
+        <AboutCourse
+          course={landing}
+          cta={{
+            href: ctaPath(credential.publicId, via),
+            label: localize(tenant.settings.verification_cta.label, t.locale, fallback),
+          }}
+          t={t}
+          fallback={fallback}
+        />
+      )}
     </div>
   );
 }
