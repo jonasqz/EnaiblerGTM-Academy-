@@ -22,16 +22,24 @@ import { Funnel } from "@/components/ui/funnel";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { can } from "@/core/access/roles";
+import {
+  DEFAULT_PERIOD,
+  OVERVIEW_PERIODS,
+  overviewPeriod,
+  periodWindow,
+} from "@/core/analytics/sharing";
 import { hasLegalPages } from "@/core/courses/publish-check";
 import { localize } from "@/core/i18n/locales";
 import { sameJson } from "@/core/shared/json";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { getDb } from "@/db/client";
 import { MentorOverview } from "@/app/studio/mentor-overview";
+import { SharingCard } from "@/app/studio/sharing-card";
 import { requireCapability } from "@/server/access";
 import { listCourses } from "@/server/studio/courses";
 import { studioOverview } from "@/server/studio/insights";
 import { listReviewQueue } from "@/server/studio/reviews";
+import { sharingNumbers } from "@/server/studio/sharing";
 import { getStudioText } from "@/server/studio-text";
 
 const FLOW_STEPS = [
@@ -41,14 +49,16 @@ const FLOW_STEPS = [
   { icon: Rocket, key: "publish" },
 ] as const;
 
-export default async function StudioOverviewPage() {
+export default async function StudioOverviewPage({ searchParams }: PageProps<"/studio">) {
   const session = await requireCapability("studio.view");
   const { tenant, roles } = session;
   const db = getDb();
   const t = await getStudioText();
   // Mentors work in their cohorts: their overview is their review queue and cohorts.
   if (!can(roles, "courses.view")) return <MentorOverview session={session} />;
-  const overview = await studioOverview(db, tenant.id);
+  const days = overviewPeriod((await searchParams).days);
+  const overview = await studioOverview(db, tenant.id, days);
+  const sharing = await sharingNumbers(db, tenant.id, periodWindow(days));
   const courses = await listCourses(db, tenant.id);
   const queue = can(roles, "reviews.decide") ? await listReviewQueue(db, tenant.id) : [];
   const toDecide = queue.filter((row) => row.kind === "decide").length;
@@ -228,79 +238,104 @@ export default async function StudioOverviewPage() {
         </section>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section aria-labelledby="funnel-heading" className="card-flat space-y-5 p-5">
-          <div>
-            <h2 id="funnel-heading" className="text-lg font-semibold">
-              {t.t("overview.funnel")}
-            </h2>
-            <p className="text-sm text-muted">{t.t("overview.funnelIntro")}</p>
-          </div>
-          <Funnel
-            caption={t.t("overview.funnelCaption")}
-            locale={t.locale}
-            rateTitle={t.t("overview.funnelRate")}
-            rows={overview.funnel.map((step) => ({
-              label: t.t(`overview.funnel.${step.key}`),
-              count: step.count,
-            }))}
-          />
-        </section>
-
-        <section aria-labelledby="courses-heading" className="card-flat space-y-4 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="courses-heading" className="text-lg font-semibold">
-              {t.t("overview.courses")}
-            </h2>
-            <Link
-              href="/studio/courses"
-              className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
-            >
-              {t.t("overview.allCourses")} <ArrowRight aria-hidden size={16} />
-            </Link>
-          </div>
-          {courses.length === 0 ? (
-            <EmptyState
-              icon={Hammer}
-              title={t.t("overview.noCourses")}
-              body={t.t("overview.noCoursesBody")}
-              action={
-                canEdit && (
-                  <Link href="/studio/courses/new" className="btn btn-primary btn-sm">
-                    {t.t("overview.firstCourse")}
-                  </Link>
-                )
-              }
+      <section aria-labelledby="period-heading" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 id="period-heading" className="text-lg font-semibold">
+            {t.t("overview.period.heading", { days })}
+          </h2>
+          <nav className="tabs" aria-label={t.t("overview.period.label")}>
+            {OVERVIEW_PERIODS.map((period) => (
+              <Link
+                key={period}
+                href={period === DEFAULT_PERIOD ? "/studio" : `/studio?days=${period}`}
+                aria-current={period === days ? "page" : undefined}
+                scroll={false}
+              >
+                {t.n("overview.period.days", period)}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section aria-labelledby="funnel-heading" className="card-flat space-y-5 p-5">
+            <div>
+              <h3 id="funnel-heading" className="text-lg font-semibold">
+                {t.t("overview.funnel")}
+              </h3>
+              <p className="text-sm text-muted">{t.t("overview.funnelIntro")}</p>
+            </div>
+            <Funnel
+              caption={t.t("overview.funnelCaption", { days })}
+              locale={t.locale}
+              rateTitle={t.t("overview.funnelRate")}
+              rows={overview.funnel.map((step) => ({
+                label: t.t(`overview.funnel.${step.key}`),
+                count: step.count,
+              }))}
             />
-          ) : (
-            <ul className="divide-y divide-line">
-              {courses.slice(0, 6).map((course) => (
-                <li key={course.id}>
-                  <Link
-                    href={`/studio/courses/${course.id}`}
-                    className="-mx-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-control px-2 py-3 hover:bg-subtle"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">
-                        {localize(course.title, fallback[0]!, fallback)}
-                      </span>
-                      <span className="text-sm text-muted">
-                        {t.t("overview.courseStats", {
-                          started: course.enrolled,
-                          completed: course.completed,
-                        })}
-                        {course.pendingReviews > 0 &&
-                          ` · ${t.t("overview.courseInReview", { n: course.pendingReviews })}`}
-                      </span>
+          </section>
+          <SharingCard
+            t={t}
+            summary={sharing}
+            leadsHref={can(roles, "people.view") ? "/studio/people/leads" : null}
+            settingsHref={can(roles, "academy.manage") ? "/studio/settings/sharing" : null}
+          />
+        </div>
+      </section>
+
+      <section aria-labelledby="courses-heading" className="card-flat space-y-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="courses-heading" className="text-lg font-semibold">
+            {t.t("overview.courses")}
+          </h2>
+          <Link
+            href="/studio/courses"
+            className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+          >
+            {t.t("overview.allCourses")} <ArrowRight aria-hidden size={16} />
+          </Link>
+        </div>
+        {courses.length === 0 ? (
+          <EmptyState
+            icon={Hammer}
+            title={t.t("overview.noCourses")}
+            body={t.t("overview.noCoursesBody")}
+            action={
+              canEdit && (
+                <Link href="/studio/courses/new" className="btn btn-primary btn-sm">
+                  {t.t("overview.firstCourse")}
+                </Link>
+              )
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-line">
+            {courses.slice(0, 6).map((course) => (
+              <li key={course.id}>
+                <Link
+                  href={`/studio/courses/${course.id}`}
+                  className="-mx-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-control px-2 py-3 hover:bg-subtle"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {localize(course.title, fallback[0]!, fallback)}
                     </span>
-                    <CourseStatusBadge status={course.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+                    <span className="text-sm text-muted">
+                      {t.t("overview.courseStats", {
+                        started: course.enrolled,
+                        completed: course.completed,
+                      })}
+                      {course.pendingReviews > 0 &&
+                        ` · ${t.t("overview.courseInReview", { n: course.pendingReviews })}`}
+                    </span>
+                  </span>
+                  <CourseStatusBadge status={course.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {canEdit && (
         <section aria-labelledby="flow-heading" className="space-y-4">

@@ -3,8 +3,10 @@ import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CourseSharingCard } from "@/app/studio/sharing-card";
 import { StatTile } from "@/components/ui/stat-tile";
 import { can } from "@/core/access/roles";
+import { DEFAULT_PERIOD, periodWindow } from "@/core/analytics/sharing";
 import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { starterRubric } from "@/core/courses/starter-rubric";
 import { isLocale, localize } from "@/core/i18n/locales";
@@ -16,6 +18,7 @@ import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor } from "@/server/studio/courses";
 import { courseStats } from "@/server/studio/insights";
+import { sharingNumbers } from "@/server/studio/sharing";
 import { getStudioText } from "@/server/studio-text";
 
 type StepState = "done" | "todo" | "attention";
@@ -41,6 +44,12 @@ export default async function StudioCoursePage({
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const stats = await courseStats(getDb(), tenant.id, courseId);
+  const sharing = await sharingNumbers(getDb(), tenant.id, {
+    ...periodWindow(DEFAULT_PERIOD),
+    courseId,
+  });
+  // Only once there is something to share: drafts keep their page to the steps.
+  const showSharing = stats.credentials > 0 || sharing.views.total > 0 || sharing.newLearners > 0;
   const check = publishCheckFor(editor, {
     legalLinks: tenant.settings.legal_links,
     aiReview: tenant.settings.features.ai_review,
@@ -336,6 +345,8 @@ export default async function StudioCoursePage({
               )}
             </section>
           )}
+
+          {showSharing && <CourseSharingCard t={t} summary={sharing} days={DEFAULT_PERIOD} />}
         </div>
       </div>
     </div>
