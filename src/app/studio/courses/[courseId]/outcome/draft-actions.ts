@@ -12,6 +12,7 @@ import { draftRubric } from "@/server/authoring/rubric";
 import { fileBytes, loadFile } from "@/server/files";
 import { rateLimit } from "@/server/rate-limit";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { getStudioText } from "@/server/studio-text";
 import { documentText } from "@/server/text-extract";
 
 export type RubricDraftState =
@@ -28,17 +29,15 @@ const HOUR = 60 * 60_000;
 export async function draftRubricAction(formData: FormData): Promise<RubricDraftState> {
   const courseId = z.uuid().parse(text(formData, "courseId"));
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/outcome`);
+  const t = await getStudioText();
   const editor = await getCourseEditor(tenant.id, courseId);
-  if (!editor?.assignment) return { status: "error", message: "This course has no assignment." };
+  if (!editor?.assignment) return { status: "error", message: t.t("common.actions.noAssignment") };
   const model = authoringModel();
   if (!model) {
-    return {
-      status: "error",
-      message: "Drafting needs the AI gateway (LLM_BASE_URL). Write the rubric below instead.",
-    };
+    return { status: "error", message: t.t("authoring.draft.noGateway") };
   }
   if (!rateLimit(`rubric-draft:${tenant.id}`, 20, HOUR)) {
-    return { status: "error", message: "Too many drafts this hour. Try again later." };
+    return { status: "error", message: t.t("authoring.draft.rateLimited") };
   }
 
   const languages = editor.course.languages.filter(isLocale);
@@ -67,7 +66,7 @@ export async function draftRubricAction(formData: FormData): Promise<RubricDraft
       { tenant: tenant.slug, course: courseId },
     );
     if (!result.ok) {
-      return { status: "error", message: "The draft did not come out usable. Try again." };
+      return { status: "error", message: t.t("authoring.draft.unusable") };
     }
     return {
       status: "done",
@@ -77,6 +76,6 @@ export async function draftRubricAction(formData: FormData): Promise<RubricDraft
     };
   } catch (error) {
     console.error("[authoring] rubric draft failed", error);
-    return { status: "error", message: "The AI gateway did not answer. Try again in a moment." };
+    return { status: "error", message: t.t("authoring.draft.noAnswer") };
   }
 }

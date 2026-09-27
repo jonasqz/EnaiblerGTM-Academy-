@@ -8,8 +8,12 @@ import { rubricSchema } from "@/core/review/rubric";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { getTranslator } from "@/server/request";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Outcome and rubric" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("authoring.outcome.title") };
+}
 
 export default async function OutcomePage({
   params,
@@ -20,7 +24,8 @@ export default async function OutcomePage({
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/outcome`);
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor?.assignment || !editor.rubric) notFound();
-  const t = await getTranslator();
+  const t = await getStudioText();
+  const learnerText = await getTranslator();
   const { assignment } = editor;
   const file = assignment.submissionTypes.find((type) => type.type === "file");
   const form = assignment.submissionTypes.find((type) => type.type === "template_form");
@@ -28,9 +33,8 @@ export default async function OutcomePage({
   return (
     <div className="space-y-6">
       {created === "1" && (
-        <Notice tone="good" title="Course created as a draft">
-          It starts with a generic rubric. Make the criteria specific to your artifact, then add
-          lessons that teach them.
+        <Notice tone="good" title={t.t("authoring.outcome.created.title")}>
+          {t.t("authoring.outcome.created.body")}
         </Notice>
       )}
       <OutcomeForm
@@ -45,7 +49,7 @@ export default async function OutcomePage({
         acceptUrl={assignment.submissionTypes.some((type) => type.type === "url")}
         formSchema={form?.type === "template_form" ? JSON.stringify(form.schema, null, 2) : null}
         rubric={rubricSchema.parse(editor.rubric.definition)}
-        artifactTerm={t.term("artifact")}
+        artifactTerm={learnerText.term("artifact")}
         lessonCount={editor.lessons.length}
         aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
       />
