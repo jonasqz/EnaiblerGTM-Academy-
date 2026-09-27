@@ -14,7 +14,11 @@ import {
   submitTest,
   type TestSubmitError,
 } from "@/server/learning";
+import { rateLimit } from "@/server/rate-limit";
 import { getTranslator } from "@/server/request";
+
+const HOUR = 60 * 60_000;
+const TEST_ATTEMPTS_PER_HOUR = 10;
 
 export async function completeLessonAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
@@ -73,7 +77,7 @@ export async function submitAssignmentAction(
 
 export type TestState =
   | { status: "idle" }
-  | { status: "error"; error: TestSubmitError; unanswered: string[] }
+  | { status: "error"; error: TestSubmitError | "too_many"; unanswered: string[] }
   | {
       status: "graded";
       attemptNo: number;
@@ -96,6 +100,10 @@ export async function submitTestAction(
 ): Promise<TestState> {
   const slug = String(formData.get("slug") ?? "");
   const { tenant, viewer } = await requireViewer(`/courses/${slug}/test`);
+  // Retakes are unlimited, but not at machine speed: guessing by script stays impractical.
+  if (!rateLimit(`test:${tenant.id}:${viewer.userId}:${slug}`, TEST_ATTEMPTS_PER_HOUR, HOUR)) {
+    return { status: "error", error: "too_many", unanswered: [] };
+  }
   const version = String(formData.get("version") ?? "");
   const result = await submitTest(getDb(), tenant, viewer.userId, slug, {
     entries: formData.entries(),

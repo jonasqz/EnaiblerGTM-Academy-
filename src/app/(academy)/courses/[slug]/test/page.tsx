@@ -95,6 +95,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
             unanswered: t.t("test.errorUnanswered"),
             passed: t.t("test.errorPassed"),
             completed: t.t("test.errorCompleted"),
+            too_many: t.t("test.errorTooMany"),
           },
           resultPassed: t.t("test.resultPassed"),
           resultFailed: t.t("test.resultFailed"),

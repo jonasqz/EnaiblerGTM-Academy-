@@ -30,7 +30,7 @@ import { listLessonDrafts } from "@/server/authoring/lesson-drafting";
 import { listSources } from "@/server/authoring/sources";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor, type CourseEditor } from "@/server/studio/courses";
-import { markdownOf } from "@/server/studio/lessons";
+import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -202,7 +202,7 @@ export default async function LessonsPage({
                         {languageName(t, locale)}
                       </th>
                     ))}
-                    <th scope="col">{t.t("lessons.list.teaches")}</th>
+                    {coverage && <th scope="col">{t.t("lessons.list.teaches")}</th>}
                     <th scope="col">
                       <span className="sr-only">{t.t("lessons.list.actions")}</span>
                     </th>
@@ -233,7 +233,10 @@ export default async function LessonsPage({
                             </td>
                           );
                         }
-                        const empty = !markdownOf(lesson.blocks).trim();
+                        // A knowledge check alone is content too.
+                        const empty =
+                          !markdownOf(lesson.blocks).trim() &&
+                          checkQuestionsOf(lesson.blocks).length === 0;
                         const attention = empty || lesson.flaggedAt !== null;
                         return (
                           <td key={locale} className="whitespace-nowrap">
@@ -266,22 +269,25 @@ export default async function LessonsPage({
                           </td>
                         );
                       })}
-                      <td>
-                        {row.criteria.length === 0 ? (
-                          <span className="text-sm text-muted">—</span>
-                        ) : (
-                          <span className="flex flex-wrap gap-1">
-                            {row.criteria.map((id) => (
-                              <span
-                                key={id}
-                                className="whitespace-nowrap rounded-control bg-subtle px-2 py-0.5 text-xs font-semibold"
-                              >
-                                {criterionLabel.get(id)}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
+                      {/* Criteria belong to the work: a test-only course has none to teach. */}
+                      {coverage && (
+                        <td>
+                          {row.criteria.length === 0 ? (
+                            <span className="text-sm text-muted">—</span>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {row.criteria.map((id) => (
+                                <span
+                                  key={id}
+                                  className="whitespace-nowrap rounded-control bg-subtle px-2 py-0.5 text-xs font-semibold"
+                                >
+                                  {criterionLabel.get(id)}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td>
                         <div className="flex justify-end gap-1">
                           <form action={moveLessonAction}>

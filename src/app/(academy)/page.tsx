@@ -1,9 +1,10 @@
-import { Award, BookOpen, Hammer } from "lucide-react";
+import { Award, BookOpen, Hammer, ListChecks } from "lucide-react";
 
 import { CourseCard } from "@/components/course-card";
 import { PathCard } from "@/components/path-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HeroArt } from "@/components/ui/hero-art";
+import { academyEnding } from "@/core/courses/completion";
 import { pathColor } from "@/core/theme/css";
 import { getSession } from "@/server/access";
 import { loadCatalog } from "@/server/catalog";
@@ -17,10 +18,20 @@ export default async function HomePage() {
   const fallback = [tenant.settings.default_locale];
   const { theme } = tenant;
 
+  // Promise only what every published course keeps: real work, the test, or either.
+  const ending = academyEnding(courses.map((entry) => entry.course.completionMode));
   const steps = [
     { icon: BookOpen, title: t.t("home.step1Title"), body: t.t("home.step1Body") },
-    { icon: Hammer, title: t.t("home.step2Title"), body: t.t("home.step2Body") },
-    { icon: Award, title: t.t("home.step3Title"), body: t.t("home.step3Body") },
+    ending === "work"
+      ? { icon: Hammer, title: t.t("home.step2Title"), body: t.t("home.step2Body") }
+      : ending === "test"
+        ? { icon: ListChecks, title: t.t("home.step2TitleTest"), body: t.t("home.step2BodyTest") }
+        : { icon: Hammer, title: t.t("home.step2TitleMixed"), body: t.t("home.step2BodyMixed") },
+    {
+      icon: Award,
+      title: t.t("home.step3Title"),
+      body: t.t(ending === "work" ? "home.step3Body" : "home.step3BodyEarned"),
+    },
   ];
 
   return (
@@ -29,9 +40,17 @@ export default async function HomePage() {
         <div className="space-y-5">
           <p className="eyebrow">{tenant.settings.author_display_name}</p>
           <h1 className="font-display text-4xl leading-[1.05] sm:text-5xl">
-            {t.t("home.heroTitle")}
+            {t.t(ending === "test" ? "home.heroTitleTest" : "home.heroTitle")}
           </h1>
-          <p className="max-w-xl text-lg text-muted">{t.t("home.heroIntro")}</p>
+          <p className="max-w-xl text-lg text-muted">
+            {t.t(
+              ending === "work"
+                ? "home.heroIntro"
+                : ending === "test"
+                  ? "home.heroIntroTest"
+                  : "home.heroIntroMixed",
+            )}
+          </p>
           <div className="flex flex-wrap gap-3 pt-2">
             {paths.length > 0 && (
               <a href="#paths" className="btn btn-primary">

@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { can } from "@/core/access/roles";
 import { fileRules } from "@/core/assignments/submission-types";
+import { requiresWork } from "@/core/courses/completion";
 import { FILE_PURPOSES, type FilePurpose } from "@/core/files/policy";
 import { getDb } from "@/db/client";
 import { assignments, courses, credentials, enrollments } from "@/db/schema";
@@ -70,7 +71,10 @@ export async function authorizeUpload(
     const slug = params.get("course") ?? "";
     const [row] = await withTenant(getDb(), tenant.id, (tx) =>
       tx
-        .select({ submissionTypes: assignments.submissionTypes })
+        .select({
+          submissionTypes: assignments.submissionTypes,
+          completionMode: courses.completionMode,
+        })
         .from(enrollments)
         .innerJoin(courses, eq(courses.id, enrollments.courseId))
         .innerJoin(assignments, eq(assignments.courseId, courses.id))
@@ -83,6 +87,8 @@ export async function authorizeUpload(
         ),
     );
     if (!row) return { status: 404, error: "not_enrolled" };
+    // A course that ends with the test alone takes no hand-ins, even if it kept its assignment.
+    if (!requiresWork(row.completionMode)) return { status: 400, error: "files_not_accepted" };
     const rules = fileRules(row.submissionTypes);
     if (!rules) return { status: 400, error: "files_not_accepted" };
     return {

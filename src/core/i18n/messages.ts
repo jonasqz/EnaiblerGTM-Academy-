@@ -37,6 +37,20 @@ const en = {
     "Create your {term.artifact} and get feedback on every criterion within minutes.",
   "home.step3Title": "Prove",
   "home.step3Body": "Earn a {term.credential} backed by your work and share it when you want to.",
+  // Academies whose courses end with the test alone, or some with work and some without.
+  "home.heroTitleTest": "Learn it. Test it. Prove it.",
+  "home.heroIntroTest":
+    "Every {term.course} ends with a {term.test}. Learn at your own pace, pass it and earn a {term.credential} you can share.",
+  "home.heroIntroMixed":
+    "Every {term.course} ends with proof of what you learned: real work with feedback on every criterion, or a {term.test}. Pass, and you earn a {term.credential} you can share.",
+  "home.step2TitleTest": "Test",
+  "home.step2BodyTest":
+    "Check what you learned with the {term.test} at the end, and take it again whenever you need to.",
+  "home.step2TitleMixed": "Build or test",
+  "home.step2BodyMixed":
+    "Depending on the {term.course}, hand in real work and get feedback on every criterion, or pass the {term.test}.",
+  "home.step3BodyEarned":
+    "Earn a {term.credential} that says what you did, and share it when you want to.",
   "home.youBuild": "You build: {artifact}",
   "home.lessonCount": "{n} {terms.lesson:n}",
   "home.inProgress": "In progress · {percent} %",
@@ -110,6 +124,8 @@ const en = {
     "The {term.test} was updated while you were answering. Check your answers, then hand them in again.",
   "test.errorPassed": "You already passed the {term.test}.",
   "test.errorCompleted": "You already completed this {term.course}.",
+  "test.errorTooMany":
+    "That was a lot of attempts in a short time. Go back to the lessons for a moment and try again in an hour.",
   "test.resultPassed": "You passed the {term.test}",
   "test.resultFailed": "Not passed yet",
   "test.score": "{correct} of {total} questions right",
@@ -349,6 +365,19 @@ const de: Record<MessageKey, string> = {
   "home.step3Title": "Beweisen",
   "home.step3Body":
     "Erhalte eine {term.credential}, die für deine Arbeit steht, und teile sie, wann du willst.",
+  "home.heroTitleTest": "Lernen. Testen. Beweisen.",
+  "home.heroIntroTest":
+    "Jeder {term.course} endet mit einem {term.test}. Lern in deinem Tempo, besteh ihn und erhalte eine {term.credential}, die du teilen kannst.",
+  "home.heroIntroMixed":
+    "Jeder {term.course} endet mit etwas, das zeigt, was du gelernt hast: einer echten Arbeit mit Feedback zu jedem Kriterium oder einem {term.test}. Wenn du bestehst, erhältst du eine {term.credential}, die du teilen kannst.",
+  "home.step2TitleTest": "Testen",
+  "home.step2BodyTest":
+    "Prüf mit dem {term.test} am Ende, was du gelernt hast, und mach ihn noch einmal, wann immer du willst.",
+  "home.step2TitleMixed": "Bauen oder testen",
+  "home.step2BodyMixed":
+    "Je nach {term.course} reichst du eine echte Arbeit ein und bekommst Feedback zu jedem Kriterium, oder du bestehst den {term.test}.",
+  "home.step3BodyEarned":
+    "Erhalte eine {term.credential}, die zeigt, was du geschafft hast, und teile sie, wann du willst.",
   "home.youBuild": "Du baust: {artifact}",
   "home.lessonCount": "{n} {terms.lesson:n}",
   "home.inProgress": "Läuft · {percent} %",
@@ -424,6 +453,8 @@ const de: Record<MessageKey, string> = {
     "Der {term.test} wurde geändert, während du geantwortet hast. Prüf deine Antworten und gib sie noch einmal ab.",
   "test.errorPassed": "Du hast den {term.test} schon bestanden.",
   "test.errorCompleted": "Du hast diesen {term.course} schon abgeschlossen.",
+  "test.errorTooMany":
+    "Das waren viele Versuche in kurzer Zeit. Schau dir die Lektionen noch einmal an und versuch es in einer Stunde wieder.",
   "test.resultPassed": "Du hast den {term.test} bestanden",
   "test.resultFailed": "Noch nicht bestanden",
   "test.score": "{correct} von {total} Fragen richtig",

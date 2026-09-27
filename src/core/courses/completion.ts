@@ -31,3 +31,14 @@ export function missingParts(
   if (requiresTest(mode) && !done.testPassed) missing.push("test");
   return missing;
 }
+
+/**
+ * What an academy can promise about all its courses (its home page): every
+ * one ends with real work, every one with the test alone, or a mix. With no
+ * courses yet it tells the brief's default story, real work.
+ */
+export function academyEnding(modes: readonly CompletionMode[]): "work" | "test" | "mixed" {
+  if (modes.every(requiresWork)) return "work";
+  if (modes.every((mode) => !requiresWork(mode))) return "test";
+  return "mixed";
+}

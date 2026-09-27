@@ -1,4 +1,4 @@
-import { ArrowLeft, Circle, CircleCheck, Hammer } from "lucide-react";
+import { ArrowLeft, Circle, CircleCheck, Hammer, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -7,6 +7,7 @@ import { KnowledgeCheck } from "@/components/knowledge-check";
 import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
+import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { courseProgress, neighbours, type LessonProgressMap } from "@/core/courses/lessons";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
@@ -63,15 +64,29 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
           </li>
         );
       })}
-      <li>
-        <Link
-          href={`/courses/${slug}/assignment`}
-          className="flex items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold hover:bg-subtle"
-        >
-          <Hammer aria-hidden size={16} className="shrink-0" />
-          {t.term("assignment")}
-        </Link>
-      </li>
+      {/* What the course ends with: the work, the test, or both. */}
+      {requiresWork(data.completionMode) && data.assignment && (
+        <li>
+          <Link
+            href={`/courses/${slug}/assignment`}
+            className="flex items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold hover:bg-subtle"
+          >
+            <Hammer aria-hidden size={16} className="shrink-0" />
+            {t.term("assignment")}
+          </Link>
+        </li>
+      )}
+      {requiresTest(data.completionMode) && data.test && (
+        <li>
+          <Link
+            href={`/courses/${slug}/test`}
+            className="flex items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold hover:bg-subtle"
+          >
+            <ListChecks aria-hidden size={16} className="shrink-0" />
+            {t.term("test")}
+          </Link>
+        </li>
+      )}
     </ol>
   );
 

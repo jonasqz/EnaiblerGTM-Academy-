@@ -167,7 +167,8 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     const keys = keysByLocale.get(lesson.locale) ?? new Set<string>();
     keys.add(lesson.key);
     keysByLocale.set(lesson.locale, keys);
-    if (!lesson.markdown.trim()) {
+    // A knowledge check alone is content too.
+    if (!lesson.markdown.trim() && !lesson.questions?.length) {
       add({
         code: "empty_lesson",
         severity: "warning",
