@@ -59,7 +59,7 @@ The legal basis is the contract with you or the business you represent (Art. 6(1
 
 ## Signing in with an e-mail link
 
-enaibler works without passwords. To sign in, to the Studio or to an academy, we send a link to your e-mail address. It is valid for 15 minutes, works once and is stored only as a hash. Signing in creates a session, with which we store your IP address and your browser's identifier to detect abuse. It ends when you sign out or after seven days without use. [Set a period after which expired sessions are deleted.] Within an academy, this happens on the academy's behalf.
+enaibler works without passwords. To sign in, to the Studio or to an academy, we send a link to your e-mail address. It is valid for 15 minutes, works once and is stored only as a hash. Signing in creates a session, with which we store your IP address and your browser's identifier to detect abuse. It ends when you sign out or after seven days without use. A session that ran out is deleted 30 days later, and a sign-out deletes it at once. Within an academy, this happens on the academy's behalf.
 
 ## Reporting content
 
@@ -98,8 +98,8 @@ We process data in the EU. [If a provider processes data outside the EU or can a
 
 ## How long we keep data
 
-- Sign-in links: 15 minutes, and they work once.
-- Sessions: until you sign out, or seven days without use.
+- Sign-in links: 15 minutes, and they work once. Unused links are deleted the following night.
+- Sessions: until you sign out, or seven days without use; a session that ran out is deleted 30 days later.
 - Language cookie: one year.
 - Counts against abuse: one hour at most, in memory only.
 - Server and proxy logs: [period].

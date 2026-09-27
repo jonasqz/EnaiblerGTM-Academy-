@@ -59,7 +59,7 @@ Rechtsgrundlage ist der Vertrag mit dir oder dem Unternehmen, das du vertrittst 
 
 ## Anmeldung per E-Mail-Link
 
-enaibler kommt ohne Passwörter aus. Zur Anmeldung, im Studio wie in einer Academy, schicken wir einen Link an deine E-Mail-Adresse. Er gilt 15 Minuten, funktioniert nur einmal und wird nur als Hashwert gespeichert. Mit der Anmeldung entsteht eine Sitzung, zu der wir deine IP-Adresse und die Kennung deines Browsers speichern, um Missbrauch zu erkennen. Sie endet mit der Abmeldung oder nach sieben Tagen ohne Nutzung. [Frist festlegen, nach der abgelaufene Sitzungen gelöscht werden.] Innerhalb einer Academy geschieht das im Auftrag der Academy.
+enaibler kommt ohne Passwörter aus. Zur Anmeldung, im Studio wie in einer Academy, schicken wir einen Link an deine E-Mail-Adresse. Er gilt 15 Minuten, funktioniert nur einmal und wird nur als Hashwert gespeichert. Mit der Anmeldung entsteht eine Sitzung, zu der wir deine IP-Adresse und die Kennung deines Browsers speichern, um Missbrauch zu erkennen. Sie endet mit der Abmeldung oder nach sieben Tagen ohne Nutzung. Eine abgelaufene Sitzung löschen wir 30 Tage später, bei der Abmeldung sofort. Innerhalb einer Academy geschieht das im Auftrag der Academy.
 
 ## Inhalte melden
 
@@ -98,8 +98,8 @@ Wir verarbeiten Daten in der EU. [Falls ein Dienstleister Daten außerhalb der E
 
 ## Wie lange wir Daten speichern
 
-- Anmeldelinks: 15 Minuten, und sie funktionieren nur einmal.
-- Sitzungen: bis zur Abmeldung oder sieben Tage ohne Nutzung.
+- Anmeldelinks: 15 Minuten, und sie funktionieren nur einmal. Ungenutzte Links löschen wir in der folgenden Nacht.
+- Sitzungen: bis zur Abmeldung oder sieben Tage ohne Nutzung; eine abgelaufene Sitzung löschen wir 30 Tage später.
 - Sprach-Cookie: ein Jahr.
 - Zählungen gegen Missbrauch: höchstens eine Stunde, nur im Arbeitsspeicher.
 - Server- und Proxy-Protokolle: [Dauer].

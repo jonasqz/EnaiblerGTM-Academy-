@@ -25,6 +25,7 @@ import { log } from "@/server/observability/log";
 import { reportError } from "@/server/observability/report";
 import { runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
+import { purgeExpiredSignIns } from "@/server/sessions";
 import { storageConfigured } from "@/server/storage";
 import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
 
@@ -135,18 +136,22 @@ await boss.work(
 );
 await boss.schedule(QUEUES.webhooks, "* * * * *");
 
-// Retention: delivery logs hold learner data, sent mail only needs to be traceable for a while.
+// Retention: delivery logs hold learner data, sent mail only needs to be traceable for a while,
+// and sessions that ran out still hold an IP address.
 await boss.work(
   QUEUES.housekeeping,
-  reported(QUEUES.housekeeping, () =>
-    forEachTenant(QUEUES.housekeeping, { activeOnly: false }, async (tenant) => {
+  reported(QUEUES.housekeeping, async () => {
+    await forEachTenant(QUEUES.housekeeping, { activeOnly: false }, async (tenant) => {
       const deliveries = await purgeOldDeliveries(db, tenant.id);
       const mails = await purgeProcessedNotifications(db, tenant.id);
       if (deliveries + mails > 0) {
         log.info("housekeeping", { tenant: tenant.slug, deliveries, mails });
       }
-    }),
-  ),
+    });
+    // Sessions and sign-in links are global rows: once per run, not per academy.
+    const signIns = await purgeExpiredSignIns(db);
+    if (signIns.sessions + signIns.links > 0) log.info("housekeeping", signIns);
+  }),
 );
 await boss.schedule(QUEUES.housekeeping, "41 3 * * *");
 

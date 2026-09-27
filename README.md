@@ -98,7 +98,8 @@ src/proxy.ts         Host → platform site or tenant (Next 16 proxy, Node runti
 src/worker/          pg-boss worker entry point
 tests/db/            Tests against real Postgres (RLS, manifests, the learning loop, files,
                      authoring, calibration, paths, mail, domains, credentials, cohorts,
-                     webhooks, auto-update, signup and settings)
+                     the team, webhooks, auto-update, signup and settings, AI allowance,
+                     operator tasks, housekeeping)
 ```
 
 ## How it works
