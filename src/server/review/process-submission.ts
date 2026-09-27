@@ -15,6 +15,7 @@ import { completeCourse } from "@/server/courses/completion";
 import { trackEvent } from "@/server/events";
 import type { LlmCaller } from "@/server/llm";
 import { queueReviewReady } from "@/server/notifications";
+import { queueReviewAlerts } from "@/server/review/alerts";
 import { runAiReview, type AiReviewRun } from "@/server/review/run-ai-review";
 import {
   readSubmissionFiles,
@@ -203,6 +204,7 @@ export async function processSubmission(
         .update(submissions)
         .set({ status: "in_review" })
         .where(eq(submissions.id, context.submission.id));
+      await queueReviewAlerts(tx, tenant.id, context.submission.id);
       return { status: "held", reasons: holdReasons };
     }
 
@@ -237,6 +239,7 @@ export async function processSubmission(
         .update(submissions)
         .set({ status: "in_review" })
         .where(eq(submissions.id, context.submission.id));
+      await queueReviewAlerts(tx, tenant.id, context.submission.id);
       return { status: "held", reasons: routing.reasons };
     }
 
@@ -251,6 +254,8 @@ export async function processSubmission(
       pass: review.pass,
       locale: context.locale,
     });
+    // A spot check waits for a person too, though the learner has the result.
+    if (routing.audit) await queueReviewAlerts(tx, tenant.id, context.submission.id);
     return { status: "released", pass: review.pass, percent: review.percent, audit: routing.audit };
   });
 }

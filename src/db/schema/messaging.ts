@@ -1,10 +1,26 @@
-import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { createdAt, tenantIsolation } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { tenants } from "@/db/schema/tenancy";
 
-export const notificationKind = pgEnum("notification_kind", ["review_ready", "level_up"]);
+export const notificationKind = pgEnum("notification_kind", [
+  "review_ready",
+  "level_up",
+  "team_invite",
+  "review_waiting",
+]);
 export const notificationStatus = pgEnum("notification_status", [
   "pending",
   "sent",
@@ -27,10 +43,35 @@ export interface LevelUpPayload {
   level: number;
 }
 
+/** Someone was added to the academy's team; the mail names their roles as they are when it goes out. */
+export interface TeamInvitePayload {
+  /** Studio language of the admin who sent it: the invitation is written in it. */
+  locale: string;
+}
+
+/** Hand-ins waiting for this team member, collected until the mail goes out. */
+export interface ReviewWaitingPayload {
+  submissionIds: string[];
+}
+
+export type NotificationPayload =
+  ReviewReadyPayload | LevelUpPayload | TeamInvitePayload | ReviewWaitingPayload;
+
 /**
- * Transactional mail to learners (brief §9: review ready, level-up). Written
- * in the transaction of what it reports, sent by the worker. Review mails
- * wait a moment: whoever watched the result arrive on the page gets none.
+ * Someone's review alert that has not gone out yet; the unique index below
+ * and its upsert share it. It goes by the payload, not by `kind`: migrations
+ * run in one transaction, and Postgres refuses an enum value added in the
+ * same transaction (an index predicate cannot cast the enum to text either).
+ */
+export const REVIEW_WAITING_PENDING = sql.raw(
+  `"status" = 'pending' and "payload" ? 'submissionIds'`,
+);
+
+/**
+ * Transactional mail (brief §9): to learners (review ready, level-up) and to
+ * the academy's team (an invitation, hand-ins waiting for review). Written in
+ * the transaction of what it reports, sent by the worker. Review mails wait a
+ * moment: whoever watched the result arrive on the page gets none.
  */
 export const notifications = pgTable(
   "notifications",
@@ -43,7 +84,7 @@ export const notifications = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     kind: notificationKind("kind").notNull(),
-    payload: jsonb("payload").$type<ReviewReadyPayload | LevelUpPayload>().notNull(),
+    payload: jsonb("payload").$type<NotificationPayload>().notNull(),
     status: notificationStatus("status").notNull().default("pending"),
     sendAfter: timestamp("send_after", { withTimezone: true }).notNull().defaultNow(),
     attempts: integer("attempts").notNull().default(0),
@@ -54,6 +95,10 @@ export const notifications = pgTable(
   },
   (table) => [
     index("notifications_due_idx").on(table.tenantId, table.status, table.sendAfter),
+    // One waiting review alert per person: new hand-ins join it (see server/review/alerts.ts).
+    uniqueIndex("notifications_review_waiting_idx")
+      .on(table.tenantId, table.userId)
+      .where(REVIEW_WAITING_PENDING),
     tenantIsolation(),
   ],
 ).enableRLS();

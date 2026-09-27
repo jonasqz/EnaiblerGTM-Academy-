@@ -10,6 +10,8 @@ export interface NoticeEmailInput {
   subject: string;
   heading: string;
   paragraphs: string[];
+  /** Short lines after the paragraphs, as a list (roles, waiting hand-ins). */
+  list?: string[];
   button: { label: string; url: string };
   /** Small print under the button (e.g. how long a link works). */
   note?: string;
@@ -17,7 +19,10 @@ export interface NoticeEmailInput {
   reason?: string;
 }
 
-/** One message, one button: review ready, level-up, the marketing confirmation. */
+/**
+ * One message, one button: review ready, level-up, the marketing confirmation,
+ * and for the team an invitation or hand-ins waiting for review.
+ */
 export async function renderNoticeEmail(
   input: NoticeEmailInput,
 ): Promise<{ subject: string; html: string; text: string }> {
@@ -37,6 +42,15 @@ export async function renderNoticeEmail(
           {paragraph}
         </p>
       ))}
+      {input.list && input.list.length > 0 && (
+        <ul style={{ margin: "0 0 16px", paddingLeft: 20 }}>
+          {input.list.map((item, index) => (
+            <li key={index} style={{ margin: "0 0 6px" }}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
       <p style={{ margin: "8px 0 20px" }}>
         <EmailButton theme={tenant.theme} href={input.button.url}>
           {input.button.label}

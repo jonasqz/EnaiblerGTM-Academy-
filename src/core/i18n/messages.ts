@@ -366,6 +366,31 @@ const en = {
   "email.news.button": "Yes, send me news",
   "email.news.note":
     "The link works for {days} days. If you didn't ask for this, ignore this email and you won't hear from us.",
+  // Mail to the academy's team: the brand writes, never a person, and it never says who added someone.
+  "email.teamInvite.subject": "You're on the team at {academy}",
+  "email.teamInvite.heading": "Welcome to the team at {academy}",
+  "email.teamInvite.body":
+    "You were added to the team at {academy}. Sign in with this email address to open its Studio: you get a sign-in link, no password needed.",
+  "email.teamInvite.roles": "What you can do there:",
+  "email.teamInvite.role.tenant_admin":
+    "Admin: you manage the academy's settings, brand and team, and can do everything else too.",
+  "email.teamInvite.role.author":
+    "Author: you build and publish {terms.course} and review what learners hand in.",
+  "email.teamInvite.role.reviewer": "Reviewer: you review what learners hand in.",
+  "email.teamInvite.role.mentor": "Mentor: you review what the learners in your cohorts hand in.",
+  "email.teamInvite.button": "Open the Studio",
+  "email.teamInvite.note": "Don't know {academy}? Then you can ignore this email.",
+  "email.teamInvite.reason": "You get this email because you were added to the team at {academy}.",
+  "email.reviewWaiting.subjectOne": "A hand-in is waiting for your review",
+  "email.reviewWaiting.subject": "{n} hand-ins are waiting for your review",
+  "email.reviewWaiting.body": "At {academy}, these hand-ins need a person:",
+  "email.reviewWaiting.decide": "{alias} · {course}: waits for a decision",
+  "email.reviewWaiting.spotCheck":
+    "{alias} · {course}: spot check (the learner already has the AI's result)",
+  "email.reviewWaiting.more": "and {n} more",
+  "email.reviewWaiting.button": "Open the review queue",
+  "email.reviewWaiting.note": "You get at most one of these emails an hour.",
+  "email.reviewWaiting.reason": "You get this email because you review hand-ins at {academy}.",
 
   "embed.title": "{terms.path} at {academy}",
   "embed.coursesTitle": "{terms.course} at {academy}",
@@ -747,6 +772,33 @@ const de: Record<MessageKey, string> = {
   "email.news.button": "Ja, schickt mir Neuigkeiten",
   "email.news.note":
     "Der Link ist {days} Tage gültig. Wenn du das nicht angefordert hast, ignoriere diese E-Mail. Dann hörst du nichts von uns.",
+  "email.teamInvite.subject": "Du bist im Team von {academy}",
+  "email.teamInvite.heading": "Willkommen im Team von {academy}",
+  "email.teamInvite.body":
+    "Du wurdest ins Team von {academy} aufgenommen. Melde dich mit dieser E-Mail-Adresse an, um das Studio zu öffnen: Du bekommst einen Anmeldelink, ein Passwort brauchst du nicht.",
+  "email.teamInvite.roles": "Das kannst du dort tun:",
+  "email.teamInvite.role.tenant_admin":
+    "Admin: Du verwaltest Einstellungen, Marke und Team der Akademie und kannst auch alles andere.",
+  "email.teamInvite.role.author":
+    "Autor:in: Du baust und veröffentlichst {terms.course} und bewertest, was Lernende abgeben.",
+  "email.teamInvite.role.reviewer": "Prüfer:in: Du bewertest, was Lernende abgeben.",
+  "email.teamInvite.role.mentor":
+    "Mentor:in: Du bewertest, was die Lernenden in deinen Gruppen abgeben.",
+  "email.teamInvite.button": "Studio öffnen",
+  "email.teamInvite.note": "Du kennst {academy} nicht? Dann kannst du diese E-Mail ignorieren.",
+  "email.teamInvite.reason":
+    "Du bekommst diese E-Mail, weil du ins Team von {academy} aufgenommen wurdest.",
+  "email.reviewWaiting.subjectOne": "Eine Abgabe wartet auf deine Bewertung",
+  "email.reviewWaiting.subject": "{n} Abgaben warten auf deine Bewertung",
+  "email.reviewWaiting.body": "Bei {academy} brauchen diese Abgaben einen Menschen:",
+  "email.reviewWaiting.decide": "{alias} · {course}: wartet auf eine Entscheidung",
+  "email.reviewWaiting.spotCheck":
+    "{alias} · {course}: Stichprobe (das Ergebnis der KI liegt der Person schon vor)",
+  "email.reviewWaiting.more": "und {n} weitere",
+  "email.reviewWaiting.button": "Offene Bewertungen öffnen",
+  "email.reviewWaiting.note": "Du bekommst höchstens eine solche E-Mail pro Stunde.",
+  "email.reviewWaiting.reason":
+    "Du bekommst diese E-Mail, weil du bei {academy} Abgaben bewertest.",
 
   "embed.title": "{terms.path} bei {academy}",
   "embed.coursesTitle": "{terms.course} bei {academy}",
