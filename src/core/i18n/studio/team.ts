@@ -59,6 +59,42 @@ export const en = {
   "team.decision.submit.decide": "Release to learner",
   "team.decision.submit.check": "Save the check",
   "team.decision.submit.change": "Change the decision",
+
+  // People
+  "team.people.title": "People",
+  "team.people.description":
+    "Learners appear under an alias that is stable within this academy. Names and e-mail addresses only show for learners who agreed to be contacted.",
+  "team.people.completedCourse": "Completed a course",
+  "team.people.openToContact": "Open to contact",
+  "team.people.empty": "No learners yet",
+  "team.people.emptyBody": "Share a course link: learners sign in with their e-mail address.",
+  "team.people.started": "Started",
+  "team.people.completed": "Completed",
+  "team.people.certificates": "Certificates",
+  "team.people.joined": "Joined",
+  "team.people.grantedLevels": "Granted levels",
+  "team.people.revoke": "Take the level back",
+  "team.people.revokeConfirm": "Take this level back?",
+  "team.people.grant": "Grant a level",
+  "team.people.level": "Level",
+  "team.people.reason": "Reason",
+  "team.people.reasonPlaceholder": "Reason (optional)",
+  "team.people.granting": "Granting…",
+  "team.people.grantButton": "Grant",
+  "team.people.contacts": "Contacts",
+  "team.people.contactsBody":
+    "Learners who agreed to hear from you, for your newsletter or CRM. Only confirmed consents; people can withdraw here at any time, so export again before each mailing.",
+  "team.people.newsletter": "Newsletter",
+  "team.people.newsletterHint":
+    "Confirmed by double opt-in (the learner clicked the link we mailed).",
+  "team.people.contactHint": "Agreed that you may contact them about your offers.",
+
+  // Membership roles (core/access/roles.ts), wherever the Studio names one
+  "team.role.learner": "Learner",
+  "team.role.author": "Author",
+  "team.role.reviewer": "Reviewer",
+  "team.role.mentor": "Mentor",
+  "team.role.tenant_admin": "Admin",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -118,4 +154,38 @@ export const de: Record<keyof typeof en, string> = {
   "team.decision.submit.decide": "Ergebnis freigeben",
   "team.decision.submit.check": "Stichprobe speichern",
   "team.decision.submit.change": "Entscheidung ändern",
+
+  "team.people.title": "Personen",
+  "team.people.description":
+    "Lernende erscheinen unter einem Alias, der in dieser Akademie gleich bleibt. Namen und E-Mail-Adressen siehst du nur bei Lernenden, die einer Kontaktaufnahme zugestimmt haben.",
+  "team.people.completedCourse": "Mit abgeschlossenem Kurs",
+  "team.people.openToContact": "Offen für Kontakt",
+  "team.people.empty": "Noch keine Lernenden",
+  "team.people.emptyBody": "Teil einen Kurslink: Lernende melden sich mit ihrer E-Mail-Adresse an.",
+  "team.people.started": "Begonnen",
+  "team.people.completed": "Abgeschlossen",
+  "team.people.certificates": "Bescheinigungen",
+  "team.people.joined": "Dabei seit",
+  "team.people.grantedLevels": "Vergebene Level",
+  "team.people.revoke": "Level zurücknehmen",
+  "team.people.revokeConfirm": "Dieses Level zurücknehmen?",
+  "team.people.grant": "Level vergeben",
+  "team.people.level": "Level",
+  "team.people.reason": "Begründung",
+  "team.people.reasonPlaceholder": "Begründung (optional)",
+  "team.people.granting": "Wird vergeben…",
+  "team.people.grantButton": "Vergeben",
+  "team.people.contacts": "Kontakte",
+  "team.people.contactsBody":
+    "Lernende, die von dir hören möchten, für deinen Newsletter oder dein CRM. Nur bestätigte Einwilligungen; sie lassen sich jederzeit widerrufen, also exportiere vor jedem Versand neu.",
+  "team.people.newsletter": "Newsletter",
+  "team.people.newsletterHint":
+    "Per Double-Opt-in bestätigt (die lernende Person hat auf den Link in unserer E-Mail geklickt).",
+  "team.people.contactHint": "Einverstanden, dass du sie zu deinen Angeboten kontaktierst.",
+
+  "team.role.learner": "Lernende",
+  "team.role.author": "Autor:in",
+  "team.role.reviewer": "Prüfer:in",
+  "team.role.mentor": "Mentor:in",
+  "team.role.tenant_admin": "Admin",
 };

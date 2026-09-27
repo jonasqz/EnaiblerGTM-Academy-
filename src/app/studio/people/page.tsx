@@ -15,14 +15,17 @@ import { requireCapability } from "@/server/access";
 import { countContacts } from "@/server/consent";
 import { listPeople } from "@/server/studio/insights";
 import { listLevelGrants, listStudioPaths, loadLevels } from "@/server/studio/paths";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "People" };
-
-const dates = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.people.title") };
+}
 
 /** Everyone learning in this academy, private by default (brief §9). */
 export default async function PeoplePage() {
   const { tenant, roles } = await requireCapability("people.view", "/studio/people");
+  const t = await getStudioText();
   const people = await listPeople(getDb(), tenant.id);
   const paths = tenant.settings.features.paths;
   const locale = tenant.settings.default_locale;
@@ -38,7 +41,7 @@ export default async function PeoplePage() {
   const manual = levels.filter((level) => level.rule.type === "manual_grant");
   const pathTitle = (id: string) =>
     localize(pathRows.find((row) => row.path.id === id)?.path.title, locale);
-  const pathTerm = createTranslator({ locale: "en", termOverrides: tenant.terminology }).term(
+  const pathTerm = createTranslator({ locale: t.locale, termOverrides: tenant.terminology }).term(
     "path",
   );
   const contactable = people.filter((person) => person.contactEmail).length;
@@ -47,41 +50,41 @@ export default async function PeoplePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="People"
-        description="Learners appear under an alias that is stable within this academy. Names and e-mail addresses only show for learners who agreed to be contacted."
-      />
-      <section aria-label="Totals" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatTile label="Learners" value={people.length} />
-        <StatTile label="Completed a course" value={finished} />
-        <StatTile label="Open to contact" value={contactable} />
+      <PageHeader title={t.t("team.people.title")} description={t.t("team.people.description")} />
+      <section
+        aria-label={t.t("overview.totals")}
+        className="grid grid-cols-2 gap-3 lg:grid-cols-3"
+      >
+        <StatTile label={t.t("overview.stat.learners")} value={people.length} />
+        <StatTile label={t.t("team.people.completedCourse")} value={finished} />
+        <StatTile label={t.t("team.people.openToContact")} value={contactable} />
       </section>
 
       {people.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No learners yet"
-          body="Share a course link: learners sign in with their e-mail address."
+          title={t.t("team.people.empty")}
+          body={t.t("team.people.emptyBody")}
         />
       ) : (
         <div className="card-flat table-wrap">
           <table className="table">
-            <caption className="sr-only">Learners</caption>
+            <caption className="sr-only">{t.t("overview.stat.learners")}</caption>
             <thead>
               <tr>
-                <th scope="col">Learner</th>
+                <th scope="col">{t.t("common.learners.learner")}</th>
                 {paths && <th scope="col">{pathTerm}</th>}
                 <th scope="col" className="num">
-                  Started
+                  {t.t("team.people.started")}
                 </th>
                 <th scope="col" className="num">
-                  Completed
+                  {t.t("team.people.completed")}
                 </th>
                 <th scope="col" className="num">
-                  Certificates
+                  {t.t("team.people.certificates")}
                 </th>
-                <th scope="col">Joined</th>
-                {manual.length > 0 && <th scope="col">Granted levels</th>}
+                <th scope="col">{t.t("team.people.joined")}</th>
+                {manual.length > 0 && <th scope="col">{t.t("team.people.grantedLevels")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -107,7 +110,7 @@ export default async function PeoplePage() {
                   <td className="num">{person.completed}</td>
                   <td className="num">{person.credentials}</td>
                   <td className="whitespace-nowrap text-sm text-muted">
-                    {dates.format(person.joinedAt)}
+                    {t.date(person.joinedAt)}
                   </td>
                   {manual.length > 0 && (
                     <td className="min-w-56 space-y-2 text-sm">
@@ -130,8 +133,8 @@ export default async function PeoplePage() {
                             </span>
                             <SubmitButton
                               className="btn btn-ghost btn-sm"
-                              title="Take the level back"
-                              confirm="Take this level back?"
+                              title={t.t("team.people.revoke")}
+                              confirm={t.t("team.people.revokeConfirm")}
                             >
                               <X aria-hidden size={14} />
                             </SubmitButton>
@@ -139,10 +142,16 @@ export default async function PeoplePage() {
                         ))}
                       {pathRows.length > 0 && (
                         <details>
-                          <summary className="cursor-pointer font-semibold">Grant a level</summary>
+                          <summary className="cursor-pointer font-semibold">
+                            {t.t("team.people.grant")}
+                          </summary>
                           <form action={grantLevelAction} className="mt-2 space-y-2">
                             <input type="hidden" name="userId" value={person.userId} />
-                            <select name="levelN" aria-label="Level" className="select">
+                            <select
+                              name="levelN"
+                              aria-label={t.t("team.people.level")}
+                              className="select"
+                            >
                               {manual.map((level) => (
                                 <option key={level.n} value={level.n}>
                                   {level.n} · {localize(level.name, locale)}
@@ -163,16 +172,16 @@ export default async function PeoplePage() {
                             </select>
                             <input
                               name="reason"
-                              aria-label="Reason"
+                              aria-label={t.t("team.people.reason")}
                               className="input"
-                              placeholder="Reason (optional)"
+                              placeholder={t.t("team.people.reasonPlaceholder")}
                               maxLength={200}
                             />
                             <SubmitButton
                               className="btn btn-secondary btn-sm"
-                              pendingLabel="Granting…"
+                              pendingLabel={t.t("team.people.granting")}
                             >
-                              Grant
+                              {t.t("team.people.grantButton")}
                             </SubmitButton>
                           </form>
                         </details>
@@ -190,25 +199,22 @@ export default async function PeoplePage() {
         <section aria-labelledby="contacts-heading" className="card-flat space-y-4 p-5">
           <div>
             <h2 id="contacts-heading" className="text-lg font-semibold">
-              Contacts
+              {t.t("team.people.contacts")}
             </h2>
-            <p className="text-sm text-muted">
-              Learners who agreed to hear from you, for your newsletter or CRM. Only confirmed
-              consents; people can withdraw here at any time, so export again before each mailing.
-            </p>
+            <p className="text-sm text-muted">{t.t("team.people.contactsBody")}</p>
           </div>
           <ul className="divide-y divide-line">
             {[
               {
                 list: "news",
-                title: "Newsletter",
-                hint: "Confirmed by double opt-in (the learner clicked the link we mailed).",
+                title: t.t("team.people.newsletter"),
+                hint: t.t("team.people.newsletterHint"),
                 n: contacts.tenant_marketing,
               },
               {
                 list: "contact",
-                title: "Open to contact",
-                hint: "Agreed that you may contact them about your offers.",
+                title: t.t("team.people.openToContact"),
+                hint: t.t("team.people.contactHint"),
                 n: contacts.lead_handoff,
               },
             ].map((row) => (
