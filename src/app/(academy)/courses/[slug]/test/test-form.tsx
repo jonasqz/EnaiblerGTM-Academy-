@@ -8,7 +8,8 @@ import { submitTestAction, type TestState } from "@/app/(academy)/courses/[slug]
 import { Notice } from "@/components/ui/notice";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { PublicQuestion } from "@/core/questions/questions";
-import type { TestSubmitError } from "@/server/learning";
+
+type TestError = Extract<TestState, { status: "error" }>["error"];
 
 /** Learner text, already in the page's language; {placeholders} are filled in here. */
 export interface TestLabels {
@@ -20,7 +21,7 @@ export interface TestLabels {
   submitting: string;
   lastAttempt: string;
   passAt: string;
-  errors: Record<TestSubmitError, string>;
+  errors: Record<TestError, string>;
   resultPassed: string;
   resultFailed: string;
   score: string;
