@@ -5,29 +5,17 @@ import { useState } from "react";
 import type { FormState } from "@/app/studio/actions";
 import { addExemplarAction } from "@/app/studio/courses/[courseId]/calibrate/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { useStudioText } from "@/components/studio/studio-text";
 import { FileUpload } from "@/components/ui/file-upload";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-
-const UPLOAD_LABELS = {
-  choose: "Upload a PDF or .md",
-  drop: "or paste the text",
-  uploading: "Uploading… {percent} %",
-  remove: "Remove",
-  errors: {
-    too_large: "{name} is too large (up to 20 MB).",
-    type_not_allowed: "{name}: use a PDF, Markdown or text file.",
-    invalid_content: "{name} could not be read.",
-    too_many: "One file per example.",
-    rate_limited: "Too many uploads this hour.",
-    failed: "{name} could not be uploaded.",
-  },
-};
+import { studioUploadLabels } from "@/core/i18n/studio/helpers";
 
 export function ExemplarForm(props: {
   courseId: string;
   criteria: Array<{ id: string; label: string; scores: number[] }>;
 }) {
+  const t = useStudioText();
   const [resetKey, setResetKey] = useState(0);
   const [fileId, setFileId] = useState<string | null>(null);
   const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
@@ -42,29 +30,27 @@ export function ExemplarForm(props: {
   return (
     <form key={resetKey} onSubmit={onSubmit} className="card space-y-5 p-5 sm:p-6">
       <div>
-        <h3 className="text-lg font-semibold">Add an example</h3>
-        <p className="text-sm text-muted">
-          Real work you have seen, or work you wrote to show the edge of passing. Include at least
-          one you would pass and one you would not.
-        </p>
+        <h3 className="text-lg font-semibold">{t.t("authoring.exemplar.heading")}</h3>
+        <p className="text-sm text-muted">{t.t("authoring.exemplar.intro")}</p>
       </div>
       <input type="hidden" name="courseId" value={props.courseId} />
       {fileId && <input type="hidden" name="fileId" value={fileId} />}
       <div className="field">
         <label htmlFor="exemplar-title" className="label">
-          Title <span className="font-normal text-muted">(optional)</span>
+          {t.t("authoring.exemplar.titleLabel")}{" "}
+          <span className="font-normal text-muted">({t.t("common.optional")})</span>
         </label>
         <input
           id="exemplar-title"
           name="title"
           className="input"
           maxLength={120}
-          placeholder="e.g. Strong brief from the pilot"
+          placeholder={t.t("authoring.exemplar.titlePlaceholder")}
         />
       </div>
       <div className="field">
         <label htmlFor="exemplar-content" className="label">
-          The work
+          {t.t("authoring.exemplar.content")}
         </label>
         <textarea
           id="exemplar-content"
@@ -79,11 +65,11 @@ export function ExemplarForm(props: {
         accept=".pdf,.md,.txt,application/pdf,text/markdown,text/plain"
         maxFiles={1}
         maxBytes={20 * 1024 * 1024}
-        labels={UPLOAD_LABELS}
+        labels={studioUploadLabels(t)}
         onChange={(files) => setFileId(files[0]?.id ?? null)}
       />
       <fieldset className="space-y-2">
-        <legend className="label">Your judgement</legend>
+        <legend className="label">{t.t("authoring.exemplar.judgement")}</legend>
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2">
             <input
@@ -93,7 +79,7 @@ export function ExemplarForm(props: {
               required
               className="size-4 accent-(--tenant-primary)"
             />
-            I would pass it
+            {t.t("authoring.exemplar.pass")}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -102,13 +88,13 @@ export function ExemplarForm(props: {
               value="fail"
               className="size-4 accent-(--tenant-primary)"
             />
-            I would not pass it
+            {t.t("authoring.exemplar.fail")}
           </label>
         </div>
       </fieldset>
       <details className="rounded-control border border-line p-3">
         <summary className="cursor-pointer text-sm font-semibold">
-          Your scores per criterion (optional, shows where the AI differs)
+          {t.t("authoring.exemplar.scores")}
         </summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {props.criteria.map((criterion) => (
@@ -122,7 +108,7 @@ export function ExemplarForm(props: {
                 className="select"
                 defaultValue=""
               >
-                <option value="">Not scored</option>
+                <option value="">{t.t("authoring.exemplar.notScored")}</option>
                 {criterion.scores.map((score) => (
                   <option key={score} value={score}>
                     {score}
@@ -135,13 +121,14 @@ export function ExemplarForm(props: {
       </details>
       <div className="field">
         <label htmlFor="exemplar-notes" className="label">
-          Why <span className="font-normal text-muted">(optional)</span>
+          {t.t("authoring.exemplar.notes")}{" "}
+          <span className="font-normal text-muted">({t.t("common.optional")})</span>
         </label>
         <input id="exemplar-notes" name="notes" className="input" maxLength={2000} />
       </div>
       <FormFeedback state={state} />
-      <SubmitButton pending={pending} pendingLabel="Adding…">
-        Add example
+      <SubmitButton pending={pending} pendingLabel={t.t("common.adding")}>
+        {t.t("authoring.exemplar.add")}
       </SubmitButton>
     </form>
   );

@@ -17,6 +17,7 @@ import { rateLimit } from "@/server/rate-limit";
 import { requestCalibration } from "@/server/review/calibration";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { updateExemplars } from "@/server/studio/courses";
+import { getStudioText } from "@/server/studio-text";
 import { documentText } from "@/server/text-extract";
 
 const HOUR = 60 * 60_000;
@@ -32,8 +33,9 @@ async function context(formData: FormData) {
 
 export async function addExemplarAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant, courseId, rubric } = await context(formData);
+  const t = await getStudioText();
   if (rubric.exemplars.length >= MAX_EXEMPLARS) {
-    return { errors: [`Keep it to ${MAX_EXEMPLARS} examples; remove one first.`] };
+    return { errors: [t.t("authoring.exemplar.tooMany", { max: MAX_EXEMPLARS })] };
   }
   let content = text(formData, "content");
   const fileId = text(formData, "fileId");
@@ -43,10 +45,10 @@ export async function addExemplarAction(_: FormState, formData: FormData): Promi
       content = (await documentText(await fileBytes(record), record.contentType)) || content;
     }
   }
-  if (content.length < 20) return { errors: ["Paste or upload the example's text."] };
+  if (content.length < 20) return { errors: [t.t("authoring.exemplar.contentMissing")] };
   const expected = text(formData, "expected");
   if (expected !== "pass" && expected !== "fail") {
-    return { errors: ["Say whether you would pass it."] };
+    return { errors: [t.t("authoring.exemplar.expectedMissing")] };
   }
   const scores: Record<string, number> = {};
   for (const criterion of rubric.criteria) {
@@ -63,7 +65,7 @@ export async function addExemplarAction(_: FormState, formData: FormData): Promi
   };
   await updateExemplars(getDb(), tenant.id, courseId, [...rubric.exemplars, exemplar]);
   revalidatePath(`/studio/courses/${courseId}`, "layout");
-  return { ok: true, message: "Example added." };
+  return { ok: true, message: t.t("authoring.exemplar.added") };
 }
 
 export async function deleteExemplarAction(formData: FormData): Promise<void> {
