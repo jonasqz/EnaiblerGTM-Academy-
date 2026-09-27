@@ -314,6 +314,62 @@ export const en = {
   "settings.usage.minutes.other": "{n} minutes of audio",
   "settings.usage.tokens.one": "{n} token",
   "settings.usage.tokens.other": "{n} tokens",
+
+  // Sharing: what learners post about their certificates, and where its page leads visitors
+  "settings.tab.sharing": "Sharing",
+  "settings.sharing.linkedin.heading": "Your LinkedIn page",
+  "settings.sharing.linkedin.intro":
+    "Learners can add their certificate to their LinkedIn profile with one click. With your page's id, each of these certificates shows your logo and links to your page; without it, LinkedIn shows only your academy's name.",
+  "settings.sharing.linkedin.label": "LinkedIn page id",
+  "settings.sharing.linkedin.placeholder": "12345678",
+  "settings.sharing.linkedin.howTo":
+    "Open your company page on LinkedIn as an admin: the number in its address, linkedin.com/company/12345678/admin, is the id. Pasting the whole address works too.",
+  "settings.sharing.linkedin.open": "Open this page on LinkedIn",
+  "settings.sharing.post.heading": "Suggested LinkedIn post",
+  "settings.sharing.post.intro":
+    "Learners who share their certificate as a post start from this text and can change every word. Leave a language empty to offer enaibler's text for it, which says what the learner built or which test they passed.",
+  "settings.sharing.post.label": "Post",
+  "settings.sharing.post.placeholders": "Filled in for each learner",
+  "settings.sharing.placeholder.course": "the course title",
+  "settings.sharing.placeholder.academy": "your academy's name",
+  "settings.sharing.placeholder.proof": "how it was earned, as the certificate says",
+  "settings.sharing.placeholder.artifact": "what the learner built (empty after a test alone)",
+  "settings.sharing.placeholder.url":
+    "the link to the certificate's page: keep it, it brings readers to you",
+  "settings.sharing.hashtags.label": "Hashtags",
+  "settings.sharing.hashtags.placeholder": "#Freelancing #Invoicing",
+  "settings.sharing.hashtags.hint":
+    "Up to five, separated by spaces. They close the post in every language.",
+  "settings.sharing.preview.heading": "Preview",
+  "settings.sharing.preview.intro": "With sample values, as a learner sees it before posting.",
+  "settings.sharing.preview.mode": "The sample course ends with",
+  "settings.sharing.preview.default": "enaibler's text",
+  "settings.sharing.preview.own": "Your text",
+  "settings.sharing.cta.labels": "Button label",
+  "settings.sharing.cta.url": "Where the button leads",
+  // {course}: a placeholder the address may contain, kept as typed
+  "settings.sharing.cta.urlPlaceholder": "https://your-company.com/courses/{course}",
+  // {course}, {path}: shown as code
+  "settings.sharing.cta.urlHint":
+    "Empty: the course's own start page in your academy, so visitors can begin right away. An address of your own may contain {course} and {path}, filled in with the certificate's course and path.",
+  "settings.sharing.cta.utm":
+    "We add utm_source, utm_medium and utm_content to the link (values you set stay), so your own analytics sees certificates as the source. For a certificate shared as a LinkedIn post:",
+  "settings.sharing.save": "Save sharing settings",
+  "settings.sharing.saved": "Sharing settings saved.",
+  // Why the sharing settings were not saved (core/credentials/share-settings, by code)
+  "settings.sharing.error.placeholder":
+    "The post in {language} contains {unknown}, which cannot be filled in. Use {allowed}.",
+  "settings.sharing.error.postTooLong": "Keep the post in {language} under {max} characters.",
+  "settings.sharing.error.hashtag":
+    "“{tag}” is not a hashtag: use one word of letters, digits or _.",
+  "settings.sharing.error.hashtagCount": "Use up to {max} hashtags.",
+  "settings.sharing.error.linkedinId":
+    "Enter the number of your LinkedIn page (as in linkedin.com/company/12345678/admin), not its name.",
+  "settings.sharing.error.ctaUrl":
+    "The button's address must start with https://, or with / for a page in your academy, and may contain only {allowed} in braces.",
+  "settings.sharing.error.ctaLabel": "Give the button a label.",
+  "settings.sharing.warning.noUrl":
+    "The post in {language} has no {placeholder}: without the link, its readers cannot open the certificate or start the course.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -627,4 +683,59 @@ export const de: Record<keyof typeof en, string> = {
   "settings.usage.minutes.other": "{n} Minuten Audio",
   "settings.usage.tokens.one": "{n} Token",
   "settings.usage.tokens.other": "{n} Token",
+
+  "settings.tab.sharing": "Teilen",
+  "settings.sharing.linkedin.heading": "Deine LinkedIn-Seite",
+  "settings.sharing.linkedin.intro":
+    "Lernende können ihre Abschlussbescheinigung mit einem Klick in ihr LinkedIn-Profil übernehmen. Mit der ID deiner Seite zeigt jede davon dein Logo und verlinkt auf deine Seite; ohne sie zeigt LinkedIn nur den Namen deiner Akademie.",
+  "settings.sharing.linkedin.label": "ID deiner LinkedIn-Seite",
+  "settings.sharing.linkedin.placeholder": "12345678",
+  "settings.sharing.linkedin.howTo":
+    "Öffne deine Unternehmensseite auf LinkedIn als Admin: Die Zahl in ihrer Adresse, linkedin.com/company/12345678/admin, ist die ID. Du kannst auch die ganze Adresse einfügen.",
+  "settings.sharing.linkedin.open": "Diese Seite auf LinkedIn öffnen",
+  "settings.sharing.post.heading": "Vorgeschlagener LinkedIn-Beitrag",
+  "settings.sharing.post.intro":
+    "Wer die eigene Abschlussbescheinigung als Beitrag teilt, beginnt mit diesem Text und kann jedes Wort ändern. Lass eine Sprache leer, dann gilt dort der Text von enaibler: Er sagt, was die Person gebaut oder welchen Test sie bestanden hat.",
+  "settings.sharing.post.label": "Beitrag",
+  "settings.sharing.post.placeholders": "Für jede Person ausgefüllt",
+  "settings.sharing.placeholder.course": "der Kurstitel",
+  "settings.sharing.placeholder.academy": "der Name deiner Akademie",
+  "settings.sharing.placeholder.proof":
+    "womit sie erworben wurde, wie auf der Abschlussbescheinigung",
+  "settings.sharing.placeholder.artifact":
+    "was die Person gebaut hat (leer, wenn nur ein Test verlangt war)",
+  "settings.sharing.placeholder.url":
+    "der Link zur Seite der Abschlussbescheinigung: Lass ihn drin, er bringt Leser:innen zu dir",
+  "settings.sharing.hashtags.label": "Hashtags",
+  "settings.sharing.hashtags.placeholder": "#Freelancing #Rechnungen",
+  "settings.sharing.hashtags.hint":
+    "Bis zu fünf, durch Leerzeichen getrennt. Sie stehen in jeder Sprache am Ende des Beitrags.",
+  "settings.sharing.preview.heading": "Vorschau",
+  "settings.sharing.preview.intro":
+    "Mit Beispielwerten, so wie Lernende den Beitrag vor dem Posten sehen.",
+  "settings.sharing.preview.mode": "Der Beispielkurs endet mit",
+  "settings.sharing.preview.default": "Text von enaibler",
+  "settings.sharing.preview.own": "Dein Text",
+  "settings.sharing.cta.labels": "Beschriftung des Buttons",
+  "settings.sharing.cta.url": "Wohin der Button führt",
+  "settings.sharing.cta.urlPlaceholder": "https://deine-firma.de/kurse/{course}",
+  "settings.sharing.cta.urlHint":
+    "Leer: die Startseite des Kurses in deiner Akademie, damit Besucher:innen direkt loslegen können. Eine eigene Adresse kann {course} und {path} enthalten; dafür setzen wir Kurs und Lernpfad der Abschlussbescheinigung ein.",
+  "settings.sharing.cta.utm":
+    "Wir hängen utm_source, utm_medium und utm_content an den Link (deine eigenen Werte bleiben), damit deine Analyse Abschlussbescheinigungen als Quelle erkennt. Für eine als LinkedIn-Beitrag geteilte Abschlussbescheinigung:",
+  "settings.sharing.save": "Einstellungen zum Teilen speichern",
+  "settings.sharing.saved": "Einstellungen zum Teilen gespeichert.",
+  "settings.sharing.error.placeholder":
+    "Der Beitrag auf {language} enthält {unknown}; das lässt sich nicht ausfüllen. Nutze {allowed}.",
+  "settings.sharing.error.postTooLong": "Halte den Beitrag auf {language} unter {max} Zeichen.",
+  "settings.sharing.error.hashtag":
+    "„{tag}“ ist kein Hashtag: Nutze ein Wort aus Buchstaben, Ziffern oder _.",
+  "settings.sharing.error.hashtagCount": "Nutze höchstens {max} Hashtags.",
+  "settings.sharing.error.linkedinId":
+    "Gib die Nummer deiner LinkedIn-Seite ein (wie in linkedin.com/company/12345678/admin), nicht ihren Namen.",
+  "settings.sharing.error.ctaUrl":
+    "Die Adresse des Buttons muss mit https:// beginnen, oder mit / für eine Seite deiner Akademie, und darf in geschweiften Klammern nur {allowed} enthalten.",
+  "settings.sharing.error.ctaLabel": "Gib dem Button eine Beschriftung.",
+  "settings.sharing.warning.noUrl":
+    "Der Beitrag auf {language} enthält kein {placeholder}: Ohne den Link können Leser:innen die Abschlussbescheinigung nicht öffnen und den Kurs nicht beginnen.",
 };
