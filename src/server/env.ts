@@ -54,6 +54,8 @@ const envSchema = z.object({
   PLATFORM_DPA_URL: optional,
   PLATFORM_PRIVACY_URL: optional,
   PLATFORM_IMPRINT_URL: optional,
+  /** An academy the website links to as a demo; no link without it. */
+  PLATFORM_DEMO_URL: optional,
   /** Recorded with every accepted agreement; bump it when the terms or the DPA change. */
   PLATFORM_AGREEMENT_VERSION: z.string().trim().min(1).default("2026-09"),
 });

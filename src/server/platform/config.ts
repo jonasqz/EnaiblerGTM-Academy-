@@ -10,7 +10,7 @@ export interface PlatformConfig {
   host: string;
   /** Academies get <slug>.<academyDomain>. */
   academyDomain: string;
-  links: { terms?: string; dpa?: string; privacy?: string; imprint?: string };
+  links: { terms?: string; dpa?: string; privacy?: string; imprint?: string; demo?: string };
   agreementVersion: string;
 }
 
@@ -38,6 +38,8 @@ export function platformConfig(): PlatformConfig | null {
       dpa: trimmed(process.env.PLATFORM_DPA_URL),
       privacy: trimmed(process.env.PLATFORM_PRIVACY_URL),
       imprint: trimmed(process.env.PLATFORM_IMPRINT_URL),
+      // An academy visitors of the website can look around in.
+      demo: trimmed(process.env.PLATFORM_DEMO_URL),
     },
     agreementVersion: trimmed(process.env.PLATFORM_AGREEMENT_VERSION) ?? "2026-09",
   };

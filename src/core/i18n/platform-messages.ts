@@ -1,29 +1,12 @@
 import type { Locale } from "@/core/i18n/locales";
 
 /**
- * Strings of the platform site, where customers create their academy. Not
- * tenant-overridable (unlike messages.ts): this is enaibler talking.
- * The wording rules apply here too (see compliance/wording-lint.ts).
+ * The sign-up form on the platform site, where customers create their
+ * academy (the website's pages: core/i18n/site). Not tenant-overridable
+ * (unlike messages.ts): this is enaibler talking. The wording rules apply
+ * here too (see compliance/wording-lint.ts).
  */
 const en = {
-  "nav.language": "Language",
-  "footer.imprint": "Imprint",
-  "footer.privacy": "Privacy",
-  "footer.terms": "Terms",
-  "footer.hosted": "Hosted in the EU",
-
-  "hero.eyebrow": "For everyone who teaches",
-  "hero.title": "Your academy, where learners prove what they can do.",
-  "hero.body":
-    "Learners build real work, AI reviews it against your rubric, and every Certificate of Completion is backed by what they built. Set up in minutes, in your brand.",
-  "point.brand.title": "Your brand",
-  "point.brand.body": "Your colours, fonts and words, or taken straight from your website.",
-  "point.outcome.title": "Outcome first",
-  "point.outcome.body": "Define what learners build, then write the lessons backwards from it.",
-  "point.review.title": "A human in the loop",
-  "point.review.body":
-    "AI feedback in minutes, spot checks by your team. Hosted in the EU, private by default.",
-
   "form.title": "Create your academy",
   "form.name": "Academy name",
   "form.nameHint": "The brand learners see, e.g. “Acme Sales Academy”. Not a person's name.",
@@ -61,26 +44,6 @@ const en = {
 export type PlatformMessageKey = keyof typeof en;
 
 const de: Record<PlatformMessageKey, string> = {
-  "nav.language": "Sprache",
-  "footer.imprint": "Impressum",
-  "footer.privacy": "Datenschutz",
-  "footer.terms": "Nutzungsbedingungen",
-  "footer.hosted": "In der EU gehostet",
-
-  "hero.eyebrow": "Für alle, die Wissen weitergeben",
-  "hero.title": "Deine Academy, in der Lernende zeigen, was sie können.",
-  "hero.body":
-    "Lernende bauen echte Arbeitsergebnisse, eine KI bewertet sie nach deinem Bewertungsschema, und jede Abschlussbescheinigung steht für echte Arbeit. In Minuten eingerichtet, in deinem Markenauftritt.",
-  "point.brand.title": "Deine Marke",
-  "point.brand.body":
-    "Deine Farben, Schriften und Begriffe, oder direkt von deiner Website übernommen.",
-  "point.outcome.title": "Ergebnis zuerst",
-  "point.outcome.body":
-    "Lege fest, was Lernende bauen, und schreibe die Lektionen rückwärts davon.",
-  "point.review.title": "Ein Mensch im Loop",
-  "point.review.body":
-    "KI-Feedback in Minuten, Stichproben durch dein Team. In der EU gehostet, standardmäßig privat.",
-
   "form.title": "Erstelle deine Academy",
   "form.name": "Name der Academy",
   "form.nameHint": "Die Marke, die Lernende sehen, z. B. „Acme Sales Academy“. Kein Personenname.",

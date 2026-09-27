@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
     "/verify/\\[publicId\\]/image": [
       `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
     ],
+    // The website's link previews, in enaibler's own theme (whichever library fonts it picks).
+    "/platform/og": [
+      `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
+    ],
   },
 };
 
