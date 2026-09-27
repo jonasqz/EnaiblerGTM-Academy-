@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
         source: "/embed/:path*",
         headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
       },
+      // Pages whose address carries a token: the next page must not see it as referrer.
+      ...["/sign-in/confirm", "/consent/confirm", "/join/:code", "/auth/:path*"].map((source) => ({
+        source,
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      })),
     ];
   },
   // Credential images read these font files at runtime (src/server/og-fonts.ts).

@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { PageAnalytics } from "@/components/page-analytics";
 import { SUPPORTED_LOCALES } from "@/core/i18n/locales";
 import { platformText } from "@/core/i18n/platform-messages";
+import { pageAnalytics } from "@/server/analytics";
 import { platformConfig } from "@/server/platform/config";
 import { getLocale } from "@/server/request";
 
@@ -13,6 +15,7 @@ export default async function PlatformLayout({ children }: LayoutProps<"/platfor
   const locale = await getLocale();
   const t = platformText(locale);
   const links = platformConfig()?.links ?? {};
+  const analytics = pageAnalytics();
   const legal = [
     ["footer.imprint", links.imprint],
     ["footer.privacy", links.privacy],
@@ -63,6 +66,7 @@ export default async function PlatformLayout({ children }: LayoutProps<"/platfor
           <p className="text-muted">{t("footer.hosted")}</p>
         </div>
       </footer>
+      {analytics && <PageAnalytics config={analytics} />}
     </>
   );
 }

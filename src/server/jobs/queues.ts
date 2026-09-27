@@ -11,7 +11,6 @@ export const QUEUES = {
   transcription: "transcription.run",
   keyframes: "keyframes.extract",
   lessonDraft: "lessons.draft",
-  imageRender: "image.render",
   filesCleanup: "files.cleanup",
   sourcesExtract: "sources.extract",
   calibration: "calibration.run",
@@ -30,7 +29,6 @@ export interface JobPayloads {
   "transcription.run": { tenantId: string; sourceId: string };
   "keyframes.extract": { tenantId: string; sourceId: string };
   "lessons.draft": { tenantId: string; draftId: string };
-  "image.render": { tenantId: string; credentialId: string };
   /** Daily, for every academy: uploads nobody claimed. */
   "files.cleanup": Record<string, never>;
   /** Documents, web pages and interviews: text → chunks (→ embeddings). */
@@ -53,7 +51,6 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "transcription.run": { retryLimit: 2, retryDelay: 60, expireInSeconds: 60 * 60 },
   "keyframes.extract": { retryLimit: 2, retryDelay: 60, expireInSeconds: 30 * 60 },
   "lessons.draft": { retryLimit: 2, retryDelay: 60, expireInSeconds: 15 * 60 },
-  "image.render": { retryLimit: 3, retryDelay: 10, expireInSeconds: 120 },
   "files.cleanup": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
   "sources.extract": { retryLimit: 2, retryDelay: 30, expireInSeconds: 10 * 60 },
   "calibration.run": { retryLimit: 1, retryDelay: 60, expireInSeconds: 30 * 60 },

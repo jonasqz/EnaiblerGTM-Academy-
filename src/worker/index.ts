@@ -20,6 +20,8 @@ import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
 import { dispatchNotifications, purgeProcessedNotifications } from "@/server/notifications";
+import { log } from "@/server/observability/log";
+import { reportError } from "@/server/observability/report";
 import { runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
 import { storageConfigured } from "@/server/storage";
@@ -27,9 +29,13 @@ import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error("[worker] DATABASE_URL is not set");
+  log.error("DATABASE_URL is not set", { runtime: "worker" });
   process.exit(1);
 }
+
+process.on("unhandledRejection", (reason) => {
+  void reportError(reason, { runtime: "worker", extra: { kind: "unhandledRejection" } });
+});
 
 const { db, pool } = createDatabase(connectionString, { max: 4 });
 await assertRlsEnforced(db);
@@ -37,7 +43,7 @@ await assertRlsEnforced(db);
 // The pgboss schema is created by deploy/postgres/init.sh (owned by the app role),
 // so pg-boss only migrates its tables and never needs CREATE on the database.
 const boss = new PgBoss({ connectionString, schema: "pgboss", createSchema: false });
-boss.on("error", (error) => console.error("[worker] pg-boss error", error));
+boss.on("error", (error) => void reportError(error, { runtime: "worker", queue: "pg-boss" }));
 await boss.start();
 
 // Queues must exist before anyone can send to them; createQueue is idempotent.
@@ -47,68 +53,112 @@ for (const [name, options] of Object.entries(QUEUE_OPTIONS) as Array<
   await boss.createQueue(name, options);
 }
 
-const activeTenants = () =>
-  db
+/** A failed job is reported, then retried by pg-boss as its queue says. */
+function reported<T>(queue: QueueName, handler: (jobs: Job<T>[]) => Promise<void>) {
+  return async (jobs: Job<T>[]) => {
+    try {
+      await handler(jobs);
+    } catch (error) {
+      const job = jobs[0];
+      await reportError(error, {
+        runtime: "worker",
+        queue,
+        extra: {
+          tenantId: (job?.data as { tenantId?: string } | undefined)?.tenantId,
+          jobId: job?.id,
+          retry: job?.retryCount,
+        },
+      });
+      throw error;
+    }
+  };
+}
+
+/** Rounds over every academy: one academy's failure must not stop the others. */
+async function forEachTenant(
+  queue: QueueName,
+  options: { activeOnly: boolean },
+  run: (tenant: { id: string; slug: string }) => Promise<void>,
+): Promise<void> {
+  const rows = await db
     .select({ id: tenants.id, slug: tenants.slug })
     .from(tenants)
-    .where(eq(tenants.status, "active"));
-
-// Learner mail (review ready, level-up), every minute for every active academy.
-await boss.work(QUEUES.notifications, async () => {
-  for (const { id } of await activeTenants()) {
-    const tenant = await findTenantById(db, id);
-    if (!tenant) continue;
-    const result = await dispatchNotifications(db, tenant, { send: sendEmail });
-    if (result.sent + result.failed > 0) {
-      console.log(`[worker] mail for ${tenant.slug}: ${result.sent} sent, ${result.failed} failed`);
+    .where(options.activeOnly ? eq(tenants.status, "active") : undefined);
+  for (const tenant of rows) {
+    try {
+      await run(tenant);
+    } catch (error) {
+      await reportError(error, { runtime: "worker", queue, tenant: tenant.slug });
     }
   }
-});
+}
+
+// Learner mail (review ready, level-up), every minute for every active academy.
+await boss.work(
+  QUEUES.notifications,
+  reported(QUEUES.notifications, () =>
+    forEachTenant(QUEUES.notifications, { activeOnly: true }, async ({ id }) => {
+      const tenant = await findTenantById(db, id);
+      if (!tenant) return;
+      const result = await dispatchNotifications(db, tenant, { send: sendEmail });
+      if (result.sent + result.failed > 0)
+        log.info("mail sent", { tenant: tenant.slug, ...result });
+    }),
+  ),
+);
 await boss.schedule(QUEUES.notifications, "* * * * *");
 
 // Webhooks (brief §10): queued with the event, sent here with retries.
-await boss.work(QUEUES.webhooks, async () => {
-  for (const tenant of await activeTenants()) {
-    const result = await dispatchWebhooks(db, tenant.id);
-    if (result.delivered + result.failed > 0) {
-      console.log(
-        `[worker] webhooks for ${tenant.slug}: ${result.delivered} delivered, ${result.failed} failed`,
-      );
-    }
-  }
-});
+await boss.work(
+  QUEUES.webhooks,
+  reported(QUEUES.webhooks, () =>
+    forEachTenant(QUEUES.webhooks, { activeOnly: true }, async (tenant) => {
+      const result = await dispatchWebhooks(db, tenant.id);
+      if (result.delivered + result.failed > 0) {
+        log.info("webhooks sent", { tenant: tenant.slug, ...result });
+      }
+    }),
+  ),
+);
 await boss.schedule(QUEUES.webhooks, "* * * * *");
 
 // Retention: delivery logs hold learner data, sent mail only needs to be traceable for a while.
-await boss.work(QUEUES.housekeeping, async () => {
-  for (const tenant of await db.select({ id: tenants.id }).from(tenants)) {
-    const deliveries = await purgeOldDeliveries(db, tenant.id);
-    const mails = await purgeProcessedNotifications(db, tenant.id);
-    if (deliveries + mails > 0) {
-      console.log(`[worker] housekeeping ${tenant.id}: ${deliveries} deliveries, ${mails} mails`);
-    }
-  }
-});
+await boss.work(
+  QUEUES.housekeeping,
+  reported(QUEUES.housekeeping, () =>
+    forEachTenant(QUEUES.housekeeping, { activeOnly: false }, async (tenant) => {
+      const deliveries = await purgeOldDeliveries(db, tenant.id);
+      const mails = await purgeProcessedNotifications(db, tenant.id);
+      if (deliveries + mails > 0) {
+        log.info("housekeeping", { tenant: tenant.slug, deliveries, mails });
+      }
+    }),
+  ),
+);
 await boss.schedule(QUEUES.housekeeping, "41 3 * * *");
 
 // Auto-update (brief §7): web pages lessons were written from, read again once a day.
-await boss.work(QUEUES.sourcesRecheck, async () => {
-  for (const tenant of await activeTenants()) {
-    const result = await recheckDueSources(db, tenant.id);
-    if (result.changed + result.failed > 0) {
-      console.log(
-        `[worker] sources of ${tenant.slug}: ${result.changed} changed, ${result.failed} unreadable`,
-      );
-    }
-  }
-});
+await boss.work(
+  QUEUES.sourcesRecheck,
+  reported(QUEUES.sourcesRecheck, () =>
+    forEachTenant(QUEUES.sourcesRecheck, { activeOnly: true }, async (tenant) => {
+      const result = await recheckDueSources(db, tenant.id);
+      if (result.changed + result.failed > 0) {
+        log.info("sources checked", { tenant: tenant.slug, ...result });
+      }
+    }),
+  ),
+);
 await boss.schedule(QUEUES.sourcesRecheck, "23 4 * * *");
 
 // Custom domains waiting for DNS: they go live without anyone pressing "check".
-await boss.work(QUEUES.domainsCheck, async () => {
-  const verified = await checkOpenClaims(db, systemDns);
-  if (verified > 0) console.log(`[worker] ${verified} custom domain(s) verified`);
-});
+await boss.work(
+  QUEUES.domainsCheck,
+  reported(QUEUES.domainsCheck, async () => {
+    const verified = await checkOpenClaims(db, systemDns);
+    if (verified > 0) log.info("custom domains verified", { verified });
+  }),
+);
 await boss.schedule(QUEUES.domainsCheck, "*/10 * * * *");
 
 // Without a gateway every submission goes to the human queue ("ai_unavailable").
@@ -117,31 +167,38 @@ const llm = process.env.LLM_BASE_URL
   : null;
 const reviewModel = process.env.LLM_REVIEW_MODEL || "review-default";
 const reviewRetries = QUEUE_OPTIONS[QUEUES.review].retryLimit ?? 0;
-if (!llm) console.warn("[worker] LLM_BASE_URL is not set: submissions wait for a human review");
+if (!llm) log.warn("LLM_BASE_URL is not set: submissions wait for a human review");
 
-await boss.work(QUEUES.review, { batchSize: 1 }, async (jobs: Job<JobPayloads["review.run"]>[]) => {
-  for (const job of jobs) {
-    // On the last try a gateway failure holds the submission for a human
-    // instead of failing the job, so no learner waits on a dead job.
-    const outcome = await processSubmission(
-      db,
-      job.data,
-      { llm, model: reviewModel },
-      { finalAttempt: job.retryCount >= reviewRetries },
-    );
-    console.log(`[worker] review ${job.data.submissionId}: ${outcome.status}`);
-  }
-});
+await boss.work(
+  QUEUES.review,
+  { batchSize: 1 },
+  reported(QUEUES.review, async (jobs: Job<JobPayloads["review.run"]>[]) => {
+    for (const job of jobs) {
+      // On the last try a gateway failure holds the submission for a human
+      // instead of failing the job, so no learner waits on a dead job.
+      const outcome = await processSubmission(
+        db,
+        job.data,
+        { llm, model: reviewModel },
+        { finalAttempt: job.retryCount >= reviewRetries },
+      );
+      log.info("review", { submissionId: job.data.submissionId, status: outcome.status });
+    }
+  }),
+);
 
 // Abandoned uploads (a hand-in form that was never sent), once a day per academy.
-await boss.work(QUEUES.filesCleanup, async () => {
-  if (!storageConfigured()) return;
-  const cutoff = new Date(Date.now() - 24 * 60 * 60_000);
-  for (const tenant of await db.select({ id: tenants.id }).from(tenants)) {
-    const removed = await cleanupPendingFiles(db, tenant.id, cutoff);
-    if (removed > 0) console.log(`[worker] removed ${removed} unclaimed uploads of ${tenant.id}`);
-  }
-});
+await boss.work(
+  QUEUES.filesCleanup,
+  reported(QUEUES.filesCleanup, async () => {
+    if (!storageConfigured()) return;
+    const cutoff = new Date(Date.now() - 24 * 60 * 60_000);
+    await forEachTenant(QUEUES.filesCleanup, { activeOnly: false }, async (tenant) => {
+      const removed = await cleanupPendingFiles(db, tenant.id, cutoff);
+      if (removed > 0) log.info("unclaimed uploads removed", { tenant: tenant.slug, removed });
+    });
+  }),
+);
 await boss.schedule(QUEUES.filesCleanup, "17 3 * * *");
 
 // Authoring (brief §7): sources become text, recordings become topics with
@@ -152,18 +209,18 @@ const finalTry = (job: Job<unknown>, queue: QueueName) =>
 await boss.work(
   QUEUES.sourcesExtract,
   { batchSize: 1 },
-  async (jobs: Job<JobPayloads["sources.extract"]>[]) => {
+  reported(QUEUES.sourcesExtract, async (jobs: Job<JobPayloads["sources.extract"]>[]) => {
     for (const job of jobs) {
       await extractSource(db, job.data.tenantId, job.data.sourceId, {
         finalAttempt: finalTry(job, QUEUES.sourcesExtract),
       });
     }
-  },
+  }),
 );
 await boss.work(
   QUEUES.transcription,
   { batchSize: 1 },
-  async (jobs: Job<JobPayloads["transcription.run"]>[]) => {
+  reported(QUEUES.transcription, async (jobs: Job<JobPayloads["transcription.run"]>[]) => {
     for (const job of jobs) {
       await transcribeRecording(db, job.data.tenantId, job.data.sourceId, {
         whisper: whisperConfig(),
@@ -174,19 +231,19 @@ await boss.work(
         finalAttempt: finalTry(job, QUEUES.transcription),
       });
     }
-  },
+  }),
 );
 await boss.work(
   QUEUES.keyframes,
   { batchSize: 1 },
-  async (jobs: Job<JobPayloads["keyframes.extract"]>[]) => {
+  reported(QUEUES.keyframes, async (jobs: Job<JobPayloads["keyframes.extract"]>[]) => {
     for (const job of jobs) await extractKeyframes(db, job.data.tenantId, job.data.sourceId);
-  },
+  }),
 );
 await boss.work(
   QUEUES.lessonDraft,
   { batchSize: 1 },
-  async (jobs: Job<JobPayloads["lessons.draft"]>[]) => {
+  reported(QUEUES.lessonDraft, async (jobs: Job<JobPayloads["lessons.draft"]>[]) => {
     for (const job of jobs) {
       await runLessonDraft(db, job.data.tenantId, job.data.draftId, {
         model: authoringModel(),
@@ -194,12 +251,12 @@ await boss.work(
         finalAttempt: finalTry(job, QUEUES.lessonDraft),
       });
     }
-  },
+  }),
 );
 await boss.work(
   QUEUES.calibration,
   { batchSize: 1 },
-  async (jobs: Job<JobPayloads["calibration.run"]>[]) => {
+  reported(QUEUES.calibration, async (jobs: Job<JobPayloads["calibration.run"]>[]) => {
     for (const job of jobs) {
       await runCalibration(db, job.data.tenantId, job.data.runId, {
         llm,
@@ -207,19 +264,17 @@ await boss.work(
         finalAttempt: finalTry(job, QUEUES.calibration),
       });
     }
-  },
+  }),
 );
-if (!whisperConfig())
-  console.warn("[worker] WHISPER_BASE_URL is not set: recordings are not transcribed");
+if (!whisperConfig()) log.warn("WHISPER_BASE_URL is not set: recordings are not transcribed");
 
-// Image rendering happens on request (next/og); its queue stays for pre-rendering later.
-console.log(`[worker] ready: ${Object.keys(QUEUE_OPTIONS).join(", ")}`);
+log.info("worker ready", { queues: Object.keys(QUEUE_OPTIONS) });
 
 let stopping = false;
 async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
-  console.log(`[worker] ${signal}: draining`);
+  log.info("worker draining", { signal });
   await boss.stop({ graceful: true, timeout: 30_000 });
   await pool.end();
   process.exit(0);

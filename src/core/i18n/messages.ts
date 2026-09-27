@@ -205,6 +205,10 @@ const en = {
   "consent.toProfile": "Go to your profile",
 
   "error.notFound": "Page not found",
+  "error.title": "Something went wrong",
+  "error.body": "Please try again. If it keeps happening, come back a little later.",
+  "error.retry": "Try again",
+  "error.home": "Back to the start",
 
   "email.magicLink.subject": "Your sign-in link for {academy}",
   "email.magicLink.heading": "Sign in to {academy}",
@@ -451,6 +455,10 @@ const de: Record<MessageKey, string> = {
   "consent.toProfile": "Zum Profil",
 
   "error.notFound": "Seite nicht gefunden",
+  "error.title": "Da ist etwas schiefgelaufen",
+  "error.body": "Bitte versuch es noch einmal. Wenn es wieder passiert, komm etwas später zurück.",
+  "error.retry": "Nochmal versuchen",
+  "error.home": "Zur Startseite",
 
   "email.magicLink.subject": "Dein Anmeldelink für {academy}",
   "email.magicLink.heading": "Bei {academy} anmelden",
