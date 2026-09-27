@@ -39,9 +39,11 @@ export default async function OutcomePage({
         artifactName={assignment.artifactName}
         prompt={assignment.prompt}
         acceptText={file?.type === "file" && file.accept.includes("md")}
+        acceptPdf={file?.type === "file" && file.accept.includes("pdf")}
+        acceptImage={file?.type === "file" && file.accept.includes("image")}
+        maxMb={file?.type === "file" ? file.max_mb : 15}
         acceptUrl={assignment.submissionTypes.some((type) => type.type === "url")}
         formSchema={form?.type === "template_form" ? JSON.stringify(form.schema, null, 2) : null}
-        otherFileKinds={file?.type === "file" ? file.accept.filter((kind) => kind !== "md") : []}
         rubric={rubricSchema.parse(editor.rubric.definition)}
         artifactTerm={t.term("artifact")}
       />

@@ -61,5 +61,6 @@ function withLanguage(
 
 export const config = {
   // Health checks come in on internal host names; static assets need no tenant.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|api/health).*)"],
+  // Uploads resolve the academy themselves: the proxy would buffer their bodies.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|api/health|api/uploads).*)"],
 };

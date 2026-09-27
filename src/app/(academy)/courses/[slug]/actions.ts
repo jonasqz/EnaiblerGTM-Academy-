@@ -47,6 +47,9 @@ export async function submitAssignmentAction(
       text: typeof formData.get("text") === "string" ? String(formData.get("text")) : undefined,
       url: typeof formData.get("url") === "string" ? String(formData.get("url")) : undefined,
       form: Object.keys(form).length > 0 ? form : undefined,
+      fileIds: formData
+        .getAll("files")
+        .filter((value): value is string => typeof value === "string"),
     },
     enqueue,
   );

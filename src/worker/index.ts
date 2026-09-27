@@ -5,10 +5,13 @@
 import { PgBoss, type Job } from "pg-boss";
 
 import { createDatabase, assertRlsEnforced } from "@/db/client";
+import { tenants } from "@/db/schema";
 import { sendEmail } from "@/server/email/mailer";
+import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
 import { processSubmission } from "@/server/review/process-submission";
+import { storageConfigured } from "@/server/storage";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -57,6 +60,17 @@ await boss.work(QUEUES.review, { batchSize: 1 }, async (jobs: Job<JobPayloads["r
     console.log(`[worker] review ${job.data.submissionId}: ${outcome.status}`);
   }
 });
+
+// Abandoned uploads (a hand-in form that was never sent), once a day per academy.
+await boss.work(QUEUES.filesCleanup, async () => {
+  if (!storageConfigured()) return;
+  const cutoff = new Date(Date.now() - 24 * 60 * 60_000);
+  for (const tenant of await db.select({ id: tenants.id }).from(tenants)) {
+    const removed = await cleanupPendingFiles(db, tenant.id, cutoff);
+    if (removed > 0) console.log(`[worker] removed ${removed} unclaimed uploads of ${tenant.id}`);
+  }
+});
+await boss.schedule(QUEUES.filesCleanup, "17 3 * * *");
 
 // Handlers for transcription, keyframes, lesson drafting and image rendering
 // land with their features; their jobs wait in the queue until then.

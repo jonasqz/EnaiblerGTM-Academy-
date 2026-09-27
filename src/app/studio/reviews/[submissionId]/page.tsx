@@ -11,6 +11,7 @@ import { AUDIT_LABELS, HOLD_REASON_LABELS, timeAgo } from "@/components/studio/r
 import { SubmissionStatusBadge } from "@/components/studio/status-badges";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
+import { SubmittedFiles } from "@/components/submitted-files";
 import { formFieldsFromSchema } from "@/core/assignments/submission-types";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
@@ -106,6 +107,19 @@ export default async function ReviewDetailPage({
               <div className="max-h-[36rem] overflow-y-auto rounded-control bg-subtle p-4">
                 <Markdown source={submission.extractedText} untrusted />
               </div>
+            )}
+            {submission.files.length > 0 && (
+              <SubmittedFiles files={submission.files} label="Files" />
+            )}
+            {submission.filesText && (
+              <details className="rounded-control bg-subtle p-4">
+                <summary className="cursor-pointer text-sm font-semibold">
+                  Text read from the files (what the AI review saw)
+                </summary>
+                <pre className="mt-3 max-h-[36rem] overflow-y-auto whitespace-pre-wrap font-mono text-xs">
+                  {submission.filesText}
+                </pre>
+              </details>
             )}
           </section>
 

@@ -3,16 +3,25 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { SubmissionForm } from "@/app/(academy)/courses/[slug]/assignment/submission-form";
+import { SubmittedFiles } from "@/components/submitted-files";
+import { uploadLabels } from "@/components/upload-labels";
 import { FeedbackView } from "@/components/feedback-view";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
+import { MAX_FILES_PER_SUBMISSION, type FileKind } from "@/core/assignments/submission-types";
 import { localize } from "@/core/i18n/locales";
 import { canResubmit, type Outcome } from "@/core/review/outcome";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
 import { getTranslator } from "@/server/request";
+
+const FILE_ACCEPT: Record<FileKind, string> = {
+  pdf: ".pdf,application/pdf",
+  image: ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp",
+  md: ".md,.markdown,text/markdown",
+};
 
 export default async function AssignmentPage({ params }: PageProps<"/courses/[slug]/assignment">) {
   const { slug } = await params;
@@ -105,7 +114,25 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
             acceptsText={data.acceptsText}
             acceptsUrl={data.acceptsUrl}
             fields={data.formFields}
+            files={
+              data.fileRules
+                ? {
+                    accept: data.fileRules.kinds.map((kind) => FILE_ACCEPT[kind]).join(","),
+                    maxBytes: data.fileRules.maxMb * 1024 * 1024,
+                    maxFiles: MAX_FILES_PER_SUBMISSION,
+                  }
+                : null
+            }
             labels={{
+              files: t.t("assignment.filesLabel"),
+              filesHint: data.fileRules
+                ? t.t("assignment.filesHint", {
+                    kinds: data.fileRules.kinds.map((kind) => t.t(`file.kind.${kind}`)).join(", "),
+                    mb: data.fileRules.maxMb,
+                    max: MAX_FILES_PER_SUBMISSION,
+                  })
+                : "",
+              upload: uploadLabels(t),
               text: t.t("assignment.textLabel"),
               url: t.t("assignment.urlLabel"),
               submit: t.t("assignment.submit"),
@@ -164,6 +191,9 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
                       fallback={fallback}
                     />
                   </>
+                )}
+                {attempt.files.length > 0 && (
+                  <SubmittedFiles files={attempt.files} label={t.t("assignment.files")} />
                 )}
                 {attempt.text && (
                   <details className="text-sm">

@@ -14,6 +14,7 @@ export const QUEUES = {
   keyframes: "keyframes.extract",
   lessonDraft: "lessons.draft",
   imageRender: "image.render",
+  filesCleanup: "files.cleanup",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -25,6 +26,8 @@ export interface JobPayloads {
   "keyframes.extract": { tenantId: string; sourceId: string };
   "lessons.draft": { tenantId: string; courseId: string };
   "image.render": { tenantId: string; credentialId: string };
+  /** Daily, for every academy: uploads nobody claimed. */
+  "files.cleanup": Record<string, never>;
 }
 
 export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
@@ -34,4 +37,5 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "keyframes.extract": { retryLimit: 2, retryDelay: 60, expireInSeconds: 30 * 60 },
   "lessons.draft": { retryLimit: 2, retryDelay: 60, expireInSeconds: 15 * 60 },
   "image.render": { retryLimit: 3, retryDelay: 10, expireInSeconds: 120 },
+  "files.cleanup": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
 };

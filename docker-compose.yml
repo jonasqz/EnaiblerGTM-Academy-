@@ -19,6 +19,21 @@ services:
       interval: 5s
       retries: 10
 
+  # S3-compatible storage (SeaweedFS) on http://localhost:8333; the app
+  # creates the bucket on first use in development.
+  storage:
+    image: chrislusf/seaweedfs:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /etc/seaweedfs
+        echo '{"identities":[{"name":"dev","credentials":[{"accessKey":"enaibler","secretKey":"enaibler-dev-secret"}],"actions":["Admin","Read","List","Tagging","Write"]}]}' > /etc/seaweedfs/s3.json
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -volume.max=0
+    ports:
+      - "8333:8333"
+    volumes:
+      - storage-data:/data
+
   # Catches outgoing mail: web UI on http://localhost:8025, SMTP on :1025.
   mailpit:
     image: axllent/mailpit:latest
@@ -28,3 +43,4 @@ services:
 
 volumes:
   postgres-data:
+  storage-data:

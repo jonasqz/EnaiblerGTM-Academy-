@@ -14,6 +14,11 @@ import { issueCredential } from "@/server/credentials/issue";
 import { trackEvent } from "@/server/events";
 import type { LlmCaller } from "@/server/llm";
 import { runAiReview, type AiReviewRun } from "@/server/review/run-ai-review";
+import {
+  readSubmissionFiles,
+  reviewText,
+  type SubmissionFileContent,
+} from "@/server/review/submission-content";
 
 export interface ReviewDeps {
   llm: LlmCaller | null;
@@ -111,11 +116,25 @@ export async function processSubmission(
 
   const rubric = rubricSchema.parse(context.rubricRow.definition);
   const holdReasons: string[] = [];
+
+  let content: SubmissionFileContent = { filesText: context.submission.filesText, images: [] };
+  if (context.submission.files.length > 0) {
+    try {
+      content = await readSubmissionFiles(db, tenant.id, context.submission);
+    } catch (error) {
+      // Storage trouble: retry; on the last try a human reviews the files directly.
+      if (!options.finalAttempt) throw error;
+      console.error("[review] reading the submitted files failed", error);
+      holdReasons.push("ai_unavailable");
+    }
+  }
   let review: ValidatedAiReview | null = null;
   let run: AiReviewRun | null = null;
 
   if (rubric.review_policy.mode === "human_only" || !tenant.settings.features.ai_review) {
     holdReasons.push("human_only");
+  } else if (holdReasons.length > 0) {
+    // Files could not be read: no AI review on half the work.
   } else if (!deps.llm) {
     holdReasons.push("ai_unavailable");
   } else {
@@ -134,11 +153,16 @@ export async function processSubmission(
           ]),
           rubric,
           submission: {
-            text: context.submission.extractedText,
+            text: reviewText({
+              extractedText: context.submission.extractedText,
+              filesText: content.filesText,
+            }),
             form: context.submission.formData,
             url: context.submission.url,
+            imageCount: content.images.length,
           },
         },
+        images: content.images,
         metadata: { tenant: tenant.slug, submission: context.submission.id },
       });
       run = outcome;

@@ -44,6 +44,23 @@ export function acceptedFileKind(
   return null;
 }
 
+/** Files an assignment accepts: kinds, allowed types and the size limit, or null. */
+export function fileRules(
+  types: readonly SubmissionType[],
+): { kinds: FileKind[]; mimeTypes: string[]; maxMb: number } | null {
+  const fileTypes = types.flatMap((type) => (type.type === "file" ? [type] : []));
+  if (fileTypes.length === 0) return null;
+  const kinds = [...new Set(fileTypes.flatMap((type) => type.accept))];
+  return {
+    kinds,
+    mimeTypes: [...new Set(kinds.flatMap((kind) => FILE_KIND_MIME_TYPES[kind]))],
+    maxMb: Math.max(...fileTypes.map((type) => type.max_mb)),
+  };
+}
+
+/** Up to this many files per attempt (e.g. a brief plus a few screenshots). */
+export const MAX_FILES_PER_SUBMISSION = 5;
+
 /** Markdown files can also be written or pasted directly in the browser. */
 export function acceptsText(types: readonly SubmissionType[]): boolean {
   return types.some((type) => type.type === "file" && type.accept.includes("md"));

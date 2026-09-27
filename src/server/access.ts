@@ -26,12 +26,14 @@ export interface Session {
 }
 
 /** The signed-in viewer of this academy with their roles, or null. Cached per request. */
-export const getSession = cache(async (): Promise<Session | null> => {
-  const tenant = await getTenant();
+export const getSession = cache(async (): Promise<Session | null> => sessionFor(await getTenant()));
+
+/** Same as getSession for an academy resolved by the caller (routes outside the proxy). */
+export async function sessionFor(tenant: TenantContext): Promise<Session | null> {
   const viewer = await getViewer(tenant);
   if (!viewer) return null;
   return { tenant, viewer, roles: await loadRoles(tenant, viewer.userId) };
-});
+}
 
 /**
  * Guard for Studio pages and actions. Not signed in: go through sign-in and

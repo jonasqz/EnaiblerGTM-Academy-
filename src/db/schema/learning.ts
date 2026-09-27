@@ -72,8 +72,9 @@ export const submissionStatus = pgEnum("submission_status", [
   "overridden",
 ]);
 
+/** A hand-in file; the bytes live in storage behind the `files` row. */
 export interface SubmittedFile {
-  key: string;
+  fileId: string;
   name: string;
   mimeType: string;
   size: number;
@@ -94,8 +95,10 @@ export const submissions = pgTable(
     files: jsonb("files").$type<SubmittedFile[]>().notNull().default([]),
     formData: jsonb("form_data").$type<Record<string, unknown>>(),
     url: text("url"),
-    /** Text extracted from PDF/Markdown; input for the review and evidence checks. */
+    /** Text written in the browser; input for the review and evidence checks. */
     extractedText: text("extracted_text"),
+    /** Text read from uploaded PDF and Markdown files, filled in by the review job. */
+    filesText: text("files_text"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },

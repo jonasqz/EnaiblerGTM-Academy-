@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import {
+  FILE_KINDS,
   formFieldsFromSchema,
   submissionTypesSchema,
+  type FileKind,
   type SubmissionType,
 } from "@/core/assignments/submission-types";
 import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
@@ -166,7 +168,11 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
   return { ok: true, message: "Details saved.", warnings: lint.warnings };
 }
 
-const MARKDOWN_TEXT: SubmissionType = { type: "file", accept: ["md"], max_mb: 15 };
+const FILE_KIND_FIELDS: Record<FileKind, string> = {
+  md: "acceptText",
+  pdf: "acceptPdf",
+  image: "acceptImage",
+};
 
 export async function saveOutcomeAction(_: FormState, formData: FormData): Promise<FormState> {
   const courseId = courseIdSchema.parse(text(formData, "courseId"));
@@ -181,18 +187,15 @@ export async function saveOutcomeAction(_: FormState, formData: FormData): Promi
   if (Object.keys(artifactName).length === 0) errors.push("Name what learners build.");
   if (Object.keys(prompt).length === 0) errors.push("Describe the assignment.");
 
-  // Keep file kinds this form does not edit (e.g. PDF from a manifest); toggle Markdown text.
-  const current = editor.assignment.submissionTypes;
-  const file = current.find((type) => type.type === "file");
-  const kinds = new Set(file?.type === "file" ? file.accept : []);
-  if (formData.get("acceptText") === "on") kinds.add("md");
-  else kinds.delete("md");
+  const kinds = FILE_KINDS.filter((kind) => formData.get(FILE_KIND_FIELDS[kind]) === "on");
+  const maxMb = Number(text(formData, "maxMb"));
   const types: SubmissionType[] = [];
-  if (kinds.size > 0) {
+  if (kinds.length > 0) {
     types.push({
-      ...(file?.type === "file" ? file : MARKDOWN_TEXT),
-      accept: [...kinds],
-    } as SubmissionType);
+      type: "file",
+      accept: kinds,
+      max_mb: Number.isInteger(maxMb) && maxMb >= 1 && maxMb <= 50 ? maxMb : 15,
+    });
   }
   if (formData.get("acceptUrl") === "on") types.push({ type: "url" });
   if (formData.get("acceptForm") === "on") {

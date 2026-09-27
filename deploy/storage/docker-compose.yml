@@ -1,0 +1,28 @@
+# Object storage for enaibler (S3 API), deployed as its own Coolify resource
+# (Docker Compose build pack). SeaweedFS, Apache-2.0, runs as one container:
+# master, volume server, filer and the S3 gateway. See docs/deployment.md §3.
+#
+# Keep it internal: no domain in Coolify. Enable "Connect to Predefined
+# Network" on this resource and on the app, then point S3_ENDPOINT at
+# http://<this container's name>:8333. Set S3_ACCESS_KEY_ID and
+# S3_SECRET_ACCESS_KEY here and in the app to the same random values.
+services:
+  seaweedfs:
+    # Pin the version you tested; bump deliberately.
+    image: chrislusf/seaweedfs:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /etc/seaweedfs
+        cat > /etc/seaweedfs/s3.json <<JSON
+        {"identities":[{"name":"enaibler","credentials":[{"accessKey":"${S3_ACCESS_KEY_ID:?}","secretKey":"${S3_SECRET_ACCESS_KEY:?}"}],"actions":["Admin","Read","List","Tagging","Write"]}]}
+        JSON
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -volume.max=0
+    volumes:
+      - seaweedfs-data:/data
+    expose:
+      - "8333"
+    restart: unless-stopped
+
+volumes:
+  seaweedfs-data:

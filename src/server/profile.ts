@@ -9,6 +9,7 @@ import {
   credentials,
   enrollments,
   events,
+  files,
   learnerProfiles,
   lessons,
   levelGrants,
@@ -20,6 +21,7 @@ import {
   user,
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
+import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
 
 /*
  * The learner's own data in this academy (brief §5 profile, §9 data rights
@@ -170,6 +172,17 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
             )
         : [],
       credentials: await tx.select().from(credentials).where(eq(credentials.userId, userId)),
+      files: await tx
+        .select({
+          id: files.id,
+          purpose: files.purpose,
+          name: files.name,
+          contentType: files.contentType,
+          sizeBytes: files.sizeBytes,
+          createdAt: files.createdAt,
+        })
+        .from(files)
+        .where(eq(files.ownerUserId, userId)),
       consents: await tx.select().from(consents).where(eq(consents.userId, userId)),
       events: await tx
         .select({
@@ -201,6 +214,12 @@ export async function deleteMyData(
   tenant: TenantContext,
   userId: string,
 ): Promise<{ accountDeleted: boolean }> {
+  // Files first: if storage fails, nothing is half deleted and the learner can try again.
+  if (storageConfigured()) {
+    for (const area of ["submissions", "credentials", "exports"]) {
+      await deleteUnderPrefix(tenant.id, `${area}/${userId}/`);
+    }
+  }
   await withTenant(db, tenant.id, async (tx) => {
     const mySubmissionIds = (
       await tx
@@ -216,6 +235,7 @@ export async function deleteMyData(
     await tx.delete(levelGrants).where(eq(levelGrants.userId, userId));
     await tx.delete(consents).where(eq(consents.userId, userId));
     await tx.delete(learnerProfiles).where(eq(learnerProfiles.userId, userId));
+    await tx.delete(files).where(eq(files.ownerUserId, userId));
     await tx.delete(memberships).where(eq(memberships.userId, userId));
     // Keep aggregate numbers, drop the link to the person.
     await tx.update(events).set({ userId: null }).where(eq(events.userId, userId));

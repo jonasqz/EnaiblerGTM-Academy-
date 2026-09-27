@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 import { submitAssignmentAction, type SubmitState } from "@/app/(academy)/courses/[slug]/actions";
+import { FileUpload, type FileUploadLabels } from "@/components/ui/file-upload";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { FormField } from "@/core/assignments/submission-types";
 
@@ -9,7 +12,11 @@ export function SubmissionForm(props: {
   acceptsText: boolean;
   acceptsUrl: boolean;
   fields: FormField[] | null;
+  files: { accept: string; maxBytes: number; maxFiles: number } | null;
   labels: {
+    files: string;
+    filesHint: string;
+    upload: FileUploadLabels;
     text: string;
     url: string;
     submit: string;
@@ -22,6 +29,7 @@ export function SubmissionForm(props: {
     status: "idle",
   });
   const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  const [uploading, setUploading] = useState(false);
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
@@ -55,6 +63,24 @@ export function SubmissionForm(props: {
           )}
         </label>
       ))}
+      {props.files && (
+        <div className="field">
+          <label className="label" htmlFor="submission-files">
+            {props.labels.files}
+          </label>
+          <FileUpload
+            id="submission-files"
+            endpoint={`/api/uploads?purpose=submission&course=${encodeURIComponent(props.slug)}`}
+            name="files"
+            accept={props.files.accept}
+            maxBytes={props.files.maxBytes}
+            maxFiles={props.files.maxFiles}
+            hint={props.labels.filesHint}
+            labels={props.labels.upload}
+            onBusyChange={setUploading}
+          />
+        </div>
+      )}
       {props.acceptsText && (
         <label className="field">
           <span className="label">{props.labels.text}</span>
@@ -76,7 +102,7 @@ export function SubmissionForm(props: {
           {props.labels.errors[state.error]}
         </p>
       )}
-      <button type="submit" className="btn btn-primary" disabled={pending}>
+      <button type="submit" className="btn btn-primary" disabled={pending || uploading}>
         {pending ? props.labels.submitting : props.labels.submit}
       </button>
     </form>

@@ -33,10 +33,11 @@ export interface OutcomeFormProps {
   artifactName: LocalizedText;
   prompt: LocalizedText;
   acceptText: boolean;
+  acceptPdf: boolean;
+  acceptImage: boolean;
+  maxMb: number;
   acceptUrl: boolean;
   formSchema: string | null;
-  /** File kinds set elsewhere (e.g. PDF from the manifest); kept as they are. */
-  otherFileKinds: string[];
   rubric: Rubric;
   artifactTerm: string;
 }
@@ -127,7 +128,8 @@ export function OutcomeForm(props: OutcomeFormProps) {
             2. How learners hand it in
           </h2>
           <p className="text-sm text-muted">
-            Pick at least one. The AI review reads text, form fields and the link.
+            Pick at least one. The AI review reads text, PDFs, images (through vision), form fields
+            and the link.
           </p>
         </div>
         <div className="grid gap-2 md:grid-cols-3">
@@ -140,7 +142,31 @@ export function OutcomeForm(props: OutcomeFormProps) {
             />
             <span>
               <span className="block text-sm font-semibold">Written text</span>
-              <span className="text-xs text-muted">Typed or pasted Markdown.</span>
+              <span className="text-xs text-muted">Typed, pasted or a Markdown file.</span>
+            </span>
+          </label>
+          <label className="flex gap-3 rounded-control border border-line p-3">
+            <input
+              type="checkbox"
+              name="acceptPdf"
+              defaultChecked={props.acceptPdf}
+              className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+            />
+            <span>
+              <span className="block text-sm font-semibold">A PDF</span>
+              <span className="text-xs text-muted">A document, slides or a one-pager.</span>
+            </span>
+          </label>
+          <label className="flex gap-3 rounded-control border border-line p-3">
+            <input
+              type="checkbox"
+              name="acceptImage"
+              defaultChecked={props.acceptImage}
+              className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Images</span>
+              <span className="text-xs text-muted">Screenshots, photos of a whiteboard.</span>
             </span>
           </label>
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -187,12 +213,21 @@ export function OutcomeForm(props: OutcomeFormProps) {
             </p>
           </div>
         )}
-        {props.otherFileKinds.length > 0 && (
-          <p className="text-sm text-muted">
-            Also accepted as files (set in the academy manifest):{" "}
-            {props.otherFileKinds.join(", ").toUpperCase()}.
+        <div className="field max-w-xs">
+          <label htmlFor="maxMb" className="label">
+            Largest file
+          </label>
+          <select id="maxMb" name="maxMb" className="select" defaultValue={String(props.maxMb)}>
+            {[5, 10, 15, 25, 50].map((mb) => (
+              <option key={mb} value={mb}>
+                {mb} MB
+              </option>
+            ))}
+          </select>
+          <p className="hint">
+            Up to 5 files per attempt. Photos are stored without location data.
           </p>
-        )}
+        </div>
       </section>
 
       <section
