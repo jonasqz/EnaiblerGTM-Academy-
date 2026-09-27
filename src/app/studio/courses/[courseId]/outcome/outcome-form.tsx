@@ -13,12 +13,13 @@ import {
   type RubricDraft,
 } from "@/app/studio/courses/[courseId]/outcome/rubric-editor";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { useStudioText } from "@/components/studio/studio-text";
 import { FileUpload } from "@/components/ui/file-upload";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { lintLocalizedWording, describeFinding } from "@/core/compliance/wording-lint";
+import { lintLocalizedWording } from "@/core/compliance/wording-lint";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import { languageName, studioUploadLabels, wordingText } from "@/core/i18n/studio/helpers";
 import type { Rubric } from "@/core/review/rubric";
 
 const FORM_EXAMPLE = `{
@@ -48,21 +49,6 @@ export interface OutcomeFormProps {
   aiAvailable: boolean;
 }
 
-const EXAMPLE_UPLOAD_LABELS = {
-  choose: "Upload a PDF or .md",
-  drop: "or paste the text above",
-  uploading: "Uploading… {percent} %",
-  remove: "Remove",
-  errors: {
-    too_large: "{name} is too large (up to 20 MB).",
-    type_not_allowed: "{name}: use a PDF, Markdown or text file.",
-    invalid_content: "{name} could not be read.",
-    too_many: "One example is enough.",
-    rate_limited: "Too many uploads this hour.",
-    failed: "{name} could not be uploaded.",
-  },
-};
-
 /** "Draft with AI" (brief §7, step 1): a rubric from the outcome and one example of good work. */
 function RubricDraftPanel(props: {
   courseId: string;
@@ -70,6 +56,7 @@ function RubricDraftPanel(props: {
   lessonCount: number;
   onDraft: (rubric: Rubric, example: string | null) => void;
 }) {
+  const t = useStudioText();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ tone: "good" | "error"; text: string } | null>(null);
@@ -79,12 +66,7 @@ function RubricDraftPanel(props: {
   const [keep, setKeep] = useState(true);
 
   const run = () => {
-    if (
-      props.lessonCount > 0 &&
-      !window.confirm(
-        "Lessons point at the current criteria. A new rubric replaces them, and those lessons lose their link in the coverage map until you pick criteria again. Draft anyway?",
-      )
-    ) {
+    if (props.lessonCount > 0 && !window.confirm(t.t("authoring.draft.replaceConfirm"))) {
       return;
     }
     const data = new FormData(props.form.current ?? undefined);
@@ -100,39 +82,33 @@ function RubricDraftPanel(props: {
       }
       props.onDraft(result.rubric, keep && result.example ? result.example : null);
       setNotes(result.notes);
-      setMessage({
-        tone: "good",
-        text: "Draft ready below. Read every criterion, change what does not fit, then save.",
-      });
+      setMessage({ tone: "good", text: t.t("authoring.draft.ready") });
     });
   };
 
   if (!open) {
     return (
       <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
-        <Sparkles aria-hidden size={16} /> Draft the rubric with AI
+        <Sparkles aria-hidden size={16} /> {t.t("authoring.draft.title")}
       </button>
     );
   }
   return (
     <div className="space-y-4 rounded-card border border-line bg-subtle p-4">
       <div>
-        <p className="font-semibold">Draft the rubric with AI</p>
-        <p className="text-sm text-muted">
-          Uses the outcome above and, ideally, one example of good work. You review the draft before
-          anything is saved.
-        </p>
+        <p className="font-semibold">{t.t("authoring.draft.title")}</p>
+        <p className="text-sm text-muted">{t.t("authoring.draft.intro")}</p>
       </div>
       <div className="field">
         <label htmlFor="rubric-example" className="label">
-          Example of good work (optional)
+          {t.t("authoring.draft.example")}
         </label>
         <textarea
           id="rubric-example"
           className="textarea min-h-32"
           value={example}
           onChange={(event) => setExample(event.target.value)}
-          placeholder="Paste a finished piece of work you would pass without hesitation."
+          placeholder={t.t("authoring.draft.examplePlaceholder")}
           maxLength={40_000}
         />
       </div>
@@ -142,7 +118,7 @@ function RubricDraftPanel(props: {
         accept=".pdf,.md,.txt,application/pdf,text/markdown,text/plain"
         maxFiles={1}
         maxBytes={20 * 1024 * 1024}
-        labels={EXAMPLE_UPLOAD_LABELS}
+        labels={studioUploadLabels(t)}
         onChange={(files) => setExampleFile(files[0]?.id ?? null)}
       />
       <label className="flex items-center gap-2 text-sm">
@@ -152,14 +128,15 @@ function RubricDraftPanel(props: {
           onChange={(event) => setKeep(event.target.checked)}
           className="size-4 accent-(--tenant-primary)"
         />
-        Keep the example as a passing calibration example
+        {t.t("authoring.draft.keepExample")}
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn btn-primary btn-sm" onClick={run} disabled={pending}>
-          <Sparkles aria-hidden size={16} /> {pending ? "Drafting…" : "Draft rubric"}
+          <Sparkles aria-hidden size={16} />{" "}
+          {pending ? t.t("authoring.draft.drafting") : t.t("authoring.draft.run")}
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
-          Close
+          {t.t("authoring.draft.close")}
         </button>
       </div>
       {message && (
@@ -183,6 +160,7 @@ function RubricDraftPanel(props: {
 }
 
 export function OutcomeForm(props: OutcomeFormProps) {
+  const t = useStudioText();
   const primary = props.languages[0] ?? "en";
   const [draft, setDraft] = useState<RubricDraft>(() => draftFromRubric(props.rubric));
   const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
@@ -205,20 +183,19 @@ export function OutcomeForm(props: OutcomeFormProps) {
       <section aria-labelledby="outcome-heading" className="card-flat space-y-5 p-5 sm:p-6">
         <div>
           <h2 id="outcome-heading" className="text-lg font-semibold">
-            1. What learners build
+            {t.t("authoring.outcome.build.title")}
           </h2>
           <p className="text-sm text-muted">
-            Learners see this as their “{props.artifactTerm}”. The name appears on the Certificate
-            of Completion.
+            {t.t("authoring.outcome.build.body", { artifact: props.artifactTerm })}
           </p>
         </div>
         <div className={`grid gap-5 ${twoColumns}`}>
           {props.languages.map((locale, index) => (
             <div key={locale} className="space-y-4">
-              <p className="eyebrow">{LANGUAGE_NAMES[locale]}</p>
+              <p className="eyebrow">{languageName(t, locale)}</p>
               <div className="field">
                 <label htmlFor={`artifactName.${locale}`} className="label">
-                  Name of the work
+                  {t.t("authoring.outcome.artifactName")}
                 </label>
                 <input
                   id={`artifactName.${locale}`}
@@ -234,7 +211,7 @@ export function OutcomeForm(props: OutcomeFormProps) {
               </div>
               <div className="field">
                 <label htmlFor={`prompt.${locale}`} className="label">
-                  Assignment
+                  {t.t("authoring.outcome.prompt")}
                 </label>
                 <textarea
                   id={`prompt.${locale}`}
@@ -245,9 +222,7 @@ export function OutcomeForm(props: OutcomeFormProps) {
                   required={index === 0}
                   defaultValue={props.prompt[locale] ?? ""}
                 />
-                <p className="hint">
-                  What to hand in, which parts it needs, how long it should be.
-                </p>
+                <p className="hint">{t.t("authoring.outcome.promptHint")}</p>
               </div>
             </div>
           ))}
@@ -258,7 +233,7 @@ export function OutcomeForm(props: OutcomeFormProps) {
             className="text-sm font-semibold"
             style={{ color: "var(--status-critical)" }}
           >
-            {describeFinding(nameFindings[0]!)}
+            {wordingText(t, nameFindings[0]!)}
           </p>
         )}
       </section>
@@ -266,12 +241,9 @@ export function OutcomeForm(props: OutcomeFormProps) {
       <section aria-labelledby="handin-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="handin-heading" className="text-lg font-semibold">
-            2. How learners hand it in
+            {t.t("authoring.outcome.handIn.title")}
           </h2>
-          <p className="text-sm text-muted">
-            Pick at least one. The AI review reads text, PDFs, images (through vision), form fields
-            and the link.
-          </p>
+          <p className="text-sm text-muted">{t.t("authoring.outcome.handIn.body")}</p>
         </div>
         <div className="grid gap-2 md:grid-cols-3">
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -282,8 +254,10 @@ export function OutcomeForm(props: OutcomeFormProps) {
               className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block text-sm font-semibold">Written text</span>
-              <span className="text-xs text-muted">Typed, pasted or a Markdown file.</span>
+              <span className="block text-sm font-semibold">
+                {t.t("authoring.outcome.handIn.text")}
+              </span>
+              <span className="text-xs text-muted">{t.t("authoring.outcome.handIn.textBody")}</span>
             </span>
           </label>
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -294,8 +268,10 @@ export function OutcomeForm(props: OutcomeFormProps) {
               className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block text-sm font-semibold">A PDF</span>
-              <span className="text-xs text-muted">A document, slides or a one-pager.</span>
+              <span className="block text-sm font-semibold">
+                {t.t("authoring.outcome.handIn.pdf")}
+              </span>
+              <span className="text-xs text-muted">{t.t("authoring.outcome.handIn.pdfBody")}</span>
             </span>
           </label>
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -306,8 +282,12 @@ export function OutcomeForm(props: OutcomeFormProps) {
               className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block text-sm font-semibold">Images</span>
-              <span className="text-xs text-muted">Screenshots, photos of a whiteboard.</span>
+              <span className="block text-sm font-semibold">
+                {t.t("authoring.outcome.handIn.image")}
+              </span>
+              <span className="text-xs text-muted">
+                {t.t("authoring.outcome.handIn.imageBody")}
+              </span>
             </span>
           </label>
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -318,8 +298,10 @@ export function OutcomeForm(props: OutcomeFormProps) {
               className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block text-sm font-semibold">A link</span>
-              <span className="text-xs text-muted">A board, document or prototype.</span>
+              <span className="block text-sm font-semibold">
+                {t.t("authoring.outcome.handIn.url")}
+              </span>
+              <span className="text-xs text-muted">{t.t("authoring.outcome.handIn.urlBody")}</span>
             </span>
           </label>
           <label className="flex gap-3 rounded-control border border-line p-3">
@@ -331,15 +313,17 @@ export function OutcomeForm(props: OutcomeFormProps) {
               className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block text-sm font-semibold">A template form</span>
-              <span className="text-xs text-muted">Named fields, reviewed as structured data.</span>
+              <span className="block text-sm font-semibold">
+                {t.t("authoring.outcome.handIn.form")}
+              </span>
+              <span className="text-xs text-muted">{t.t("authoring.outcome.handIn.formBody")}</span>
             </span>
           </label>
         </div>
         {useForm && (
           <div className="field">
             <label htmlFor="formSchema" className="label">
-              Form fields (JSON schema)
+              {t.t("authoring.outcome.formSchema")}
             </label>
             <textarea
               id="formSchema"
@@ -348,15 +332,12 @@ export function OutcomeForm(props: OutcomeFormProps) {
               rows={9}
               defaultValue={props.formSchema ?? FORM_EXAMPLE}
             />
-            <p className="hint">
-              An object with text fields: title, description, maxLength; list required fields in
-              “required”.
-            </p>
+            <p className="hint">{t.t("authoring.outcome.formSchemaHint")}</p>
           </div>
         )}
         <div className="field max-w-xs">
           <label htmlFor="maxMb" className="label">
-            Largest file
+            {t.t("authoring.outcome.maxMb")}
           </label>
           <select id="maxMb" name="maxMb" className="select" defaultValue={String(props.maxMb)}>
             {[5, 10, 15, 25, 50].map((mb) => (
@@ -365,9 +346,7 @@ export function OutcomeForm(props: OutcomeFormProps) {
               </option>
             ))}
           </select>
-          <p className="hint">
-            Up to 5 files per attempt. Photos are stored without location data.
-          </p>
+          <p className="hint">{t.t("authoring.outcome.maxMbHint")}</p>
         </div>
       </section>
 
@@ -378,12 +357,9 @@ export function OutcomeForm(props: OutcomeFormProps) {
       >
         <div>
           <h2 id="rubric-heading" className="text-lg font-semibold">
-            3. Rubric
+            {t.t("authoring.outcome.rubric.title")}
           </h2>
-          <p className="text-sm text-muted">
-            What a reviewer scores. Pass or fail is computed from the scores, never taken from the
-            AI. Changing the rubric creates a new version; earlier reviews keep theirs.
-          </p>
+          <p className="text-sm text-muted">{t.t("authoring.outcome.rubric.body")}</p>
         </div>
         {props.aiAvailable && (
           <RubricDraftPanel
@@ -419,9 +395,9 @@ export function OutcomeForm(props: OutcomeFormProps) {
       <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-line bg-surface/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-card sm:border">
         <FormFeedback state={state} />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted">Saved changes apply to new submissions.</p>
-          <SubmitButton pending={pending} pendingLabel="Saving…">
-            Save outcome and rubric
+          <p className="text-sm text-muted">{t.t("authoring.outcome.appliesToNew")}</p>
+          <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+            {t.t("authoring.outcome.save")}
           </SubmitButton>
         </div>
       </div>
