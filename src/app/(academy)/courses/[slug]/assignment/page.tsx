@@ -1,4 +1,4 @@
-import { ArrowLeft, Award, Clock, Hammer, RotateCcw, CircleCheck } from "lucide-react";
+import { ArrowLeft, Award, Clock, Hammer, ListChecks, RotateCcw, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
 import { MAX_FILES_PER_SUBMISSION, type FileKind } from "@/core/assignments/submission-types";
+import { requiresWork } from "@/core/courses/completion";
 import { localize } from "@/core/i18n/locales";
 import { canResubmit, type Outcome } from "@/core/review/outcome";
 import { getDb } from "@/db/client";
@@ -30,7 +31,8 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
   const { tenant, viewer } = await requireViewer(`/courses/${slug}/assignment`);
   const t = await getTranslator();
   const data = await loadLearnerCourse(getDb(), tenant, slug, viewer.userId, t.locale);
-  if (!data || !data.assignment || !data.rubric) notFound();
+  // A course that ends with a test alone keeps its assignment for later, out of sight.
+  if (!data || !data.assignment || !data.rubric || !requiresWork(data.completionMode)) notFound();
   if (!data.enrollment) redirect(`/courses/${slug}`);
 
   const fallback = [tenant.settings.default_locale];
@@ -106,6 +108,19 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
           >
             <Award aria-hidden size={16} /> {t.t("course.viewCredential")}
           </Link>
+        </Notice>
+      )}
+      {!data.credential && data.workPassed && data.test && !data.test.attempts.passed && (
+        <Notice tone="info" title={t.t("test.oneStepLeft")}>
+          <div className="space-y-2">
+            <p>{t.t("test.testMissing")}</p>
+            <Link
+              href={`/courses/${slug}/test`}
+              className="inline-flex items-center gap-1.5 font-semibold underline"
+            >
+              <ListChecks aria-hidden size={16} /> {t.t("course.test.take")}
+            </Link>
+          </div>
         </Notice>
       )}
       {latest?.outcome === "pending" && (

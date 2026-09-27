@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { requiresWork } from "@/core/courses/completion";
 import { courseProgress, type LessonProgressMap } from "@/core/courses/lessons";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
@@ -20,6 +21,7 @@ export type CourseRow = typeof courses.$inferSelect;
 
 export interface CatalogCourse {
   course: CourseRow;
+  /** What learners build; null when the course ends with its final test alone. */
   artifactName: LocalizedText | null;
   lessonCount: number;
   /** For a signed-in learner: their state in this course. */
@@ -85,7 +87,8 @@ async function catalogCourses(
     }
     return rows.map((row): CatalogCourse => ({
       course: row.course,
-      artifactName: row.artifactName,
+      // A test-only course keeps its assignment for later; it promises no work.
+      artifactName: requiresWork(row.course.completionMode) ? row.artifactName : null,
       lessonCount: row.lessonCount,
       status: status.get(row.course.id) ?? null,
     }));

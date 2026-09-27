@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { courseProgress, type LessonProgressMap } from "@/core/courses/lessons";
+import { courseProgress, resumeLessonKey, type LessonProgressMap } from "@/core/courses/lessons";
+import { nextStep } from "@/core/courses/next-step";
+import { gradePercent } from "@/core/questions/questions";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
 import {
@@ -21,10 +23,12 @@ import {
   reviews,
   session,
   submissions,
+  testAttempts,
   user,
   webhookDeliveries,
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
+import { testStates, workOutcomes } from "@/server/learning";
 import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
 import { queueWebhookEvent } from "@/server/webhooks";
 
@@ -71,19 +75,30 @@ export async function loadMe(db: Database, tenant: TenantContext, userId: string
       .select()
       .from(consents)
       .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
+    const courseIds = courseRows.map((row) => row.course.id);
+    const work = await workOutcomes(tx, userId, courseIds);
+    const tests = await testStates(tx, userId, courseIds);
     return {
       profile: profile ?? null,
       path: path ?? null,
-      courses: courseRows.map(({ enrollment, course }) => ({
-        course,
-        enrollment,
-        progress: courseProgress(
-          lessonKeys
-            .filter((l) => l.courseId === course.id && l.locale === enrollment.locale)
-            .map((l) => l.key),
-          enrollment.lessonProgress as LessonProgressMap,
-        ),
-      })),
+      courses: courseRows.map(({ enrollment, course }) => {
+        const keys = lessonKeys
+          .filter((l) => l.courseId === course.id && l.locale === enrollment.locale)
+          .map((l) => l.key);
+        const progress = enrollment.lessonProgress as LessonProgressMap;
+        return {
+          course,
+          enrollment,
+          progress: courseProgress(keys, progress),
+          /** What the learner does next while the course is in progress. */
+          next: nextStep({
+            mode: course.completionMode,
+            resumeKey: resumeLessonKey(keys, progress),
+            work: work.get(course.id) ?? null,
+            test: tests.get(course.id) ?? { taken: false, passed: false },
+          }),
+        };
+      }),
       credentials: creds,
       contactOptIn: Boolean(handoff?.confirmedAt && !handoff.revokedAt),
     };
@@ -189,6 +204,23 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
               ),
             )
         : [],
+      testAttempts: (
+        await tx
+          .select({
+            course: courses.slug,
+            attempt: testAttempts.attemptNo,
+            takenAt: testAttempts.createdAt,
+            locale: testAttempts.locale,
+            correct: testAttempts.correct,
+            total: testAttempts.total,
+            passed: testAttempts.passed,
+            answers: testAttempts.answers,
+          })
+          .from(testAttempts)
+          .innerJoin(courses, eq(courses.id, testAttempts.courseId))
+          .where(eq(testAttempts.userId, userId))
+          .orderBy(asc(testAttempts.createdAt))
+      ).map((attempt) => ({ ...attempt, percent: gradePercent(attempt) })),
       credentials: await tx.select().from(credentials).where(eq(credentials.userId, userId)),
       files: await tx
         .select({
@@ -271,6 +303,7 @@ export async function deleteMyData(
     if (mySubmissionIds.length)
       await tx.delete(reviews).where(inArray(reviews.submissionId, mySubmissionIds));
     await tx.delete(submissions).where(eq(submissions.userId, userId));
+    await tx.delete(testAttempts).where(eq(testAttempts.userId, userId));
     await tx.delete(credentials).where(eq(credentials.userId, userId));
     await tx.delete(enrollments).where(eq(enrollments.userId, userId));
     await tx.delete(levelGrants).where(eq(levelGrants.userId, userId));

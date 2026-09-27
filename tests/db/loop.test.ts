@@ -215,6 +215,7 @@ describe.skipIf(!hasDatabase)("core loop: create → learn → submit → review
       }),
     ).toEqual({
       nextKey: "interviews",
+      completionMode: "work",
     });
 
     const empty = await submitAssignment(

@@ -1,4 +1,4 @@
-import { Award, BookOpen, CircleCheck, Download, Globe, Lock, Mail } from "lucide-react";
+import { Award, BookOpen, CircleCheck, Clock, Download, Globe, Lock, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
+import { nextStepHref } from "@/core/courses/next-step";
 import { proofLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import { pathColor } from "@/core/theme/css";
@@ -147,31 +148,61 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           />
         ) : (
           <ul className="card-flat divide-y divide-line">
-            {me.courses.map(({ course, enrollment, progress }) => (
-              <li key={course.id} className="flex flex-wrap items-center gap-4 p-4">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <Link href={`/courses/${course.slug}`} className="font-semibold hover:underline">
-                    {localize(course.title, t.locale, fallback)}
-                  </Link>
-                  {!enrollment.completedAt && (
-                    <Progress
-                      value={progress.percent}
-                      label={t.t("course.progress", { done: progress.done, total: progress.total })}
-                      className="max-w-xs"
-                    />
+            {me.courses.map(({ course, enrollment, progress, next }) => {
+              const title = localize(course.title, t.locale, fallback);
+              const nextLabel =
+                next.kind === "lesson"
+                  ? t.t("course.continue")
+                  : next.kind === "work"
+                    ? t.t("course.openAssignment")
+                    : next.kind === "test"
+                      ? t.t(next.retake ? "course.test.retake" : "course.test.take")
+                      : t.t("me.view");
+              return (
+                <li key={course.id} className="flex flex-wrap items-center gap-4 p-4">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Link
+                      href={`/courses/${course.slug}`}
+                      className="font-semibold hover:underline"
+                    >
+                      {title}
+                    </Link>
+                    {!enrollment.completedAt && (
+                      <>
+                        <Progress
+                          value={progress.percent}
+                          label={t.t("course.progress", {
+                            done: progress.done,
+                            total: progress.total,
+                          })}
+                          className="max-w-xs"
+                        />
+                        <p className="text-xs text-muted">
+                          {t.t("course.progress", { done: progress.done, total: progress.total })}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {enrollment.completedAt ? (
+                    <Badge tone="good" icon={CircleCheck}>
+                      {t.t("home.completed")}
+                    </Badge>
+                  ) : next.kind === "review" ? (
+                    <Badge tone="info" icon={Clock}>
+                      {t.t("assignment.inReview")}
+                    </Badge>
+                  ) : (
+                    <Link
+                      href={nextStepHref(course.slug, next)}
+                      className="btn btn-secondary btn-sm"
+                      aria-label={`${nextLabel}: ${title}`}
+                    >
+                      {nextLabel}
+                    </Link>
                   )}
-                </div>
-                {enrollment.completedAt ? (
-                  <Badge tone="good" icon={CircleCheck}>
-                    {t.t("home.completed")}
-                  </Badge>
-                ) : (
-                  <span className="text-sm text-muted">
-                    {t.t("course.progress", { done: progress.done, total: progress.total })}
-                  </span>
-                )}
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
