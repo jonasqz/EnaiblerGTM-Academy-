@@ -37,6 +37,7 @@ import {
   updateLesson,
 } from "@/server/studio/lessons";
 import { decideSubmission } from "@/server/studio/reviews";
+import { getStudioText } from "@/server/studio-text";
 
 /*
  * Studio actions. Every action re-checks the capability (a form can be posted
@@ -52,8 +53,6 @@ export interface FormState {
 
 const courseIdSchema = z.uuid();
 
-/** Wording findings split into blocking errors and warnings (brief §9). */
-
 function courseLanguages(formData: FormData, allowed: readonly Locale[]): Locale[] {
   const picked = formData.getAll("languages").filter((value): value is Locale => isLocale(value));
   return allowed.filter((locale) => picked.includes(locale));
@@ -63,15 +62,13 @@ function courseLanguages(formData: FormData, allowed: readonly Locale[]): Locale
 
 export async function createCourseAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant } = await requireCapability("courses.edit", "/studio/courses/new");
+  const t = await getStudioText();
   const languages = courseLanguages(formData, tenant.settings.locales);
   const parsed = z
     .object({
-      title: z.string().min(3, "Give the course a title (at least 3 characters).").max(120),
-      artifactName: z.string().min(2, "Name what learners build.").max(80),
-      outcome: z
-        .string()
-        .min(20, "Describe the result in a sentence or two (at least 20 characters).")
-        .max(4000),
+      title: z.string().min(3, t.t("common.actions.titleMin")).max(120),
+      artifactName: z.string().min(2, t.t("common.actions.artifactMin")).max(80),
+      outcome: z.string().min(20, t.t("common.actions.outcomeMin")).max(4000),
       deliveryMode: deliveryModeSchema,
     })
     .safeParse({
@@ -81,10 +78,10 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
       deliveryMode: text(formData, "deliveryMode") || "free_async",
     });
   const errors = parsed.success ? [] : parsed.error.issues.map((issue) => issue.message);
-  if (languages.length === 0) errors.push("Choose at least one course language.");
+  if (languages.length === 0) errors.push(t.t("common.actions.chooseLanguage"));
   if (!parsed.success || errors.length > 0) return { errors };
 
-  const lint = wording([
+  const lint = wording(t, [
     [parsed.data.title, "course_title"],
     [parsed.data.artifactName, "artifact_name"],
   ]);
@@ -98,12 +95,13 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
 export async function saveDetailsAction(_: FormState, formData: FormData): Promise<FormState> {
   const courseId = courseIdSchema.parse(text(formData, "courseId"));
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/details`);
+  const t = await getStudioText();
   const languages = courseLanguages(formData, tenant.settings.locales);
   const title = localized(formData, "title", languages);
   const summary = localized(formData, "summary", languages);
   const errors: string[] = [];
-  if (languages.length === 0) errors.push("Choose at least one course language.");
-  if (Object.keys(title).length === 0) errors.push("Add a title in at least one course language.");
+  if (languages.length === 0) errors.push(t.t("common.actions.chooseLanguage"));
+  if (Object.keys(title).length === 0) errors.push(t.t("common.actions.titleOneLanguage"));
 
   const estText = text(formData, "estMinutes");
   const estMinutes = estText ? Number(estText) : null;
@@ -111,17 +109,17 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
     estMinutes !== null &&
     (!Number.isInteger(estMinutes) || estMinutes < 1 || estMinutes > 6000)
   ) {
-    errors.push("Duration is a whole number of minutes.");
+    errors.push(t.t("common.actions.durationWhole"));
   }
   const plannedLaunch = text(formData, "plannedLaunch") || null;
   if (plannedLaunch && !/^\d{4}-\d{2}(-\d{2})?$/.test(plannedLaunch)) {
-    errors.push("Planned launch looks like 2027-01 or 2027-01-15.");
+    errors.push(t.t("common.actions.launchFormat"));
   }
   const deliveryMode = deliveryModeSchema.safeParse(text(formData, "deliveryMode"));
-  if (!deliveryMode.success) errors.push("Choose a delivery mode.");
+  if (!deliveryMode.success) errors.push(t.t("common.actions.chooseDeliveryMode"));
   if (errors.length > 0 || !deliveryMode.success) return { errors };
 
-  const lint = wording([
+  const lint = wording(t, [
     [title, "course_title"],
     [summary, "course_description"],
   ]);
@@ -137,7 +135,7 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
     slug: slugify(text(formData, "slug")),
   });
   revalidatePath(`/studio/courses/${courseId}`, "layout");
-  return { ok: true, message: "Details saved.", warnings: lint.warnings };
+  return { ok: true, message: t.t("common.actions.detailsSaved"), warnings: lint.warnings };
 }
 
 const FILE_KIND_FIELDS: Record<FileKind, string> = {
@@ -149,15 +147,16 @@ const FILE_KIND_FIELDS: Record<FileKind, string> = {
 export async function saveOutcomeAction(_: FormState, formData: FormData): Promise<FormState> {
   const courseId = courseIdSchema.parse(text(formData, "courseId"));
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/outcome`);
+  const t = await getStudioText();
   const editor = await loadCourseEditor(getDb(), tenant.id, courseId);
-  if (!editor?.assignment) return { errors: ["This course has no assignment."] };
+  if (!editor?.assignment) return { errors: [t.t("common.actions.noAssignment")] };
   const languages = editor.course.languages.filter(isLocale);
   const errors: string[] = [];
 
   const artifactName = localized(formData, "artifactName", languages);
   const prompt = localized(formData, "prompt", languages);
-  if (Object.keys(artifactName).length === 0) errors.push("Name what learners build.");
-  if (Object.keys(prompt).length === 0) errors.push("Describe the assignment.");
+  if (Object.keys(artifactName).length === 0) errors.push(t.t("common.actions.artifactMin"));
+  if (Object.keys(prompt).length === 0) errors.push(t.t("common.actions.describeAssignment"));
 
   const kinds = FILE_KINDS.filter((kind) => formData.get(FILE_KIND_FIELDS[kind]) === "on");
   const maxMb = Number(text(formData, "maxMb"));
@@ -174,34 +173,37 @@ export async function saveOutcomeAction(_: FormState, formData: FormData): Promi
     try {
       const schema = JSON.parse(text(formData, "formSchema")) as Record<string, unknown>;
       if (!formFieldsFromSchema(schema)) {
-        errors.push("The form schema must be an object with string fields (see the example).");
+        errors.push(t.t("common.actions.formSchemaShape"));
       } else {
         types.push({ type: "template_form", schema });
       }
     } catch {
-      errors.push("The form schema is not valid JSON.");
+      errors.push(t.t("common.actions.formSchemaJson"));
     }
   }
   const submissionTypes = submissionTypesSchema.safeParse(types);
-  if (!submissionTypes.success) errors.push("Allow at least one way to hand in the work.");
+  if (!submissionTypes.success) errors.push(t.t("common.actions.oneWayToHandIn"));
 
   let rubricInput: unknown = null;
   try {
     rubricInput = JSON.parse(text(formData, "rubric"));
   } catch {
-    errors.push("The rubric could not be read. Reload the page and try again.");
+    errors.push(t.t("common.actions.rubricUnreadable"));
   }
   const rubric = rubricSchema.safeParse(rubricInput);
   if (!rubric.success) {
     errors.push(
-      ...rubric.error.issues.map(
-        (issue) => `Rubric: ${issue.message} (${issue.path.join(".") || "rubric"})`,
+      ...rubric.error.issues.map((issue) =>
+        t.t("common.actions.rubricIssue", {
+          message: issue.message,
+          path: issue.path.join(".") || "rubric",
+        }),
       ),
     );
   }
   if (errors.length > 0 || !rubric.success || !submissionTypes.success) return { errors };
 
-  const lint = wording([
+  const lint = wording(t, [
     [artifactName, "artifact_name"],
     [prompt, "assignment_prompt"],
   ]);
@@ -214,7 +216,7 @@ export async function saveOutcomeAction(_: FormState, formData: FormData): Promi
     rubric: rubric.data,
   });
   revalidatePath(`/studio/courses/${courseId}`, "layout");
-  return { ok: true, message: "Outcome and rubric saved.", warnings: lint.warnings };
+  return { ok: true, message: t.t("common.actions.outcomeSaved"), warnings: lint.warnings };
 }
 
 export async function publishCourseAction(formData: FormData): Promise<void> {
@@ -256,13 +258,14 @@ export async function createLessonAction(formData: FormData): Promise<void> {
     redirect(`/studio/courses/${courseId}/lessons?error=language`);
   }
   const translationOf = text(formData, "translationOf") || undefined;
-  const title = (text(formData, "title") || (translationOf ? "" : "Untitled lesson")).slice(0, 160);
+  const untitled = (await getStudioText()).t("common.actions.untitledLesson");
+  const title = (text(formData, "title") || (translationOf ? "" : untitled)).slice(0, 160);
   const source = translationOf
     ? editor.lessons.find((lesson) => lesson.key === translationOf)
     : undefined;
   const lessonId = await createLesson(getDb(), tenant.id, courseId, {
     locale,
-    title: title || source?.title || "Untitled lesson",
+    title: title || source?.title || untitled,
     translationOf,
     userId: viewer.userId,
   });
@@ -275,14 +278,15 @@ export async function createLessonAction(formData: FormData): Promise<void> {
 export async function saveLessonAction(_: FormState, formData: FormData): Promise<FormState> {
   const lessonId = z.uuid().parse(text(formData, "lessonId"));
   const { tenant, viewer } = await requireCapability("courses.edit");
+  const t = await getStudioText();
   const editor = await loadLessonEditor(getDb(), tenant.id, lessonId);
-  if (!editor) return { errors: ["This lesson no longer exists."] };
+  if (!editor) return { errors: [t.t("common.actions.lessonGone")] };
   const title = text(formData, "title");
   const markdown = String(formData.get("markdown") ?? "").replace(/\r\n/g, "\n");
   const errors: string[] = [];
-  if (!title) errors.push("A lesson needs a title.");
-  if (title.length > 160) errors.push("Keep the title under 160 characters.");
-  if (markdown.length > 100_000) errors.push("This lesson is very long; split it into two.");
+  if (!title) errors.push(t.t("common.actions.lessonTitleRequired"));
+  if (title.length > 160) errors.push(t.t("common.actions.lessonTitleLong"));
+  if (markdown.length > 100_000) errors.push(t.t("common.actions.lessonLong"));
   if (errors.length > 0) return { errors };
 
   const known = new Set(
@@ -300,13 +304,15 @@ export async function saveLessonAction(_: FormState, formData: FormData): Promis
     userId: viewer.userId,
   });
   revalidatePath(`/studio/courses/${editor.course.id}`, "layout");
-  const lint = wording([
+  const lint = wording(t, [
     [title, "lesson_text"],
     [markdown, "lesson_text"],
   ]);
   return {
     ok: true,
-    message: result.changed ? `Saved as version ${result.version}.` : "No changes to save.",
+    message: result.changed
+      ? t.t("common.actions.savedVersion", { version: result.version })
+      : t.t("common.actions.noChanges"),
     warnings: lint.warnings,
   };
 }
@@ -362,15 +368,11 @@ export async function deleteLessonAction(formData: FormData): Promise<void> {
 
 // ---- Reviews ---------------------------------------------------------------
 
-const DECISION_ERRORS: Record<string, string> = {
-  not_found: "This submission no longer exists.",
-  reason_required: "Your verdict differs from the AI review: add a reason for the record.",
-};
-
 export async function decideReviewAction(_: FormState, formData: FormData): Promise<FormState> {
   const submissionId = z.uuid().parse(text(formData, "submissionId"));
   const session = await requireCapability("reviews.decide", `/studio/reviews/${submissionId}`);
   const { tenant, viewer } = session;
+  const t = await getStudioText();
   const scores: Record<string, number> = {};
   const feedback: Record<string, string> = {};
   for (const [name, value] of formData.entries()) {
@@ -393,8 +395,12 @@ export async function decideReviewAction(_: FormState, formData: FormData): Prom
   );
   if (!result.ok) {
     const message = result.error.startsWith("score:")
-      ? `Score every criterion (missing: ${result.error.slice(6)}).`
-      : (DECISION_ERRORS[result.error] ?? "The decision could not be saved.");
+      ? t.t("common.actions.scoreEvery", { missing: result.error.slice(6) })
+      : result.error === "not_found"
+        ? t.t("common.actions.submissionGone")
+        : result.error === "reason_required"
+          ? t.t("common.actions.reasonRequired")
+          : t.t("common.actions.decisionFailed");
     return { errors: [message] };
   }
   revalidatePath("/studio", "layout");

@@ -3,6 +3,7 @@
 import { Circle, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useStudioText } from "@/components/studio/studio-text";
 import { uploadFile, type UploadedFile } from "@/components/ui/file-upload";
 
 /**
@@ -27,6 +28,7 @@ export function ScreenRecorder(props: {
   endpoint: string;
   onUploaded: (file: UploadedFile) => void;
 }) {
+  const t = useStudioText();
   const [phase, setPhase] = useState<Phase>("idle");
   const [seconds, setSeconds] = useState(0);
   const [percent, setPercent] = useState(0);
@@ -73,9 +75,13 @@ export function ScreenRecorder(props: {
       next.onstop = async () => {
         stopTracks();
         setPhase("uploading");
-        const file = new File([new Blob(chunks, { type: "video/webm" })], "Screen recording.webm", {
-          type: "video/webm",
-        });
+        const file = new File(
+          [new Blob(chunks, { type: "video/webm" })],
+          `${t.t("common.recorder.fileName")}.webm`,
+          {
+            type: "video/webm",
+          },
+        );
         const result = await uploadFile(props.endpoint, file, (fraction) =>
           setPercent(Math.round(fraction * 100)),
         );
@@ -84,7 +90,7 @@ export function ScreenRecorder(props: {
           props.onUploaded(result.file);
         } else {
           setPhase("error");
-          setError("The recording could not be uploaded. Please try again.");
+          setError(t.t("common.recorder.uploadFailed"));
         }
       };
       // The browser's own "Stop sharing" button ends the recording too.
@@ -95,20 +101,16 @@ export function ScreenRecorder(props: {
       next.start(1000);
       setSeconds(0);
       setPhase("recording");
-      if (!voice) setError("No microphone: the recording has no narration to transcribe.");
+      if (!voice) setError(t.t("common.recorder.noMicrophone"));
     } catch {
       stopTracks();
       setPhase("idle");
-      setError("Screen recording was cancelled or is not allowed in this browser.");
+      setError(t.t("common.recorder.cancelled"));
     }
   };
 
   if (!supported) {
-    return (
-      <p className="text-sm text-muted">
-        This browser cannot record the screen. Upload a recording instead.
-      </p>
-    );
+    return <p className="text-sm text-muted">{t.t("common.recorder.unsupported")}</p>;
   }
   return (
     <div className="space-y-2">
@@ -118,7 +120,7 @@ export function ScreenRecorder(props: {
           className="btn btn-danger btn-sm"
           onClick={() => recorder.current?.stop()}
         >
-          <Square aria-hidden size={14} /> Stop recording · {clock(seconds)}
+          <Square aria-hidden size={14} /> {t.t("common.recorder.stop", { time: clock(seconds) })}
         </button>
       ) : (
         <button
@@ -128,7 +130,9 @@ export function ScreenRecorder(props: {
           disabled={phase === "uploading"}
         >
           <Circle aria-hidden size={14} className="text-[var(--status-critical)]" />
-          {phase === "uploading" ? `Uploading ${percent} %` : "Record your screen"}
+          {phase === "uploading"
+            ? t.t("common.recorder.uploading", { percent })
+            : t.t("common.recorder.start")}
         </button>
       )}
       {error && <p className="hint">{error}</p>}

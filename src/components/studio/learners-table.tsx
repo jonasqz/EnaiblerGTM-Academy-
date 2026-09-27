@@ -1,14 +1,15 @@
+"use client";
+
 import { Globe, Lock } from "lucide-react";
 import Link from "next/link";
 
 import { LearnerName } from "@/components/studio/learner-name";
 import { SubmissionStatusBadge } from "@/components/studio/status-badges";
+import { useStudioText } from "@/components/studio/studio-text";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { SubmissionStatus } from "@/core/review/outcome";
 import type { CourseLearnerRow } from "@/server/studio/insights";
-
-const dates = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
 
 /** Learners of a course (or a cohort): where they are and what they handed in. */
 export function LearnersTable(props: {
@@ -17,17 +18,18 @@ export function LearnersTable(props: {
   caption: string;
 }) {
   const { rows, canReview } = props;
+  const t = useStudioText();
   return (
     <div className="card-flat table-wrap">
       <table className="table">
         <caption className="sr-only">{props.caption}</caption>
         <thead>
           <tr>
-            <th scope="col">Learner</th>
-            <th scope="col">Progress</th>
-            <th scope="col">Latest work</th>
-            <th scope="col">Certificate</th>
-            <th scope="col">Started</th>
+            <th scope="col">{t.t("common.learners.learner")}</th>
+            <th scope="col">{t.t("common.learners.progress")}</th>
+            <th scope="col">{t.t("common.learners.latestWork")}</th>
+            <th scope="col">{t.t("common.learners.certificate")}</th>
+            <th scope="col">{t.t("common.learners.started")}</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +47,10 @@ export function LearnersTable(props: {
                 <div className="flex items-center gap-2">
                   <Progress
                     value={row.progress.percent}
-                    label={`${row.alias}: ${row.progress.percent} % of lessons`}
+                    label={t.t("common.learners.progressLabel", {
+                      alias: row.alias,
+                      percent: row.progress.percent,
+                    })}
                     className="w-24"
                   />
                   <span className="text-sm tabular-nums text-muted">
@@ -71,11 +76,11 @@ export function LearnersTable(props: {
                       />
                     )}
                     <span className="text-xs text-muted">
-                      attempt {row.latestSubmission.attemptNo}
+                      {t.t("common.learners.attempt", { n: row.latestSubmission.attemptNo })}
                     </span>
                   </span>
                 ) : (
-                  <span className="text-sm text-muted">Not handed in</span>
+                  <span className="text-sm text-muted">{t.t("common.learners.notHandedIn")}</span>
                 )}
               </td>
               <td>
@@ -83,19 +88,17 @@ export function LearnersTable(props: {
                   row.credential.visibility === "public" ? (
                     <Link href={`/verify/${row.credential.publicId}`} className="hover:opacity-80">
                       <Badge tone="good" icon={Globe}>
-                        Public
+                        {t.t("common.learners.public")}
                       </Badge>
                     </Link>
                   ) : (
-                    <Badge icon={Lock}>Private</Badge>
+                    <Badge icon={Lock}>{t.t("common.learners.private")}</Badge>
                   )
                 ) : (
                   <span className="text-sm text-muted">—</span>
                 )}
               </td>
-              <td className="whitespace-nowrap text-sm text-muted">
-                {dates.format(row.startedAt)}
-              </td>
+              <td className="whitespace-nowrap text-sm text-muted">{t.date(row.startedAt)}</td>
             </tr>
           ))}
         </tbody>

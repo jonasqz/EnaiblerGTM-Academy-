@@ -1,0 +1,36 @@
+import type { Locale } from "@/core/i18n/locales";
+import * as authoring from "@/core/i18n/studio/authoring";
+import * as common from "@/core/i18n/studio/common";
+import * as courses from "@/core/i18n/studio/courses";
+import * as settings from "@/core/i18n/studio/settings";
+import * as team from "@/core/i18n/studio/team";
+
+/**
+ * The Studio's words, in English and German (brief §12: DE/EN). One file per
+ * area so each stays readable; TypeScript makes every area list both
+ * languages. German copy uses "du", like the learner side. Not overridable
+ * per academy: this is enaibler's tool talking to the academy's team.
+ *   {name}          variable passed to t()
+ *   key.one/.other  plural forms, chosen by t.n(key, count)
+ */
+export const STUDIO_AREAS = { common, courses, authoring, team, settings } as const;
+
+const en = {
+  ...common.en,
+  ...courses.en,
+  ...authoring.en,
+  ...team.en,
+  ...settings.en,
+};
+
+export type StudioKey = keyof typeof en;
+
+const de: Record<StudioKey, string> = {
+  ...common.de,
+  ...courses.de,
+  ...authoring.de,
+  ...team.de,
+  ...settings.de,
+};
+
+export const STUDIO_MESSAGES: Record<Locale, Record<StudioKey, string>> = { en, de };

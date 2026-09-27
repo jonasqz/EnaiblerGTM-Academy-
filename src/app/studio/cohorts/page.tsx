@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { NewCohortForm } from "@/app/studio/cohorts/forms";
-import { cohortDates } from "@/app/studio/mentor-overview";
+import { cohortDates } from "@/core/i18n/studio/helpers";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { can } from "@/core/access/roles";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
+import { getStudioText } from "@/server/studio-text";
 import { requireCapability } from "@/server/access";
 import { listCohorts } from "@/server/cohorts";
 import { listCourses } from "@/server/studio/courses";
@@ -21,6 +22,7 @@ export const metadata: Metadata = { title: "Cohorts" };
 /** Groups that take a course together, with a join link and mentors (brief §4, phase 2). */
 export default async function CohortsPage() {
   const { tenant, roles, viewer } = await requireCapability("studio.view", "/studio/cohorts");
+  const t = await getStudioText();
   const manager = can(roles, "cohorts.manage");
   if (!manager && !roles.includes("mentor")) notFound();
   const locale = tenant.settings.default_locale;
@@ -62,7 +64,7 @@ export default async function CohortsPage() {
                 </span>
                 <span className="block text-lg font-semibold">{row.cohort.name}</span>
                 <span className="block text-sm text-muted">
-                  {cohortDates(row.cohort.startsOn, row.cohort.endsOn)} · {row.learners}{" "}
+                  {cohortDates(t, row.cohort.startsOn, row.cohort.endsOn)} · {row.learners}{" "}
                   {row.learners === 1 ? "learner" : "learners"} · {row.mentors}{" "}
                   {row.mentors === 1 ? "mentor" : "mentors"}
                 </span>

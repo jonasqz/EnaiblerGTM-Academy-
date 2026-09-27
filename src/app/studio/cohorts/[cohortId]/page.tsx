@@ -9,7 +9,7 @@ import {
   removeMentorAction,
 } from "@/app/studio/cohorts/actions";
 import { AddMentorForm, CohortForm } from "@/app/studio/cohorts/forms";
-import { cohortDates } from "@/app/studio/mentor-overview";
+import { cohortDates } from "@/core/i18n/studio/helpers";
 import { LearnersTable } from "@/components/studio/learners-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
@@ -17,6 +17,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { can } from "@/core/access/roles";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
+import { getStudioText } from "@/server/studio-text";
 import { requireCapability } from "@/server/access";
 import { loadCohort } from "@/server/cohorts";
 import { academyUrl } from "@/server/platform/config";
@@ -35,6 +36,7 @@ export default async function CohortPage({
     "studio.view",
     `/studio/cohorts/${cohortId}`,
   );
+  const t = await getStudioText();
   const data = await loadCohort(getDb(), tenant.id, cohortId);
   if (!data) notFound();
   const manager = can(roles, "cohorts.manage");
@@ -64,7 +66,7 @@ export default async function CohortPage({
         <p className="eyebrow">{localize(course.title, tenant.settings.default_locale)}</p>
         <h1 className="text-3xl font-semibold">{cohort.name}</h1>
         <p className="text-sm text-muted">
-          {cohortDates(cohort.startsOn, cohort.endsOn)}
+          {cohortDates(t, cohort.startsOn, cohort.endsOn)}
           {cohort.status === "closed" ? " · closed" : ""}
         </p>
       </header>

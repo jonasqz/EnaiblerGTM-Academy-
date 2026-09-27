@@ -2,13 +2,14 @@ import { Bot, ClipboardCheck, ListChecks } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { AUDIT_LABELS, HOLD_REASON_LABELS, timeAgo } from "@/components/studio/review-labels";
+import { auditText, holdReasonText, timeAgo } from "@/core/i18n/studio/helpers";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
+import { getStudioText } from "@/server/studio-text";
 import { requireCapability, reviewScopeOf } from "@/server/access";
 import { listReviewQueue, type QueueRow } from "@/server/studio/reviews";
 
@@ -18,6 +19,7 @@ export const metadata: Metadata = { title: "Reviews" };
 export default async function ReviewsPage({ searchParams }: PageProps<"/studio/reviews">) {
   const { decided } = await searchParams;
   const session = await requireCapability("reviews.decide", "/studio/reviews");
+  const t = await getStudioText();
   const { tenant } = session;
   const queue = await listReviewQueue(getDb(), tenant.id, reviewScopeOf(session));
   const decide = queue.filter((row) => row.kind === "decide");
@@ -36,15 +38,15 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/studio/r
               <span className="block font-semibold">{localize(row.courseTitle, locale)}</span>
               <span className="block text-sm text-muted">
                 <span className="font-mono font-semibold text-ink">{row.alias}</span> · attempt{" "}
-                {row.attemptNo} · handed in {timeAgo(row.submittedAt)}
+                {row.attemptNo} · handed in {timeAgo(t, row.submittedAt)}
               </span>
               <span className="flex flex-wrap gap-1.5 pt-1">
                 {row.kind === "spot_check" && row.ai?.audit && (
-                  <Badge tone="info">{AUDIT_LABELS[row.ai.audit] ?? row.ai.audit}</Badge>
+                  <Badge tone="info">{auditText(t, row.ai.audit)}</Badge>
                 )}
                 {row.ai?.reasons.map((reason) => (
                   <Badge key={reason} tone="warning">
-                    {HOLD_REASON_LABELS[reason] ?? reason}
+                    {holdReasonText(t, reason)}
                   </Badge>
                 ))}
                 {!row.ai && <Badge>No AI review</Badge>}

@@ -32,10 +32,10 @@ export interface StudioNavItem {
   count?: number;
 }
 
-export function StudioNav(props: { items: StudioNavItem[] }) {
+export function StudioNav(props: { items: StudioNavItem[]; label: string; waiting: string }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Studio">
+    <nav aria-label={props.label}>
       <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
         {props.items.map((item) => {
           const active =
@@ -55,7 +55,7 @@ export function StudioNav(props: { items: StudioNavItem[] }) {
                 {item.count ? (
                   <span className="badge" data-tone="warning">
                     {item.count}
-                    <span className="sr-only"> waiting</span>
+                    <span className="sr-only"> {props.waiting}</span>
                   </span>
                 ) : null}
               </Link>

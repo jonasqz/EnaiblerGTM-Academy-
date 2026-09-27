@@ -7,7 +7,7 @@ import { z } from "zod";
 import { DecisionForm } from "@/app/studio/reviews/[submissionId]/decision-form";
 import { FeedbackView } from "@/components/feedback-view";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
-import { AUDIT_LABELS, HOLD_REASON_LABELS, timeAgo } from "@/components/studio/review-labels";
+import { auditText, holdReasonText, timeAgo } from "@/core/i18n/studio/helpers";
 import { SubmissionStatusBadge } from "@/components/studio/status-badges";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
@@ -15,6 +15,7 @@ import { SubmittedFiles } from "@/components/submitted-files";
 import { formFieldsFromSchema } from "@/core/assignments/submission-types";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
+import { getStudioText } from "@/server/studio-text";
 import { requireCapability, reviewScopeOf } from "@/server/access";
 import { loadReviewDetail } from "@/server/studio/reviews";
 
@@ -31,6 +32,7 @@ export default async function ReviewDetailPage({
 }: PageProps<"/studio/reviews/[submissionId]">) {
   const { submissionId } = await params;
   const session = await requireCapability("reviews.decide", `/studio/reviews/${submissionId}`);
+  const t = await getStudioText();
   const { tenant } = session;
   if (!z.uuid().safeParse(submissionId).success) notFound();
   const detail = await loadReviewDetail(getDb(), tenant.id, submissionId, reviewScopeOf(session));
@@ -67,7 +69,7 @@ export default async function ReviewDetailPage({
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <SubmissionStatusBadge status={submission.status} />
             <span className="font-mono font-semibold text-ink">{detail.alias}</span>
-            <span>Handed in {timeAgo(submission.submittedAt)}</span>
+            <span>Handed in {timeAgo(t, submission.submittedAt)}</span>
             <span>{LANGUAGE_NAMES[locale]}</span>
             <span>Rubric version {detail.rubricVersion}</span>
           </p>
@@ -138,15 +140,13 @@ export default async function ReviewDetailPage({
                 {ai.routing?.release === false &&
                   ai.routing.reasons.map((reason) => (
                     <Badge key={reason} tone="warning">
-                      {HOLD_REASON_LABELS[reason] ?? reason}
+                      {holdReasonText(t, reason)}
                     </Badge>
                   ))}
                 {ai.routing?.release === true && (
                   <Badge tone="info">
                     Released
-                    {ai.routing.audit
-                      ? ` · ${AUDIT_LABELS[ai.routing.audit] ?? ai.routing.audit}`
-                      : ""}
+                    {ai.routing.audit ? ` · ${auditText(t, ai.routing.audit)}` : ""}
                   </Badge>
                 )}
               </div>
@@ -180,7 +180,10 @@ export default async function ReviewDetailPage({
                   <li key={review.id} className="rounded-control border border-line p-3 text-sm">
                     <p className="font-semibold tabular-nums">
                       {review.overall.percent} % · {review.overall.pass ? "pass" : "needs revision"}
-                      <span className="font-normal text-muted"> · {timeAgo(review.createdAt)}</span>
+                      <span className="font-normal text-muted">
+                        {" "}
+                        · {timeAgo(t, review.createdAt)}
+                      </span>
                     </p>
                     {review.overrideReason && (
                       <p className="mt-1 text-muted">Reason: {review.overrideReason}</p>

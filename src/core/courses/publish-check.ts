@@ -2,6 +2,7 @@ import type { SubmissionType } from "@/core/assignments/submission-types";
 import {
   checkDeliveryMode,
   type DeliveryMode,
+  type DeliveryModeIssueCode,
   type PlatformCapabilities,
   type ZfuApproval,
 } from "@/core/compliance/delivery-mode";
@@ -10,6 +11,7 @@ import {
   lintLocalizedWording,
   lintWording,
   type WordingContext,
+  type WordingFinding,
 } from "@/core/compliance/wording-lint";
 import { localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import { GOOD_AGREEMENT } from "@/core/review/calibration";
@@ -74,8 +76,14 @@ export type PublishIssueCode =
 export interface PublishIssue {
   code: PublishIssueCode;
   severity: "error" | "warning";
+  /** English, for logs and scripts; the Studio words it from the code and the fields below. */
   message: string;
   locale?: Locale;
+  params?: Record<string, string | number>;
+  /** For `wording`: the finding, which also says where the word is. */
+  finding?: WordingFinding;
+  /** For `delivery_mode`: which rule. */
+  deliveryMode?: DeliveryModeIssueCode;
 }
 
 export interface CoverageRow {
@@ -105,6 +113,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
         code: "wording",
         severity: finding.severity,
         message: describeFinding(finding),
+        finding,
         ...(finding.locale ? { locale: finding.locale } : {}),
       });
     }
@@ -143,6 +152,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
         code: "empty_lesson",
         severity: "warning",
         locale: lesson.locale,
+        params: { title: lesson.title },
         message: `Lesson "${lesson.title}" (${lesson.locale.toUpperCase()}) has no content yet.`,
       });
     }
@@ -168,6 +178,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
         code: "missing_translation",
         severity: "warning",
         locale,
+        params: { count: missing.length },
         message: `${missing.length} lesson(s) have no ${locale.toUpperCase()} version yet.`,
       });
     }
@@ -214,6 +225,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
         add({
           code: "criterion_not_taught",
           severity: "warning",
+          params: { label },
           message: `No lesson teaches "${label}".`,
         });
       }
@@ -226,6 +238,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
       add({
         code: "calibration_missing",
         severity: "warning",
+        params: { rubricChanged: latest ? 1 : 0 },
         message: latest
           ? "The rubric changed since the last calibration: run it again on your examples."
           : "Calibrate the AI review: run it on a few examples you would and would not pass.",
@@ -234,6 +247,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
       add({
         code: "calibration_low",
         severity: "warning",
+        params: { percent: Math.round(latest.agreement * 100) },
         message: `The AI agreed with you on ${Math.round(latest.agreement * 100)} % of your examples. Sharpen the rubric's level descriptions, then calibrate again.`,
       });
     }
@@ -250,7 +264,13 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     },
     input.platform,
   )) {
-    add({ code: "delivery_mode", severity: issue.severity, message: issue.message });
+    add({
+      code: "delivery_mode",
+      severity: issue.severity,
+      message: issue.message,
+      deliveryMode: issue.code,
+      ...(issue.text ? { params: { text: issue.text } } : {}),
+    });
   }
 
   if (!course.estMinutes) {

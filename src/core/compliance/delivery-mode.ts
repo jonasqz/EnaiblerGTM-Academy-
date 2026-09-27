@@ -45,6 +45,8 @@ export interface DeliveryModeIssue {
   code: DeliveryModeIssueCode;
   severity: "error" | "warning";
   message: string;
+  /** The text that looks like a promise of recordings. */
+  text?: string;
 }
 
 const RECORDING_PROMISE =
@@ -80,6 +82,7 @@ export function checkDeliveryMode(
         code: "possible_recording_promise",
         severity: "warning",
         message: `Check that this text does not promise recordings: "${promising.slice(0, 80)}"`,
+        text: promising.slice(0, 80),
       });
     }
   }

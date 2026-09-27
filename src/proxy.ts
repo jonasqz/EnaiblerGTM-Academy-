@@ -53,9 +53,11 @@ export async function proxy(request: NextRequest) {
 
   // The path picker lives in other sites' pages: it takes the language, but stores nothing.
   const embedded = pathname.startsWith("/embed/");
+  // The Studio speaks German and English whatever the academy teaches in.
+  const studio = pathname === "/studio" || pathname.startsWith("/studio/");
   return withLanguage(
     request,
-    tenant.settings.locales,
+    studio ? SUPPORTED_LOCALES : tenant.settings.locales,
     (headers) => NextResponse.next({ request: { headers } }),
     { persist: !embedded },
   );

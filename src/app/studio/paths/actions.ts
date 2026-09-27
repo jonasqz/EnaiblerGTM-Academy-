@@ -9,6 +9,7 @@ import { localized, text, wording } from "@/app/studio/form-data";
 import { hexColorSchema } from "@/core/theme/schema";
 import { levelSchemeSchema } from "@/core/levels/rules";
 import { getDb } from "@/db/client";
+import { getStudioText } from "@/server/studio-text";
 import { requireCapability } from "@/server/access";
 import {
   createPath,
@@ -33,10 +34,11 @@ function done(pathId?: string) {
 
 export async function createPathAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant } = await requireCapability("courses.edit", "/studio/paths");
+  const t = await getStudioText();
   const title = localized(formData, "title", tenant.settings.locales);
   const primary = title[tenant.settings.default_locale] ?? Object.values(title)[0];
   if (!primary) return { errors: ["Give the path a name."] };
-  const lint = wording([[title, "path_name"]]);
+  const lint = wording(t, [[title, "path_name"]]);
   if (lint.blocking) return { errors: lint.errors };
   const pathId = await createPath(getDb(), tenant.id, { title, slugFrom: primary });
   done();
@@ -46,6 +48,7 @@ export async function createPathAction(_: FormState, formData: FormData): Promis
 export async function savePathAction(_: FormState, formData: FormData): Promise<FormState> {
   const pathId = uuid.parse(text(formData, "pathId"));
   const { tenant } = await requireCapability("courses.edit", `/studio/paths/${pathId}`);
+  const t = await getStudioText();
   const locales = tenant.settings.locales;
   const title = localized(formData, "title", locales);
   if (!title[tenant.settings.default_locale]) {
@@ -56,7 +59,7 @@ export async function savePathAction(_: FormState, formData: FormData): Promise<
   if (color && !hexColorSchema.safeParse(color).success) {
     return { errors: ["Colours are hex values like #dd7f6c."] };
   }
-  const lint = wording([
+  const lint = wording(t, [
     [title, "path_name"],
     [promise, "course_description"],
   ]);
@@ -135,6 +138,7 @@ export async function deletePathAction(formData: FormData): Promise<void> {
 
 export async function saveLevelsAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant } = await requireCapability("courses.edit", "/studio/paths");
+  const t = await getStudioText();
   let input: unknown;
   try {
     input = JSON.parse(text(formData, "levels"));
@@ -143,7 +147,10 @@ export async function saveLevelsAction(_: FormState, formData: FormData): Promis
   }
   const parsed = levelSchemeSchema.safeParse(input);
   if (!parsed.success) return { errors: parsed.error.issues.map((issue) => issue.message) };
-  const lint = wording(parsed.data.map((level) => [level.name, "level_name"] as const));
+  const lint = wording(
+    t,
+    parsed.data.map((level) => [level.name, "level_name"] as const),
+  );
   if (lint.blocking) return { errors: lint.errors };
   await saveLevels(getDb(), tenant.id, parsed.data);
   done();

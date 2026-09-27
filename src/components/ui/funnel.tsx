@@ -1,5 +1,3 @@
-const numbers = new Intl.NumberFormat("en");
-
 export interface FunnelRow {
   label: string;
   count: number;
@@ -10,7 +8,15 @@ export interface FunnelRow {
  * primary), values as text at the bar tip, conversion from the previous step
  * as secondary text. The list doubles as the table view.
  */
-export function Funnel(props: { rows: FunnelRow[]; caption: string }) {
+export function Funnel(props: {
+  rows: FunnelRow[];
+  caption: string;
+  locale?: string;
+  /** Hover text for the conversion, with {rate}. */
+  rateTitle?: string;
+}) {
+  const numbers = new Intl.NumberFormat(props.locale ?? "en");
+  const rateTitle = props.rateTitle ?? "{rate}% of previous step";
   const max = Math.max(1, ...props.rows.map((row) => row.count));
   return (
     <figure className="space-y-2">
@@ -23,7 +29,7 @@ export function Funnel(props: { rows: FunnelRow[]; caption: string }) {
             <li
               key={row.label}
               className="grid grid-cols-[minmax(7rem,11rem)_1fr] items-center gap-3"
-              title={`${row.label}: ${numbers.format(row.count)}${rate !== null ? ` (${rate}% of previous step)` : ""}`}
+              title={`${row.label}: ${numbers.format(row.count)}${rate !== null ? ` (${rateTitle.replace("{rate}", String(rate))})` : ""}`}
             >
               <span className="truncate text-sm">{row.label}</span>
               <span className="flex min-w-0 items-center gap-2">
