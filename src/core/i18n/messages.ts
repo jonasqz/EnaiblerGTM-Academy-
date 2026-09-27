@@ -216,6 +216,7 @@ const en = {
   "signIn.error": "Something went wrong. Please try again.",
   "signIn.linkExpired":
     "That sign-in link has expired or was already used. Request a new one below.",
+  "signIn.newsNext": "Once you're signed in, we'll send you a second email to confirm the news.",
 
   "verify.awardedTo": "Awarded to",
   "verify.issuedBy": "Issued by {academy}",
@@ -248,6 +249,38 @@ const en = {
     "I just completed “{course}” at {academy} and passed the {term.test}.\n\n{url}",
   "share.post.work_and_test":
     "I just completed “{course}” at {academy}. What I built: {artifact}, reviewed against every criterion, and I passed the {term.test}.\n\n{url}",
+  // The owner's share panel on the verification page (brief §2 step 7, §6).
+  "share.title": "Share your {term.credential}",
+  "share.nameTitle": "Your name on the {term.credential}",
+  "share.visibilityTitle": "Who can see this page",
+  "share.publicWhat":
+    "Only you, until you make it public. Then anyone with the link sees your name, the {term.course} and what you did to earn it.",
+  "share.publicWhatShowcase":
+    "Only you, until you make it public. Then anyone with the link sees your name, the {term.course}, what you did to earn it and, if you add it below, your work.",
+  "share.linkedInLocked":
+    "Once the page is public, you can add your {term.credential} to your LinkedIn profile and post about it here.",
+  "share.profileTitle": "Add it to your LinkedIn profile",
+  "share.profileHint":
+    "LinkedIn opens a form with the details and the link to this page. Check them, then save.",
+  "share.postTitle": "Post on LinkedIn",
+  "share.postLabel": "Your post: change anything you like",
+  "share.postHint": "LinkedIn shows a preview of this page. Paste the text into your post.",
+  "share.copy": "Copy text",
+  "share.openLinkedIn": "Open LinkedIn",
+  "share.copied": "Copied. Paste the text into your post.",
+  "share.copyFailed": "Copying didn't work. Select the text and copy it yourself.",
+  "share.imageTitle": "Post the picture yourself",
+  "share.imageHint": "Download the picture of your {term.credential} and add it to a post.",
+  "share.imageButton": "Download image",
+  "share.contactSaved":
+    "Saved: {academy} may contact you about its offers. You can withdraw this at any time in your profile.",
+  // The pass moment on the assignment and test pages.
+  "share.cta": "Share your result",
+  // For visitors of a public credential: the course behind it (brief §2 step 8).
+  "share.aboutTitle": "Take this {term.course} yourself",
+  "share.endsWork": "Ends with real work: {artifact}, with feedback on every criterion",
+  "share.endsWorkAndTest": "Ends with real work ({artifact}) and the {term.test}",
+  "share.free": "Free, at your own pace",
 
   "showcase.title": "The work behind it",
   "showcase.edit": "Show your work",
@@ -558,6 +591,8 @@ const de: Record<MessageKey, string> = {
   "signIn.error": "Etwas ist schiefgelaufen. Bitte versuche es noch einmal.",
   "signIn.linkExpired":
     "Dieser Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordere unten einen neuen an.",
+  "signIn.newsNext":
+    "Sobald du angemeldet bist, schicken wir dir eine zweite E-Mail, um die Neuigkeiten zu bestätigen.",
 
   "verify.awardedTo": "Ausgestellt für",
   "verify.issuedBy": "Ausgestellt von {academy}",
@@ -591,6 +626,37 @@ const de: Record<MessageKey, string> = {
     "Ich habe „{course}“ bei {academy} abgeschlossen und den {term.test} bestanden.\n\n{url}",
   "share.post.work_and_test":
     "Ich habe „{course}“ bei {academy} abgeschlossen. Mein Ergebnis: {artifact}, bewertet in jedem Kriterium, dazu den bestandenen {term.test}.\n\n{url}",
+  "share.title": "Teile deine {term.credential}",
+  "share.nameTitle": "Dein Name auf der {term.credential}",
+  "share.visibilityTitle": "Wer diese Seite sehen kann",
+  "share.publicWhat":
+    "Nur du, bis du sie öffentlich machst. Dann sehen alle mit dem Link deinen Namen, den {term.course} und was du dafür geleistet hast.",
+  "share.publicWhatShowcase":
+    "Nur du, bis du sie öffentlich machst. Dann sehen alle mit dem Link deinen Namen, den {term.course}, was du dafür geleistet hast und, wenn du sie unten hinzufügst, deine Arbeit.",
+  "share.linkedInLocked":
+    "Sobald die Seite öffentlich ist, kannst du hier deine {term.credential} in dein LinkedIn-Profil aufnehmen und darüber posten.",
+  "share.profileTitle": "In dein LinkedIn-Profil aufnehmen",
+  "share.profileHint":
+    "LinkedIn öffnet ein Formular mit den Angaben und dem Link zu dieser Seite. Prüf sie und speichere.",
+  "share.postTitle": "Auf LinkedIn posten",
+  "share.postLabel": "Dein Beitrag: Ändere, was du willst",
+  "share.postHint":
+    "LinkedIn zeigt eine Vorschau dieser Seite. Füge den Text in deinen Beitrag ein.",
+  "share.copy": "Text kopieren",
+  "share.openLinkedIn": "LinkedIn öffnen",
+  "share.copied": "Kopiert. Füge den Text in deinen Beitrag ein.",
+  "share.copyFailed": "Kopieren hat nicht geklappt. Markiere den Text und kopiere ihn selbst.",
+  "share.imageTitle": "Das Bild selbst posten",
+  "share.imageHint":
+    "Lade das Bild deiner {term.credential} herunter und füge es einem Beitrag hinzu.",
+  "share.imageButton": "Bild herunterladen",
+  "share.contactSaved":
+    "Gespeichert: {academy} darf dich zu ihren Angeboten kontaktieren. Widerrufen kannst du das jederzeit in deinem Profil.",
+  "share.cta": "Teile dein Ergebnis",
+  "share.aboutTitle": "Mach diesen {term.course} selbst",
+  "share.endsWork": "Endet mit echter Arbeit: {artifact}, mit Feedback zu jedem Kriterium",
+  "share.endsWorkAndTest": "Endet mit echter Arbeit ({artifact}) und dem {term.test}",
+  "share.free": "Kostenlos, in deinem Tempo",
 
   "showcase.title": "Die Arbeit dahinter",
   "showcase.edit": "Zeig deine Arbeit",

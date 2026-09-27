@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { canConfirm, consentState, type ConsentRecord } from "@/core/consent/marketing";
+import {
+  canConfirm,
+  consentState,
+  newsOptInLocale,
+  type ConsentRecord,
+} from "@/core/consent/marketing";
 
 const requestedAt = new Date("2026-10-01T10:00:00Z");
 const pending: ConsentRecord = {
@@ -25,5 +30,12 @@ describe("marketing double opt-in", () => {
     expect(consentState(confirmed, days(30))).toBe("confirmed");
     expect(canConfirm(confirmed, days(2))).toBe(false);
     expect(consentState({ ...confirmed, revokedAt: days(3) }, days(4))).toBe("revoked");
+  });
+
+  it("takes the sign-up box's language only if the academy offers it", () => {
+    expect(newsOptInLocale("de", ["de", "en"])).toBe("de");
+    expect(newsOptInLocale("en", ["de"])).toBeNull();
+    expect(newsOptInLocale("1", ["de", "en"])).toBeNull();
+    expect(newsOptInLocale(null, ["de", "en"])).toBeNull();
   });
 });

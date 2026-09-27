@@ -1,4 +1,6 @@
+import { NEWS_PARAM } from "@/core/consent/marketing";
 import { encodeEntryContext, isEmptyEntryContext, type EntryContext } from "@/core/entry/context";
+import type { Locale } from "@/core/i18n/locales";
 
 /**
  * Entry context travels in URLs, not cookies: /start → course page → sign-in
@@ -10,8 +12,20 @@ export function withContext(path: string, context: EntryContext): string {
   return `${path}${separator}ctx=${encodeEntryContext(context)}`;
 }
 
-export function continueUrl(context: EntryContext, next?: string | null): string {
-  const url = withContext("/auth/continue", context);
-  if (!next) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`;
+/**
+ * Where the magic link lands. `news` is the language of the news box the
+ * learner ticked on the sign-in form (core/consent/marketing).
+ */
+export function continueUrl(
+  context: EntryContext,
+  next?: string | null,
+  news?: Locale | null,
+): string {
+  let url = withContext("/auth/continue", context);
+  const append = (key: string, value: string) => {
+    url = `${url}${url.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+  };
+  if (next) append("next", next);
+  if (news) append(NEWS_PARAM, news);
+  return url;
 }

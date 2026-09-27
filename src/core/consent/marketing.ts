@@ -1,3 +1,5 @@
+import { isLocale, type Locale } from "@/core/i18n/locales";
+
 /**
  * Marketing consent (brief §9): only with double opt-in. Asking stores the
  * exact wording and sends a confirmation link; only the click confirms it.
@@ -5,6 +7,21 @@
  * contacts leave the academy by export, never as mail from here.
  */
 export const CONFIRM_LINK_TTL_DAYS = 7;
+
+/**
+ * The news box on the sign-in form. Ticked, it rides along in the magic
+ * link's continue URL (no cookie) as the language the learner read its
+ * wording in, so the double opt-in that starts after sign-in stores and
+ * mails exactly that wording.
+ */
+export const NEWS_PARAM = "news";
+
+export function newsOptInLocale(
+  value: string | null | undefined,
+  offered: readonly Locale[],
+): Locale | null {
+  return isLocale(value) && offered.includes(value) ? value : null;
+}
 
 export type ConsentState = "none" | "pending" | "expired" | "confirmed" | "revoked";
 

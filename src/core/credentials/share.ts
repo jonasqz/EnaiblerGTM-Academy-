@@ -1,4 +1,5 @@
 import type { CompletionMode } from "@/core/courses/completion";
+import { linkedInAddToProfileUrl, linkedInShareUrl } from "@/core/credentials/linkedin";
 import type { Translator } from "@/core/i18n/translator";
 
 /*
@@ -20,6 +21,52 @@ export function shareChannelOf(value: unknown): ShareChannel | null {
 /** The verification page's address as shared on a channel. */
 export function sharedUrl(verificationUrl: string, channel: ShareChannel): string {
   return `${verificationUrl}?via=${channel}`;
+}
+
+export interface LinkedInCredential {
+  verificationUrl: string;
+  /** What LinkedIn's form calls it (credentialCopy's linkedInName). */
+  name: string;
+  academy: string;
+  /** The academy's LinkedIn page, when it has told us its id. */
+  organizationId?: string | null;
+  issuedAt: Date;
+  /** As shown on the credential (ABCD-EFGH-…). */
+  credentialId: string;
+}
+
+/**
+ * Where the owner's share button leads: LinkedIn's composer for a post, or
+ * the "Add to profile" form. Either way LinkedIn gets the page with its
+ * channel, so visitors it brings are counted where they came from.
+ */
+export function linkedInTarget(channel: ShareChannel, credential: LinkedInCredential): string {
+  const url = sharedUrl(credential.verificationUrl, channel);
+  if (channel === "post") return linkedInShareUrl(url);
+  return linkedInAddToProfileUrl({
+    name: credential.name,
+    organizationName: credential.academy,
+    organizationId: credential.organizationId,
+    issuedAt: credential.issuedAt,
+    certUrl: url,
+    certId: credential.credentialId,
+  });
+}
+
+/** The page's call to action, carrying on the channel the visitor came from. */
+export function ctaPath(publicId: string, via: ShareChannel | null): string {
+  return via ? `/verify/${publicId}/cta?via=${via}` : `/verify/${publicId}/cta`;
+}
+
+/**
+ * The link preview's description: the learner's name and what they did.
+ * Parts left empty (a learner without a name) leave no stray separator.
+ */
+export function previewDescription(parts: ReadonlyArray<string | null | undefined>): string {
+  return parts
+    .map((part) => part?.trim() ?? "")
+    .filter((part) => part !== "")
+    .join(" · ");
 }
 
 export type Attribution = Record<"utm_source" | "utm_medium" | "utm_content", string>;

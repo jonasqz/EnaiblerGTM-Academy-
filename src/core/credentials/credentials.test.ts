@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { credentialImportSchema } from "@/core/credentials/import";
 import { earnedText, proofLine } from "@/core/credentials/proof";
 import {
+  ctaPath,
   fromSharedCredential,
+  linkedInTarget,
+  previewDescription,
   shareAttribution,
   shareChannelOf,
   sharedUrl,
@@ -225,6 +228,46 @@ describe("sharing a credential on LinkedIn", () => {
     );
     expect(test).toContain("den Abschlusstest bestanden");
     expect(test.endsWith("\n\n#Mahnwesen #Freelancing")).toBe(true);
+  });
+
+  it("sends each LinkedIn channel the page with its own via", () => {
+    const credential = {
+      verificationUrl: "https://academy.example/verify/ABCD",
+      name: "Get paid on time – Certificate of Completion",
+      academy: "Scaling Product Academy",
+      issuedAt: new Date("2026-09-14T10:00:00Z"),
+      credentialId: "ABCD-EFGH",
+    };
+    const profile = new URL(linkedInTarget("profile", credential));
+    expect(profile.origin + profile.pathname).toBe("https://www.linkedin.com/profile/add");
+    expect(profile.searchParams.get("certUrl")).toBe(
+      "https://academy.example/verify/ABCD?via=profile",
+    );
+    expect(profile.searchParams.get("certId")).toBe("ABCD-EFGH");
+    expect(profile.searchParams.get("organizationName")).toBe("Scaling Product Academy");
+    expect(
+      new URL(linkedInTarget("profile", { ...credential, organizationId: "123" })).searchParams.get(
+        "organizationId",
+      ),
+    ).toBe("123");
+
+    const post = new URL(linkedInTarget("post", credential));
+    expect(post.pathname).toBe("/sharing/share-offsite/");
+    expect([...post.searchParams.keys()]).toEqual(["url"]);
+    expect(post.searchParams.get("url")).toBe("https://academy.example/verify/ABCD?via=post");
+  });
+
+  it("carries the channel on to the call to action", () => {
+    expect(ctaPath("ABCD", "post")).toBe("/verify/ABCD/cta?via=post");
+    expect(ctaPath("ABCD", null)).toBe("/verify/ABCD/cta");
+  });
+
+  it("describes the link preview without a stray separator", () => {
+    expect(previewDescription(["Ada Lovelace", "Deliverable: Reminder playbook"])).toBe(
+      "Ada Lovelace · Deliverable: Reminder playbook",
+    );
+    expect(previewDescription(["", "Final Test passed"])).toBe("Final Test passed");
+    expect(previewDescription([null, "  ", "Final Test passed"])).toBe("Final Test passed");
   });
 
   it("uses the academy's own text when it has one", () => {
