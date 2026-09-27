@@ -66,7 +66,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
             : t.t("course.test.questions", { n: count })}{" "}
           · {t.t("assignment.passAt", { threshold: test.passPercent })}
         </p>
-        <p className="text-muted">{t.t("test.intro")}</p>
+        {standing.kind === "open" && <p className="text-muted">{t.t("test.intro")}</p>}
       </header>
 
       <TestForm
