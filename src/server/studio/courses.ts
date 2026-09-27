@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { SubmissionType } from "@/core/assignments/submission-types";
 import {
@@ -6,12 +6,14 @@ import {
   type DeliveryMode,
   type PlatformCapabilities,
 } from "@/core/compliance/delivery-mode";
+import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
 import { checkCoursePublishable, type PublishCheck } from "@/core/courses/publish-check";
 import { starterRubric } from "@/core/courses/starter-rubric";
-import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import { isLocale, SUPPORTED_LOCALES, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import { rubricSchema, type Rubric } from "@/core/review/rubric";
 import { sameJson } from "@/core/shared/json";
 import { slugify } from "@/core/shared/slug";
+import type { TenantContext } from "@/core/tenant/context";
 import type { Database, Transaction } from "@/db/client";
 import {
   assignments,
@@ -23,8 +25,10 @@ import {
   lessons,
   rubrics,
   submissions,
+  testAttempts,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { completeCourse } from "@/server/courses/completion";
 import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 
 /*
@@ -89,19 +93,81 @@ async function uniqueSlug(
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
 }
 
-export interface NewCourseInput {
-  languages: Locale[];
-  title: string;
-  artifactName: string;
-  /** What the learner must produce; becomes the assignment prompt. */
-  outcome: string;
-  deliveryMode: DeliveryMode;
+/** What an ending needed and the course did not have yet. */
+export interface AddedParts {
+  /** The assignment with a starter rubric (the work). */
+  assignment: boolean;
+  /** An empty final test. */
+  test: boolean;
 }
 
 /**
- * Outcome-first creation (brief §7 step 1): the course starts from the
- * artifact the learner builds, with a starter rubric to edit. Texts are in the
- * first course language; the publish checklist asks for the others.
+ * Creates what the course's ending needs and it does not have yet: the
+ * assignment with a starter rubric for work, an empty test for a test.
+ * Nothing is ever removed, so switching back finds everything as it was.
+ */
+async function addMissingParts(
+  tx: Transaction,
+  tenantId: string,
+  course: { id: string; languages: readonly string[] },
+  mode: CompletionMode,
+  texts: { prompt?: LocalizedText; artifactName?: LocalizedText } = {},
+): Promise<AddedParts> {
+  const added: AddedParts = { assignment: false, test: false };
+  if (requiresWork(mode)) {
+    const [assignment] = await tx
+      .select({ id: assignments.id })
+      .from(assignments)
+      .where(eq(assignments.courseId, course.id));
+    if (!assignment) {
+      const languages = course.languages.filter(isLocale);
+      const [rubric] = await tx
+        .insert(rubrics)
+        .values({
+          tenantId,
+          definition: starterRubric(languages.length > 0 ? languages : SUPPORTED_LOCALES),
+        })
+        .returning({ id: rubrics.id });
+      // Empty texts are fine for a draft: the publish checklist asks for them per language.
+      await tx.insert(assignments).values({
+        tenantId,
+        courseId: course.id,
+        prompt: texts.prompt ?? {},
+        artifactName: texts.artifactName ?? {},
+        submissionTypes: [{ type: "file", accept: ["md"], max_mb: 15 }],
+        rubricId: rubric!.id,
+      });
+      added.assignment = true;
+    }
+  }
+  if (requiresTest(mode)) {
+    const inserted = await tx
+      .insert(courseTests)
+      .values({ tenantId, courseId: course.id })
+      .onConflictDoNothing()
+      .returning({ id: courseTests.id });
+    added.test = inserted.length > 0;
+  }
+  return added;
+}
+
+export interface NewCourseInput {
+  languages: Locale[];
+  title: string;
+  deliveryMode: DeliveryMode;
+  /** How learners finish; the work when left out. */
+  completionMode?: CompletionMode;
+  /** What learners build, when the course ends with work. */
+  artifactName?: string;
+  /** What the learner must produce; becomes the assignment prompt. */
+  outcome?: string;
+}
+
+/**
+ * Outcome-first creation (brief §7 step 1): the course starts from how
+ * learners finish it. Work starts from the artifact the learner builds, with
+ * a starter rubric to edit; a final test starts empty. Texts are in the first
+ * course language; the publish checklist asks for the others.
  */
 export async function createCourse(
   db: Database,
@@ -110,6 +176,7 @@ export async function createCourse(
 ): Promise<string> {
   const [primary] = input.languages;
   if (!primary) throw new Error("A course needs at least one language");
+  const mode = input.completionMode ?? "work";
   return withTenant(db, tenantId, async (tx) => {
     const slug = await uniqueSlug(tx, input.title);
     const [course] = await tx
@@ -120,21 +187,89 @@ export async function createCourse(
         title: { [primary]: input.title },
         languages: input.languages,
         deliveryMode: input.deliveryMode,
+        completionMode: mode,
       })
       .returning({ id: courses.id });
-    const [rubric] = await tx
-      .insert(rubrics)
-      .values({ tenantId, definition: starterRubric(input.languages) })
-      .returning({ id: rubrics.id });
-    await tx.insert(assignments).values({
-      tenantId,
-      courseId: course!.id,
-      prompt: { [primary]: input.outcome },
-      artifactName: { [primary]: input.artifactName },
-      submissionTypes: [{ type: "file", accept: ["md"], max_mb: 15 }],
-      rubricId: rubric!.id,
+    await addMissingParts(tx, tenantId, { id: course!.id, languages: input.languages }, mode, {
+      ...(input.outcome ? { prompt: { [primary]: input.outcome } } : {}),
+      ...(input.artifactName ? { artifactName: { [primary]: input.artifactName } } : {}),
     });
     return course!.id;
+  });
+}
+
+/** What changing how a course ends did besides the change itself. */
+export interface CompletionChange {
+  added: AddedParts;
+  /** Learners it finished: they had passed everything the course now asks for. */
+  completed: number;
+}
+
+/**
+ * Learners an ending that asks for less finishes: they had passed what it
+ * still asks for (e.g. the work, while the test was also required) and hold
+ * no credential yet. Issued through completeCourse like any other pass;
+ * everyone else finishes as usual.
+ */
+async function completeFinishedLearners(
+  tx: Transaction,
+  tenant: TenantContext,
+  courseId: string,
+): Promise<number> {
+  const candidates = await tx
+    .select({ userId: enrollments.userId })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.courseId, courseId),
+        isNull(enrollments.completedAt),
+        or(
+          sql`exists (select 1 from ${testAttempts} ta where ta.course_id = ${enrollments.courseId} and ta.user_id = ${enrollments.userId} and ta.passed)`,
+          sql`exists (select 1 from ${submissions} s join ${assignments} a on a.id = s.assignment_id where a.course_id = ${enrollments.courseId} and s.user_id = ${enrollments.userId} and s.status in ('passed', 'overridden'))`,
+        ),
+      ),
+    );
+  let completed = 0;
+  for (const { userId } of candidates) {
+    if ((await completeCourse(tx, tenant, { userId, courseId })).issued) completed += 1;
+  }
+  return completed;
+}
+
+/** In the transaction that stored the new mode: what it needs, and whom it finishes. */
+async function applyCompletionMode(
+  tx: Transaction,
+  tenant: TenantContext,
+  course: { id: string; languages: readonly string[]; completionMode: CompletionMode },
+  mode: CompletionMode,
+): Promise<CompletionChange> {
+  const added = await addMissingParts(tx, tenant.id, course, mode);
+  const asksLess =
+    (requiresWork(course.completionMode) && !requiresWork(mode)) ||
+    (requiresTest(course.completionMode) && !requiresTest(mode));
+  return { added, completed: asksLess ? await completeFinishedLearners(tx, tenant, course.id) : 0 };
+}
+
+/**
+ * Sets how learners finish the course. Allowed on published courses: it
+ * applies to everyone who has not finished yet, and credentials already
+ * issued stay. The same mode again only adds what is missing (e.g. the
+ * assignment of a course created from a manifest).
+ */
+export async function setCompletionMode(
+  db: Database,
+  tenant: TenantContext,
+  courseId: string,
+  mode: CompletionMode,
+): Promise<CompletionChange> {
+  return withTenant(db, tenant.id, async (tx) => {
+    // Locked, so two saves cannot both add the missing assignment.
+    const [course] = await tx.select().from(courses).where(eq(courses.id, courseId)).for("update");
+    if (!course) throw new Error("Course not found");
+    if (course.completionMode !== mode) {
+      await tx.update(courses).set({ completionMode: mode }).where(eq(courses.id, courseId));
+    }
+    return applyCompletionMode(tx, tenant, course, mode);
   });
 }
 
@@ -186,16 +321,17 @@ export interface CourseSettingsInput {
   deliveryMode: DeliveryMode;
   plannedLaunch: string | null;
   slug: string;
+  completionMode: CompletionMode;
 }
 
 export async function updateCourseSettings(
   db: Database,
-  tenantId: string,
+  tenant: TenantContext,
   courseId: string,
   input: CourseSettingsInput,
-): Promise<void> {
-  await withTenant(db, tenantId, async (tx) => {
-    const [course] = await tx.select().from(courses).where(eq(courses.id, courseId));
+): Promise<CompletionChange> {
+  return withTenant(db, tenant.id, async (tx) => {
+    const [course] = await tx.select().from(courses).where(eq(courses.id, courseId)).for("update");
     if (!course) throw new Error("Course not found");
     // Shared links and credentials point at the slug: it is fixed once published.
     const slug = course.publishedAt
@@ -211,8 +347,15 @@ export async function updateCourseSettings(
         deliveryMode: input.deliveryMode,
         plannedLaunch: input.plannedLaunch,
         slug,
+        completionMode: input.completionMode,
       })
       .where(eq(courses.id, courseId));
+    return applyCompletionMode(
+      tx,
+      tenant,
+      { id: course.id, languages: input.languages, completionMode: course.completionMode },
+      input.completionMode,
+    );
   });
 }
 

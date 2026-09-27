@@ -13,6 +13,7 @@ import {
   type WordingContext,
   type WordingFinding,
 } from "@/core/compliance/wording-lint";
+import { COMPLETION_MODES } from "@/core/courses/completion";
 import {
   localeSchema,
   localizedTextInputSchema,
@@ -178,6 +179,11 @@ export const courseManifestSchema = z.strictObject({
     .regex(/^\d{4}-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?$/, "Use YYYY-MM or YYYY-MM-DD")
     .optional(),
   est_minutes: z.number().int().positive().max(10_000).optional(),
+  /**
+   * How learners finish: `work` (the default for new courses), `test` or
+   * `work_and_test`. Left out, re-applying keeps what authors chose in the Studio.
+   */
+  completion: z.enum(COMPLETION_MODES).optional(),
 });
 export type CourseManifest = z.output<typeof courseManifestSchema>;
 

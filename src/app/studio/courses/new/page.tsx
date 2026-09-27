@@ -13,18 +13,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.t("courses.newCourse") };
 }
 
-const STEPS: Array<{
-  key: "outcome" | "rubric" | "lessons" | "details" | "publish";
-  current?: boolean;
-}> = [
-  { key: "outcome", current: true },
-  { key: "rubric" },
-  { key: "lessons" },
-  { key: "details" },
-  { key: "publish" },
-];
-
-/** Outcome-first (brief §7): a course starts from the artifact, not from lessons. */
+/**
+ * Outcome-first (brief §7): a course starts from how learners finish it (the
+ * artifact, a final test or both, §16), not from lessons.
+ */
 export default async function NewCoursePage() {
   const { tenant } = await requireCapability("courses.edit", "/studio/courses/new");
   const t = await getStudioText();
@@ -45,34 +37,11 @@ export default async function NewCoursePage() {
         description={t.t("courses.new.description")}
       />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]">
-        <NewCourseForm locales={tenant.settings.locales} artifactTerm={learner.term("artifact")} />
-        <aside aria-label={t.t("courses.new.steps")} className="lg:pt-2">
-          <ol className="space-y-4">
-            {STEPS.map((step, index) => (
-              <li key={step.key} className="flex gap-3">
-                <span
-                  className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-semibold ${
-                    step.current ? "bg-primary text-on-primary" : "bg-subtle text-muted"
-                  }`}
-                  aria-hidden
-                >
-                  {index + 1}
-                </span>
-                <span>
-                  <span
-                    className={`block text-sm font-semibold ${step.current ? "" : "text-muted"}`}
-                  >
-                    {t.t(`courses.step.${step.key}`)}
-                    {step.current && (
-                      <span className="sr-only"> {t.t("courses.new.thisStep")}</span>
-                    )}
-                  </span>
-                  <span className="text-sm text-muted">{t.t(`courses.new.step.${step.key}`)}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </aside>
+        <NewCourseForm
+          locales={tenant.settings.locales}
+          artifactTerm={learner.term("artifact")}
+          aiReview={tenant.settings.features.ai_review}
+        />
       </div>
     </div>
   );

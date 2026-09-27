@@ -13,6 +13,7 @@ import {
   type SubmissionType,
 } from "@/core/assignments/submission-types";
 import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
+import { COMPLETION_MODES, requiresWork } from "@/core/courses/completion";
 import { isLocale, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
 import { slugify } from "@/core/shared/slug";
@@ -65,31 +66,54 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
   const t = await getStudioText();
   const languages = courseLanguages(formData, tenant.settings.locales);
   const parsed = z
-    .object({
+    .strictObject({
       title: z.string().min(3, t.t("common.actions.titleMin")).max(120),
-      artifactName: z.string().min(2, t.t("common.actions.artifactMin")).max(80),
-      outcome: z.string().min(20, t.t("common.actions.outcomeMin")).max(4000),
       deliveryMode: deliveryModeSchema,
+      completionMode: z.enum(COMPLETION_MODES, t.t("courses.completion.choose")),
     })
     .safeParse({
       title: text(formData, "title"),
-      artifactName: text(formData, "artifactName"),
-      outcome: text(formData, "outcome"),
       deliveryMode: text(formData, "deliveryMode") || "free_async",
+      completionMode: text(formData, "completionMode") || "work",
     });
-  const errors = parsed.success ? [] : parsed.error.issues.map((issue) => issue.message);
+  // A test-only course has no artifact: the form leaves those fields out.
+  const work =
+    parsed.success && requiresWork(parsed.data.completionMode)
+      ? z
+          .strictObject({
+            artifactName: z.string().min(2, t.t("common.actions.artifactMin")).max(80),
+            outcome: z.string().min(20, t.t("common.actions.outcomeMin")).max(4000),
+          })
+          .safeParse({
+            artifactName: text(formData, "artifactName"),
+            outcome: text(formData, "outcome"),
+          })
+      : null;
+  const errors = [parsed, work].flatMap((result) =>
+    result && !result.success ? result.error.issues.map((issue) => issue.message) : [],
+  );
   if (languages.length === 0) errors.push(t.t("common.actions.chooseLanguage"));
-  if (!parsed.success || errors.length > 0) return { errors };
+  if (!parsed.success || work?.success === false || errors.length > 0) return { errors };
 
-  const lint = wording(t, [
-    [parsed.data.title, "course_title"],
-    [parsed.data.artifactName, "artifact_name"],
-  ]);
+  const lint = wording(
+    t,
+    work
+      ? [
+          [parsed.data.title, "course_title"],
+          [work.data.artifactName, "artifact_name"],
+        ]
+      : [[parsed.data.title, "course_title"]],
+  );
   if (lint.blocking) return { errors: lint.errors };
 
-  const courseId = await createCourse(getDb(), tenant.id, { ...parsed.data, languages });
+  const courseId = await createCourse(getDb(), tenant.id, {
+    ...parsed.data,
+    ...work?.data,
+    languages,
+  });
   revalidatePath("/studio", "layout");
-  redirect(`/studio/courses/${courseId}/outcome?created=1`);
+  // Straight to the first build step: the outcome for work, the questions for a test.
+  redirect(`/studio/courses/${courseId}/${work ? "outcome" : "test"}?created=1`);
 }
 
 export async function saveDetailsAction(_: FormState, formData: FormData): Promise<FormState> {
@@ -117,7 +141,9 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
   }
   const deliveryMode = deliveryModeSchema.safeParse(text(formData, "deliveryMode"));
   if (!deliveryMode.success) errors.push(t.t("common.actions.chooseDeliveryMode"));
-  if (errors.length > 0 || !deliveryMode.success) return { errors };
+  const completionMode = z.enum(COMPLETION_MODES).safeParse(text(formData, "completionMode"));
+  if (!completionMode.success) errors.push(t.t("courses.completion.choose"));
+  if (errors.length > 0 || !deliveryMode.success || !completionMode.success) return { errors };
 
   const lint = wording(t, [
     [title, "course_title"],
@@ -125,7 +151,7 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
   ]);
   if (lint.blocking) return { errors: lint.errors, warnings: lint.warnings };
 
-  await updateCourseSettings(getDb(), tenant.id, courseId, {
+  const change = await updateCourseSettings(getDb(), tenant, courseId, {
     title,
     summary: Object.keys(summary).length > 0 ? summary : null,
     languages,
@@ -133,9 +159,17 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
     deliveryMode: deliveryMode.data,
     plannedLaunch,
     slug: slugify(text(formData, "slug")),
+    completionMode: completionMode.data,
   });
   revalidatePath(`/studio/courses/${courseId}`, "layout");
-  return { ok: true, message: t.t("common.actions.detailsSaved"), warnings: lint.warnings };
+  // Say what the new ending brought along, so nothing appears unexplained in the tabs.
+  const message = [
+    t.t("common.actions.detailsSaved"),
+    ...(change.added.assignment ? [t.t("courses.completion.addedWork")] : []),
+    ...(change.added.test ? [t.t("courses.completion.addedTest")] : []),
+    ...(change.completed > 0 ? [t.n("courses.completion.completed", change.completed)] : []),
+  ].join(" ");
+  return { ok: true, message, warnings: lint.warnings };
 }
 
 const FILE_KIND_FIELDS: Record<FileKind, string> = {

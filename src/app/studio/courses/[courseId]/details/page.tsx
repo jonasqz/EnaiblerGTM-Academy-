@@ -34,6 +34,9 @@ export default async function DetailsPage({
         slug={course.slug}
         slugLocked={course.publishedAt !== null}
         deliveryMode={course.deliveryMode}
+        completionMode={course.completionMode}
+        published={course.publishedAt !== null}
+        aiReview={tenant.settings.features.ai_review}
       />
     </div>
   );
