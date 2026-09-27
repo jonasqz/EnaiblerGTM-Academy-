@@ -9,7 +9,6 @@ import {
   RolesForm,
 } from "@/app/studio/settings/team/forms";
 import { Badge } from "@/components/ui/badge";
-import { INVITATIONS_PER_DAY } from "@/core/access/team";
 import type { StudioText } from "@/core/i18n/studio/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -127,11 +126,7 @@ export default async function TeamPage() {
         </ul>
       </section>
 
-      <InviteForm
-        academy={tenant.settings.author_display_name}
-        max={INVITATIONS_PER_DAY}
-        mentorsHint={cohortsOn}
-      />
+      <InviteForm academy={tenant.settings.author_display_name} mentorsHint={cohortsOn} />
     </div>
   );
 }

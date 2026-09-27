@@ -14,7 +14,7 @@ import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { ACADEMY_ROLES, type AcademyRole } from "@/core/access/team";
+import { ACADEMY_ROLES, INVITATIONS_PER_DAY, type AcademyRole } from "@/core/access/team";
 
 /** One checkbox per academy-wide role, with what it may do. */
 function RoleChoices(props: {
@@ -57,7 +57,7 @@ function RoleChoices(props: {
   );
 }
 
-export function InviteForm(props: { academy: string; max: number; mentorsHint: boolean }) {
+export function InviteForm(props: { academy: string; mentorsHint: boolean }) {
   const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(inviteMemberAction, {});
   const form = useRef<HTMLFormElement>(null);
@@ -77,7 +77,10 @@ export function InviteForm(props: { academy: string; max: number; mentorsHint: b
           {t.t("team.members.invite.heading")}
         </h2>
         <p className="text-sm text-muted">
-          {t.t("team.members.invite.intro", { academy: props.academy, max: props.max })}
+          {t.t("team.members.invite.intro", {
+            academy: props.academy,
+            max: INVITATIONS_PER_DAY,
+          })}
         </p>
       </div>
       <div className="field">

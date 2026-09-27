@@ -225,6 +225,27 @@ async function queueInvitation(
   });
 }
 
+/**
+ * The account of someone getting a team role, with an invitation queued
+ * when they are new to the team; the caller adds the role in the same
+ * transaction. Null once the day's invitations are used up, before anything
+ * is written. Used for the Team page and for a cohort's mentors alike.
+ */
+export async function accountForTeam(
+  tx: Transaction,
+  tenantId: string,
+  email: string,
+  locale: Locale,
+): Promise<{ userId: string; invited: boolean } | null> {
+  const existing = await findAccount(tx, email);
+  const onTeam = existing ? (await rolesOf(tx, existing)).some(isTeamRole) : false;
+  if (onTeam) return { userId: existing!, invited: false };
+  if (!mayInvite(await invitationsInLastDay(tx))) return null;
+  const userId = existing ?? (await ensureAccount(tx, email)).userId;
+  await queueInvitation(tx, tenantId, userId, locale);
+  return { userId, invited: true };
+}
+
 export interface InviteInput {
   /** The admin who invites: only admins change the team. */
   actorId: string;
@@ -252,39 +273,14 @@ export async function inviteToTeam(
     // Every refusal comes before the first write: a refused invitation leaves no account behind.
     const existing = await findAccount(tx, email);
     const current = existing ? await rolesOf(tx, existing) : [];
-    const onTeam = current.some(isTeamRole);
     if (existing && leavesNoAdmin(admins, existing, input.roles.includes("tenant_admin"))) {
       return { ok: false, error: "last_admin" };
     }
-    if (!onTeam && !mayInvite(await invitationsInLastDay(tx))) {
-      return { ok: false, error: "limit" };
-    }
-    const userId = existing ?? (await ensureAccount(tx, email)).userId;
-    await applyAcademyRoles(tx, tenant.id, userId, current, input.roles);
-    if (onTeam) return { ok: true, status: "updated", email };
-    await queueInvitation(tx, tenant.id, userId, input.locale);
-    return { ok: true, status: "invited", email };
+    const joining = await accountForTeam(tx, tenant.id, email, input.locale);
+    if (!joining) return { ok: false, error: "limit" };
+    await applyAcademyRoles(tx, tenant.id, joining.userId, current, input.roles);
+    return { ok: true, status: joining.invited ? "invited" : "updated", email };
   });
-}
-
-/**
- * The account of someone joining the team for one job, a cohort's mentor,
- * with the same invitation when they are new to the team (the caller adds
- * the role in this transaction). Null once the day's invitations are used up.
- */
-export async function accountForTeam(
-  tx: Transaction,
-  tenantId: string,
-  email: string,
-  locale: Locale,
-): Promise<{ userId: string; invited: boolean } | null> {
-  const existing = await findAccount(tx, email);
-  const onTeam = existing ? (await rolesOf(tx, existing)).some(isTeamRole) : false;
-  if (onTeam) return { userId: existing!, invited: false };
-  if (!mayInvite(await invitationsInLastDay(tx))) return null;
-  const userId = existing ?? (await ensureAccount(tx, email)).userId;
-  await queueInvitation(tx, tenantId, userId, locale);
-  return { userId, invited: true };
 }
 
 /** New academy-wide roles for someone on the team. */
