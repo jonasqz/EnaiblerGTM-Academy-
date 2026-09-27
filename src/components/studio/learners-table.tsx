@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Lock } from "lucide-react";
+import { CircleCheck, Globe, Lock, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 import { LearnerName } from "@/components/studio/learner-name";
@@ -8,17 +8,22 @@ import { SubmissionStatusBadge } from "@/components/studio/status-badges";
 import { useStudioText } from "@/components/studio/studio-text";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
 import type { SubmissionStatus } from "@/core/review/outcome";
 import type { CourseLearnerRow } from "@/server/studio/insights";
 
-/** Learners of a course (or a cohort): where they are and what they handed in. */
+/** Learners of a course (or a cohort): where they are and what they handed in or took. */
 export function LearnersTable(props: {
   rows: CourseLearnerRow[];
   canReview: boolean;
   caption: string;
+  /** Which parts of the course to show: the work, the final test or both. */
+  completionMode: CompletionMode;
 }) {
   const { rows, canReview } = props;
   const t = useStudioText();
+  const work = requiresWork(props.completionMode);
+  const test = requiresTest(props.completionMode);
   return (
     <div className="card-flat table-wrap">
       <table className="table">
@@ -27,7 +32,8 @@ export function LearnersTable(props: {
           <tr>
             <th scope="col">{t.t("common.learners.learner")}</th>
             <th scope="col">{t.t("common.learners.progress")}</th>
-            <th scope="col">{t.t("common.learners.latestWork")}</th>
+            {work && <th scope="col">{t.t("common.learners.latestWork")}</th>}
+            {test && <th scope="col">{t.t("courses.learners.test")}</th>}
             <th scope="col">{t.t("common.learners.certificate")}</th>
             <th scope="col">{t.t("common.learners.started")}</th>
           </tr>
@@ -58,31 +64,56 @@ export function LearnersTable(props: {
                   </span>
                 </div>
               </td>
-              <td>
-                {row.latestSubmission ? (
-                  <span className="flex flex-wrap items-center gap-2">
-                    {canReview ? (
-                      <Link
-                        href={`/studio/reviews/${row.latestSubmission.id}`}
-                        className="hover:opacity-80"
-                      >
+              {work && (
+                <td>
+                  {row.latestSubmission ? (
+                    <span className="flex flex-wrap items-center gap-2">
+                      {canReview ? (
+                        <Link
+                          href={`/studio/reviews/${row.latestSubmission.id}`}
+                          className="hover:opacity-80"
+                        >
+                          <SubmissionStatusBadge
+                            status={row.latestSubmission.status as SubmissionStatus}
+                          />
+                        </Link>
+                      ) : (
                         <SubmissionStatusBadge
                           status={row.latestSubmission.status as SubmissionStatus}
                         />
-                      </Link>
-                    ) : (
-                      <SubmissionStatusBadge
-                        status={row.latestSubmission.status as SubmissionStatus}
-                      />
-                    )}
-                    <span className="text-xs text-muted">
-                      {t.t("common.learners.attempt", { n: row.latestSubmission.attemptNo })}
+                      )}
+                      <span className="text-xs text-muted">
+                        {t.t("common.learners.attempt", { n: row.latestSubmission.attemptNo })}
+                      </span>
                     </span>
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted">{t.t("common.learners.notHandedIn")}</span>
-                )}
-              </td>
+                  ) : (
+                    <span className="text-sm text-muted">{t.t("common.learners.notHandedIn")}</span>
+                  )}
+                </td>
+              )}
+              {test && (
+                <td>
+                  {row.test ? (
+                    <span className="flex flex-wrap items-center gap-2">
+                      {row.test.passed ? (
+                        <Badge tone="good" icon={CircleCheck}>
+                          {t.t("courses.learners.testPassed")}
+                        </Badge>
+                      ) : (
+                        <Badge icon={RotateCcw}>{t.t("courses.learners.testNotPassed")}</Badge>
+                      )}
+                      <span className="text-xs text-muted">
+                        {t.t("courses.learners.testBest", { percent: row.test.bestPercent })} ·{" "}
+                        {t.n("courses.learners.testAttempts", row.test.attempts)}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted">
+                      {t.t("courses.learners.testNotTaken")}
+                    </span>
+                  )}
+                </td>
+              )}
               <td>
                 {row.credential ? (
                   row.credential.visibility === "public" ? (

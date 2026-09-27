@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { requiresWork } from "@/core/courses/completion";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { jobErrorText, languageName } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
@@ -59,6 +60,8 @@ export default async function LessonsPage({
     legalLinks: tenant.settings.legal_links,
     aiReview: tenant.settings.features.ai_review,
   });
+  // The coverage map follows the rubric: a course that ends with a test alone has none to cover.
+  const coverage = requiresWork(editor.course.completionMode);
   const [runs, sourceRows] = await Promise.all([
     listLessonDrafts(getDb(), tenant.id, courseId),
     listSources(getDb(), tenant.id, courseId),
@@ -169,7 +172,7 @@ export default async function LessonsPage({
         </section>
       )}
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={`grid gap-6 ${coverage ? "2xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
         <section aria-labelledby="lessons-heading" className="space-y-4">
           <div>
             <h2 id="lessons-heading" className="text-lg font-semibold">
@@ -370,42 +373,44 @@ export default async function LessonsPage({
           </form>
         </section>
 
-        <aside aria-labelledby="coverage-heading" className="card-flat h-fit space-y-4 p-5">
-          <div>
-            <h2 id="coverage-heading" className="text-lg font-semibold">
-              {t.t("lessons.coverage.title")}
-            </h2>
-            <p className="text-sm text-muted">{t.t("lessons.coverage.intro")}</p>
-          </div>
-          <ul className="space-y-3">
-            {check.coverage.map((row) => (
-              <li key={row.criterionId} className="space-y-1">
-                <p className="flex items-center justify-between gap-2 text-sm font-semibold">
-                  {criterionLabel.get(row.criterionId) ?? row.label}
-                  {row.lessonKeys.length === 0 ? (
-                    <Badge tone="warning" icon={TriangleAlert}>
-                      {t.t("lessons.coverage.notTaught")}
-                    </Badge>
-                  ) : (
-                    <Badge tone="good" icon={CircleCheck}>
-                      {t.n("common.lesson", row.lessonKeys.length)}
-                    </Badge>
-                  )}
-                </p>
-                {row.lessonKeys.length > 0 && (
-                  <p className="text-xs text-muted">
-                    {row.lessonKeys
-                      .map((key) => {
-                        const match = rows.find((entry) => entry.key === key);
-                        return match ? titleOf(match) : key;
-                      })
-                      .join(" · ")}
+        {coverage && (
+          <aside aria-labelledby="coverage-heading" className="card-flat h-fit space-y-4 p-5">
+            <div>
+              <h2 id="coverage-heading" className="text-lg font-semibold">
+                {t.t("lessons.coverage.title")}
+              </h2>
+              <p className="text-sm text-muted">{t.t("lessons.coverage.intro")}</p>
+            </div>
+            <ul className="space-y-3">
+              {check.coverage.map((row) => (
+                <li key={row.criterionId} className="space-y-1">
+                  <p className="flex items-center justify-between gap-2 text-sm font-semibold">
+                    {criterionLabel.get(row.criterionId) ?? row.label}
+                    {row.lessonKeys.length === 0 ? (
+                      <Badge tone="warning" icon={TriangleAlert}>
+                        {t.t("lessons.coverage.notTaught")}
+                      </Badge>
+                    ) : (
+                      <Badge tone="good" icon={CircleCheck}>
+                        {t.n("common.lesson", row.lessonKeys.length)}
+                      </Badge>
+                    )}
                   </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </aside>
+                  {row.lessonKeys.length > 0 && (
+                    <p className="text-xs text-muted">
+                      {row.lessonKeys
+                        .map((key) => {
+                          const match = rows.find((entry) => entry.key === key);
+                          return match ? titleOf(match) : key;
+                        })
+                        .join(" · ")}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
       </div>
     </div>
   );

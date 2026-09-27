@@ -7,6 +7,7 @@ import { publishCourseAction, unpublishCourseAction } from "@/app/studio/actions
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { can } from "@/core/access/roles";
+import { requiresWork } from "@/core/courses/completion";
 import type { PublishIssue } from "@/core/courses/publish-check";
 import { isLocale } from "@/core/i18n/locales";
 import { languageName, publishIssueText } from "@/core/i18n/studio/helpers";
@@ -77,6 +78,8 @@ export default async function PublishPage({
   const canPublish = can(roles, "courses.publish");
   const live = course.status === "published";
   const base = `/studio/courses/${courseId}`;
+  // Only work has a rubric whose criteria lessons should teach.
+  const coverage = requiresWork(course.completionMode);
 
   const issueList = (issues: PublishIssue[], tone: "critical" | "warning") => (
     <ul className="divide-y divide-line">
@@ -183,7 +186,7 @@ export default async function PublishPage({
         )}
       </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className={`grid items-start gap-6 ${coverage ? "lg:grid-cols-2" : ""}`}>
         <section aria-labelledby="checks-heading" className="card-flat p-5">
           <h2 id="checks-heading" className="text-lg font-semibold">
             {t.t("courses.publish.checklist")}
@@ -211,35 +214,38 @@ export default async function PublishPage({
           )}
         </section>
 
-        <section aria-labelledby="coverage-heading" className="card-flat p-5">
-          <h2 id="coverage-heading" className="text-lg font-semibold">
-            {t.t("courses.publish.coverage")}
-          </h2>
-          <p className="text-sm text-muted">{t.t("courses.publish.coverageIntro")}</p>
-          <ul className="mt-3 divide-y divide-line">
-            {check.coverage.map((row) => (
-              <li
-                key={row.criterionId}
-                className="flex items-start justify-between gap-3 py-3 text-sm"
-              >
-                <span className="font-semibold">{row.label}</span>
-                <span className="text-right text-muted">
-                  {row.lessonKeys.length === 0 ? (
-                    <span className="font-semibold" style={{ color: "var(--status-serious)" }}>
-                      {t.t("courses.publish.notTaught")}
-                    </span>
-                  ) : (
-                    row.lessonKeys
-                      .map(
-                        (key) => editor.lessons.find((lesson) => lesson.key === key)?.title ?? key,
-                      )
-                      .join(" · ")
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {coverage && (
+          <section aria-labelledby="coverage-heading" className="card-flat p-5">
+            <h2 id="coverage-heading" className="text-lg font-semibold">
+              {t.t("courses.publish.coverage")}
+            </h2>
+            <p className="text-sm text-muted">{t.t("courses.publish.coverageIntro")}</p>
+            <ul className="mt-3 divide-y divide-line">
+              {check.coverage.map((row) => (
+                <li
+                  key={row.criterionId}
+                  className="flex items-start justify-between gap-3 py-3 text-sm"
+                >
+                  <span className="font-semibold">{row.label}</span>
+                  <span className="text-right text-muted">
+                    {row.lessonKeys.length === 0 ? (
+                      <span className="font-semibold" style={{ color: "var(--status-serious)" }}>
+                        {t.t("courses.publish.notTaught")}
+                      </span>
+                    ) : (
+                      row.lessonKeys
+                        .map(
+                          (key) =>
+                            editor.lessons.find((lesson) => lesson.key === key)?.title ?? key,
+                        )
+                        .join(" · ")
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </div>
   );

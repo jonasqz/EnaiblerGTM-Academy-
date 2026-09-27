@@ -51,6 +51,7 @@ export default async function CourseLearnersPage({
           rows={rows}
           canReview={canReview}
           caption={t.t("courses.learners.caption")}
+          completionMode={editor.course.completionMode}
         />
       )}
     </div>
