@@ -11,35 +11,43 @@ import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { CLAIM_TTL_DAYS, verificationRecord } from "@/core/domains/rules";
+import type { StudioKey } from "@/core/i18n/studio/index";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { domainSetup, listStudioDomains, type StudioDomain } from "@/server/domains/claims";
 import { hostAddresses } from "@/server/domains/dns";
 import { academyOrigin } from "@/server/platform/config";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Domains" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("settings.tab.domains") };
+}
 
-const when = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
-
-const MISSING: Record<string, string> = {
-  txt: "the TXT record is not there yet",
-  routing: "the domain does not point to your academy yet",
+const MISSING: Record<string, StudioKey> = {
+  txt: "settings.domains.missing.txt",
+  routing: "settings.domains.missing.routing",
 };
 
-function lastResult(row: StudioDomain): string | null {
+function lastResult(t: StudioText, row: StudioDomain): string | null {
   if (!row.lastCheckedAt) return null;
   if (row.state === "failed") {
     return row.lastResult === "taken"
-      ? "Another academy verified this domain first."
-      : `DNS was not set up within ${CLAIM_TTL_DAYS} days. Remove it and add it again to get a new record.`;
+      ? t.t("settings.domains.taken")
+      : t.t("settings.domains.expired", { days: CLAIM_TTL_DAYS });
   }
   const missing = (row.lastResult ?? "").split(",").filter(Boolean);
-  return `Checked ${when.format(row.lastCheckedAt)}: ${missing.map((key) => MISSING[key] ?? key).join(" and ")}.`;
+  return t.t("settings.domains.checked", {
+    when: t.date(row.lastCheckedAt, "dateTime"),
+    missing: t.list(missing.map((key) => (MISSING[key] ? t.t(MISSING[key]) : key))),
+  });
 }
 
 /** The academy's addresses: its main one, the others, and custom domains waiting for DNS. */
 export default async function DomainsPage() {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings/domains");
+  const t = await getStudioText();
   const setup = domainSetup(tenant);
   const [domains, targetAddresses] = await Promise.all([
     listStudioDomains(getDb(), tenant.id),
@@ -53,11 +61,9 @@ export default async function DomainsPage() {
       <section aria-labelledby="live-heading" className="card-flat space-y-3 p-5 sm:p-6">
         <div>
           <h2 id="live-heading" className="text-lg font-semibold">
-            Addresses
+            {t.t("settings.domains.addresses")}
           </h2>
-          <p className="text-sm text-muted">
-            Links in mails and on certificates use the main address; the others redirect to it.
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.domains.addressesIntro")}</p>
         </div>
         <ul className="divide-y divide-line">
           {live.map((row) => (
@@ -71,7 +77,7 @@ export default async function DomainsPage() {
               </a>
               {row.state === "primary" ? (
                 <Badge tone="good" icon={CircleCheck}>
-                  Main address
+                  {t.t("settings.domains.main")}
                 </Badge>
               ) : (
                 <>
@@ -79,10 +85,10 @@ export default async function DomainsPage() {
                     <input type="hidden" name="domain" value={row.domain} />
                     <SubmitButton
                       className="btn btn-secondary btn-sm"
-                      pendingLabel="Switching…"
-                      confirm={`Make ${row.domain} the main address? You will sign in again there; learners do too, once.`}
+                      pendingLabel={t.t("settings.domains.switching")}
+                      confirm={t.t("settings.domains.makeMainConfirm", { domain: row.domain })}
                     >
-                      Make main address
+                      {t.t("settings.domains.makeMain")}
                     </SubmitButton>
                   </form>
                   {row.custom && (
@@ -90,9 +96,9 @@ export default async function DomainsPage() {
                       <input type="hidden" name="domain" value={row.domain} />
                       <SubmitButton
                         className="btn btn-ghost btn-sm"
-                        confirm={`Remove ${row.domain}? Links to it stop working.`}
+                        confirm={t.t("settings.domains.removeConfirm", { domain: row.domain })}
                       >
-                        Remove
+                        {t.t("common.remove")}
                       </SubmitButton>
                     </form>
                   )}
@@ -105,11 +111,11 @@ export default async function DomainsPage() {
 
       {claims.map((row) => {
         const txt = verificationRecord(row.domain, row.token!);
-        const result = lastResult(row);
+        const result = lastResult(t, row);
         return (
           <section
             key={row.domain}
-            aria-label={`Setting up ${row.domain}`}
+            aria-label={t.t("settings.domains.settingUp", { domain: row.domain })}
             className="card-flat space-y-4 p-5 sm:p-6"
           >
             <div className="flex flex-wrap items-center gap-3">
@@ -118,28 +124,27 @@ export default async function DomainsPage() {
               </h2>
               {row.state === "pending" ? (
                 <Badge tone="info" icon={Clock}>
-                  Waiting for DNS
+                  {t.t("settings.domains.waiting")}
                 </Badge>
               ) : (
                 <Badge tone="critical" icon={TriangleAlert}>
-                  Not verified
+                  {t.t("settings.domains.notVerified")}
                 </Badge>
               )}
             </div>
             {row.state === "pending" && setup && (
               <>
-                <p className="text-sm">
-                  Add these two records where your domain’s DNS is managed. We check every ten
-                  minutes; the domain goes live, with its certificate, once both are found.
-                </p>
+                <p className="text-sm">{t.t("settings.domains.instructions")}</p>
                 <div className="table-wrap">
                   <table className="table">
-                    <caption className="sr-only">DNS records for {row.domain}</caption>
+                    <caption className="sr-only">
+                      {t.t("settings.domains.recordsCaption", { domain: row.domain })}
+                    </caption>
                     <thead>
                       <tr>
-                        <th scope="col">Type</th>
-                        <th scope="col">Name</th>
-                        <th scope="col">Value</th>
+                        <th scope="col">{t.t("settings.domains.type")}</th>
+                        <th scope="col">{t.t("settings.domains.name")}</th>
+                        <th scope="col">{t.t("settings.domains.value")}</th>
                       </tr>
                     </thead>
                     <tbody className="font-mono text-xs">
@@ -157,12 +162,18 @@ export default async function DomainsPage() {
                   </table>
                 </div>
                 <p className="hint">
-                  A domain without a subdomain (like your-company.com) cannot have a CNAME: use A
-                  {targetAddresses.some((address) => address.includes(":")) ? "/AAAA" : ""} records
-                  {targetAddresses.length > 0
-                    ? ` to ${targetAddresses.join(", ")}`
-                    : ` with the addresses of ${setup.target}`}{" "}
-                  instead.
+                  {t.t(
+                    targetAddresses.length > 0
+                      ? "settings.domains.apexAddresses"
+                      : "settings.domains.apexTarget",
+                    {
+                      types: targetAddresses.some((address) => address.includes(":"))
+                        ? "A/AAAA"
+                        : "A",
+                      addresses: targetAddresses.join(", "),
+                      target: setup.target,
+                    },
+                  )}
                 </p>
               </>
             )}
@@ -171,14 +182,17 @@ export default async function DomainsPage() {
               {row.state === "pending" && (
                 <form action={checkDomainAction}>
                   <input type="hidden" name="claimId" value={row.claimId} />
-                  <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Checking DNS…">
-                    Check now
+                  <SubmitButton
+                    className="btn btn-secondary btn-sm"
+                    pendingLabel={t.t("settings.domains.checking")}
+                  >
+                    {t.t("settings.domains.checkNow")}
                   </SubmitButton>
                 </form>
               )}
               <form action={removeDomainAction}>
                 <input type="hidden" name="domain" value={row.domain} />
-                <SubmitButton className="btn btn-ghost btn-sm">Remove</SubmitButton>
+                <SubmitButton className="btn btn-ghost btn-sm">{t.t("common.remove")}</SubmitButton>
               </form>
             </div>
           </section>
@@ -188,8 +202,8 @@ export default async function DomainsPage() {
       {setup ? (
         <AddDomainForm />
       ) : (
-        <Notice tone="info" title="Own domains are not set up on this server yet">
-          The operator sets CUSTOM_DOMAIN_TARGET or ACADEMY_DOMAIN to enable them.
+        <Notice tone="info" title={t.t("settings.domains.unavailable")}>
+          {t.t("settings.domains.unavailableBody")}
         </Notice>
       )}
     </div>

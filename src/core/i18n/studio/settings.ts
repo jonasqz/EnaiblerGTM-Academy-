@@ -71,6 +71,59 @@ export const en = {
     "The brand settings could not be read. Reload the page and try again.",
   "settings.theme.saved": "Brand saved. Your academy looks like this now.",
   "settings.theme.reset": "Back to enaibler's default look.",
+
+  // Domains
+  "settings.domains.addresses": "Addresses",
+  "settings.domains.addressesIntro":
+    "Links in mails and on certificates use the main address; the others redirect to it.",
+  "settings.domains.main": "Main address",
+  "settings.domains.makeMain": "Make main address",
+  "settings.domains.switching": "Switching…",
+  "settings.domains.makeMainConfirm":
+    "Make {domain} the main address? You will sign in again there; learners do too, once.",
+  "settings.domains.removeConfirm": "Remove {domain}? Links to it stop working.",
+  "settings.domains.settingUp": "Setting up {domain}",
+  "settings.domains.waiting": "Waiting for DNS",
+  "settings.domains.notVerified": "Not verified",
+  "settings.domains.instructions":
+    "Add these two records where your domain’s DNS is managed. We check every ten minutes; the domain goes live, with its certificate, once both are found.",
+  "settings.domains.recordsCaption": "DNS records for {domain}",
+  "settings.domains.type": "Type",
+  "settings.domains.name": "Name",
+  "settings.domains.value": "Value",
+  // {types}: "A" or "A/AAAA"
+  "settings.domains.apexAddresses":
+    "A domain without a subdomain (like your-company.com) cannot have a CNAME: use {types} records to {addresses} instead.",
+  "settings.domains.apexTarget":
+    "A domain without a subdomain (like your-company.com) cannot have a CNAME: use {types} records with the addresses of {target} instead.",
+  "settings.domains.taken": "Another academy verified this domain first.",
+  "settings.domains.expired":
+    "DNS was not set up within {days} days. Remove it and add it again to get a new record.",
+  // {missing}: a list of the settings.domains.missing.* texts
+  "settings.domains.checked": "Checked {when}: {missing}.",
+  "settings.domains.missing.txt": "the TXT record is not there yet",
+  "settings.domains.missing.routing": "the domain does not point to your academy yet",
+  "settings.domains.checkNow": "Check now",
+  "settings.domains.checking": "Checking DNS…",
+  "settings.domains.unavailable": "Own domains are not set up on this server yet",
+  "settings.domains.unavailableBody":
+    "The operator sets CUSTOM_DOMAIN_TARGET or ACADEMY_DOMAIN to enable them.",
+
+  // Adding a domain
+  "settings.domains.add.heading": "Use your own domain",
+  "settings.domains.add.intro":
+    "For example academy.your-company.com. Your academy stays reachable at its current address.",
+  "settings.domains.add.label": "Domain",
+  "settings.domains.add.placeholder": "academy.your-company.com",
+  "settings.domains.add.submit": "Add domain",
+  "settings.domains.add.done":
+    "Added. Set the two DNS records below; we check every ten minutes for {days} days.",
+  "settings.domains.error.invalid": "Enter a domain such as academy.your-company.com.",
+  "settings.domains.error.reserved": "This address belongs to enaibler or is not a public domain.",
+  "settings.domains.error.ip": "Enter a domain name, not an IP address.",
+  "settings.domains.error.taken": "This domain is already in use by an academy.",
+  "settings.domains.error.limit": "An academy can have up to {max} own domains. Remove one first.",
+  "settings.domains.error.unavailable": "Own domains are not set up on this server yet.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -142,4 +195,57 @@ export const de: Record<keyof typeof en, string> = {
     "Die Markeneinstellungen konnten nicht gelesen werden. Lade die Seite neu und versuch es noch einmal.",
   "settings.theme.saved": "Marke gespeichert. So sieht deine Akademie jetzt aus.",
   "settings.theme.reset": "Zurück zum Standarddesign von enaibler.",
+
+  "settings.domains.addresses": "Adressen",
+  "settings.domains.addressesIntro":
+    "Links in Mails und auf Abschlussbescheinigungen nutzen die Hauptadresse, die anderen leiten dorthin weiter.",
+  "settings.domains.main": "Hauptadresse",
+  "settings.domains.makeMain": "Zur Hauptadresse machen",
+  "settings.domains.switching": "Wird umgestellt…",
+  "settings.domains.makeMainConfirm":
+    "{domain} zur Hauptadresse machen? Du meldest dich dort neu an, Lernende einmalig auch.",
+  "settings.domains.removeConfirm":
+    "{domain} entfernen? Links dorthin funktionieren dann nicht mehr.",
+  "settings.domains.settingUp": "{domain} einrichten",
+  "settings.domains.waiting": "Wartet auf DNS",
+  "settings.domains.notVerified": "Nicht bestätigt",
+  "settings.domains.instructions":
+    "Trag diese beiden Einträge dort ein, wo das DNS deiner Domain verwaltet wird. Wir prüfen alle zehn Minuten. Sobald beide gefunden sind, geht die Domain online, direkt mit HTTPS.",
+  "settings.domains.recordsCaption": "DNS-Einträge für {domain}",
+  "settings.domains.type": "Typ",
+  "settings.domains.name": "Name",
+  "settings.domains.value": "Wert",
+  "settings.domains.apexAddresses":
+    "Eine Domain ohne Subdomain (wie deine-firma.de) kann keinen CNAME haben: Nutze stattdessen {types}-Einträge auf {addresses}.",
+  "settings.domains.apexTarget":
+    "Eine Domain ohne Subdomain (wie deine-firma.de) kann keinen CNAME haben: Nutze stattdessen {types}-Einträge mit den Adressen von {target}.",
+  "settings.domains.taken": "Eine andere Akademie hat diese Domain zuerst bestätigt.",
+  "settings.domains.expired":
+    "Das DNS wurde nicht innerhalb von {days} Tagen eingerichtet. Entferne die Domain und füge sie neu hinzu, um einen neuen Eintrag zu bekommen.",
+  "settings.domains.checked": "Zuletzt geprüft am {when}. Noch nicht gefunden: {missing}.",
+  "settings.domains.missing.txt": "der TXT-Eintrag",
+  "settings.domains.missing.routing": "der Verweis der Domain auf deine Akademie",
+  "settings.domains.checkNow": "Jetzt prüfen",
+  "settings.domains.checking": "DNS wird geprüft…",
+  "settings.domains.unavailable": "Eigene Domains sind auf diesem Server noch nicht eingerichtet",
+  "settings.domains.unavailableBody":
+    "Wer den Server betreibt, schaltet sie mit CUSTOM_DOMAIN_TARGET oder ACADEMY_DOMAIN frei.",
+
+  "settings.domains.add.heading": "Eigene Domain verwenden",
+  "settings.domains.add.intro":
+    "Zum Beispiel akademie.deine-firma.de. Deine Akademie bleibt unter ihrer bisherigen Adresse erreichbar.",
+  "settings.domains.add.label": "Domain",
+  "settings.domains.add.placeholder": "akademie.deine-firma.de",
+  "settings.domains.add.submit": "Domain hinzufügen",
+  "settings.domains.add.done":
+    "Hinzugefügt. Trag die beiden DNS-Einträge unten ein. Wir prüfen {days} Tage lang alle zehn Minuten.",
+  "settings.domains.error.invalid": "Gib eine Domain wie akademie.deine-firma.de ein.",
+  "settings.domains.error.reserved":
+    "Diese Adresse gehört zu enaibler oder ist keine öffentliche Domain.",
+  "settings.domains.error.ip": "Gib einen Domainnamen ein, keine IP-Adresse.",
+  "settings.domains.error.taken": "Diese Domain nutzt bereits eine Akademie.",
+  "settings.domains.error.limit":
+    "Eine Akademie kann bis zu {max} eigene Domains haben. Entferne zuerst eine.",
+  "settings.domains.error.unavailable":
+    "Eigene Domains sind auf diesem Server noch nicht eingerichtet.",
 };
