@@ -6,11 +6,7 @@ import type { Instrumentation } from "next";
  */
 
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { reportError } = await import("@/server/observability/report");
-  process.on("unhandledRejection", (reason) => {
-    void reportError(reason, { runtime: "web", extra: { kind: "unhandledRejection" } });
-  });
+  if (process.env.NEXT_RUNTIME === "nodejs") await import("@/server/observability/process-hooks");
 }
 
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
