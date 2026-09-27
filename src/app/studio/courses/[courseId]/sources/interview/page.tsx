@@ -8,8 +8,12 @@ import { defaultQuestions } from "@/core/authoring/interview";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Expert interview" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("lessons.interview.title") };
+}
 
 /** Expertise interview (brief §7, step 2): the author's own knowledge as a source. */
 export default async function InterviewPage({
@@ -25,6 +29,7 @@ export default async function InterviewPage({
   const languages = editor.course.languages.filter(isLocale);
   const locale = languages[0] ?? tenant.settings.default_locale;
   const artifact = localize(editor.assignment?.artifactName, locale, languages);
+  const t = await getStudioText();
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -32,14 +37,11 @@ export default async function InterviewPage({
         href={`/studio/courses/${courseId}/sources` as Route}
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> All sources
+        <ArrowLeft aria-hidden size={16} /> {t.t("lessons.source.back")}
       </Link>
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold">Expert interview</h2>
-        <p className="text-muted">
-          Your experience is what makes the course yours. Answer in your own words; skip what does
-          not apply. The answers become a source for the lesson drafts.
-        </p>
+        <h2 className="text-xl font-semibold">{t.t("lessons.interview.title")}</h2>
+        <p className="text-muted">{t.t("lessons.interview.intro")}</p>
       </div>
       <InterviewForm
         courseId={courseId}

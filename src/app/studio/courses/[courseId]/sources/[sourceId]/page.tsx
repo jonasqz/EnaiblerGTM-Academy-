@@ -9,8 +9,12 @@ import { formatClock } from "@/core/authoring/transcript";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { loadSource } from "@/server/authoring/sources";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Source" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("lessons.source.title") };
+}
 
 /** What the AI will read from a source: the steps of a recording, or the text of a document. */
 export default async function SourcePage({
@@ -28,6 +32,7 @@ export default async function SourcePage({
     source.kind === "recording" &&
     source.status === "ready" &&
     (source.transcript ?? []).every((topic) => !topic.keyframeFileId);
+  const t = await getStudioText();
 
   return (
     <div className="space-y-6">
@@ -36,7 +41,7 @@ export default async function SourcePage({
         href={`/studio/courses/${courseId}/sources` as Route}
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> All sources
+        <ArrowLeft aria-hidden size={16} /> {t.t("lessons.source.back")}
       </Link>
       <header className="space-y-2">
         <h2 className="text-xl font-semibold">{source.title}</h2>
@@ -72,7 +77,7 @@ export default async function SourcePage({
       {source.transcript && source.transcript.length > 0 ? (
         <section aria-labelledby="steps-heading" className="space-y-3">
           <h3 id="steps-heading" className="font-semibold">
-            Steps{keyframesPending ? " (screenshots are being taken…)" : ""}
+            {t.t(keyframesPending ? "lessons.source.stepsPending" : "lessons.source.steps")}
           </h3>
           <ol className="space-y-3">
             {source.transcript.map((topic, index) => (
@@ -84,7 +89,9 @@ export default async function SourcePage({
                   // eslint-disable-next-line @next/next/no-img-element -- screenshots of any size
                   <img
                     src={`/files/${topic.keyframeFileId}`}
-                    alt={`Screenshot: ${topic.title ?? `step ${index + 1}`}`}
+                    alt={t.t("lessons.source.screenshot", {
+                      title: topic.title ?? t.t("lessons.source.stepInline", { n: index + 1 }),
+                    })}
                     className="w-full rounded-control border border-line"
                   />
                 ) : (
@@ -92,7 +99,7 @@ export default async function SourcePage({
                 )}
                 <div className="min-w-0 space-y-1">
                   <p className="font-semibold">
-                    {index + 1}. {topic.title ?? `Step ${index + 1}`}
+                    {index + 1}. {topic.title ?? t.t("lessons.source.step", { n: index + 1 })}
                     <span className="ml-2 text-sm font-normal text-muted tabular-nums">
                       {formatClock(topic.startSec)}–{formatClock(topic.endSec)}
                     </span>
@@ -107,7 +114,7 @@ export default async function SourcePage({
         source.content && (
           <section aria-labelledby="text-heading" className="space-y-2">
             <h3 id="text-heading" className="font-semibold">
-              Text the AI reads
+              {t.t("lessons.source.text")}
             </h3>
             <pre className="max-h-[40rem] overflow-y-auto whitespace-pre-wrap rounded-card bg-subtle p-4 text-sm">
               {source.content.slice(0, 20_000)}

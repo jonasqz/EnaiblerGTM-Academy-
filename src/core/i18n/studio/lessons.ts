@@ -167,6 +167,16 @@ export const en = {
   "lessons.addSource.recordingAdded": "Recording added. Transcription runs in the background.",
   "lessons.addSource.added": "Source added. Reading it takes a moment.",
 
+  // One source: what the AI reads from it
+  "lessons.source.title": "Source",
+  "lessons.source.back": "All sources",
+  "lessons.source.steps": "Steps",
+  "lessons.source.stepsPending": "Steps (screenshots are being taken…)",
+  "lessons.source.screenshot": "Screenshot: {title}",
+  "lessons.source.stepInline": "step {n}",
+  "lessons.source.step": "Step {n}",
+  "lessons.source.text": "Text the AI reads",
+
   // Expertise interview (the questions themselves are content, in the course's language)
   "lessons.interview.title": "Expert interview",
   "lessons.interview.intro":
@@ -350,6 +360,15 @@ export const de: Record<keyof typeof en, string> = {
   "lessons.addSource.recordingAdded":
     "Aufnahme hinzugefügt. Die Transkription läuft im Hintergrund.",
   "lessons.addSource.added": "Quelle hinzugefügt. Das Lesen dauert einen Moment.",
+
+  "lessons.source.title": "Quelle",
+  "lessons.source.back": "Alle Quellen",
+  "lessons.source.steps": "Schritte",
+  "lessons.source.stepsPending": "Schritte (Bildschirmfotos werden erstellt…)",
+  "lessons.source.screenshot": "Bildschirmfoto: {title}",
+  "lessons.source.stepInline": "Schritt {n}",
+  "lessons.source.step": "Schritt {n}",
+  "lessons.source.text": "Text, den die KI liest",
 
   "lessons.interview.title": "Expertise-Interview",
   "lessons.interview.intro":
