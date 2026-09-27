@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -7,12 +9,23 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TenantContext } from "@/core/tenant/context";
 import { usageMonth, type AiUsageKind } from "@/core/usage/ai-usage";
 import { usageReport } from "@/core/usage/report";
-import { aiUsage, assignments, courses, enrollments, submissions } from "@/db/schema";
+import {
+  aiUsage,
+  assignments,
+  courses,
+  EMBEDDING_DIMENSIONS,
+  enrollments,
+  submissions,
+} from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
+import { requestLessonDraft, runLessonDraft } from "@/server/authoring/lesson-drafting";
+import { createSource, extractSource } from "@/server/authoring/sources";
+import type { Enqueue } from "@/server/jobs/producer";
 import type { LlmCaller } from "@/server/llm";
+import { requestCalibration, runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
-import { createCourse } from "@/server/studio/courses";
+import { createCourse, updateExemplars } from "@/server/studio/courses";
 import { studioUsage, usageByKind } from "@/server/studio/usage";
 
 import {
@@ -175,6 +188,110 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
     expect(month).toEqual([
       expect.objectContaining({ kind: "review", items: 2, calls: 7, costMicroUsd: 28_000 }),
     ]);
+  });
+
+  it("meters the team's calibration, lesson drafts and source embeddings with what they were for", async () => {
+    const tenant = await tenantOf();
+    const courseId = await course(tenant);
+    const author = await createUser(dbs.owner.db);
+    const enqueue: Enqueue = async () => undefined;
+
+    await updateExemplars(dbs.app.db, tenant.id, courseId, [
+      {
+        id: "good",
+        expected_pass: true,
+        content: "Day 1: a friendly reminder naming the invoice.",
+      },
+      { id: "weak", expected_pass: false, content: "Pay up now." },
+    ]);
+    const runId = await requestCalibration(
+      dbs.app.db,
+      tenant.id,
+      { courseId, requestedBy: author },
+      enqueue,
+    );
+    await runCalibration(dbs.app.db, tenant.id, runId!, {
+      llm: fakeLlm(review),
+      model: "fake-review",
+      finalAttempt: true,
+    });
+
+    // Two unusable drafts: the run fails, both calls count.
+    const draftId = await requestLessonDraft(
+      dbs.app.db,
+      tenant.id,
+      { courseId, locale: "en", requestedBy: author },
+      enqueue,
+    );
+    await runLessonDraft(dbs.app.db, tenant.id, draftId, {
+      model: { model: "fake-authoring", llm: fakeLlm("no lessons here") },
+      embeddings: null,
+      finalAttempt: true,
+    });
+
+    // An interview is chunked and embedded through the gateway.
+    const gateway = createServer((request, response) => {
+      const body: Buffer[] = [];
+      request.on("data", (chunk: Buffer) => body.push(chunk));
+      request.on("end", () => {
+        const { input } = JSON.parse(Buffer.concat(body).toString()) as { input: string[] };
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "x-litellm-response-cost": "0.00002",
+        });
+        response.end(
+          JSON.stringify({
+            model: "embed-test",
+            data: input.map((_, index) => ({
+              index,
+              embedding: Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0.01),
+            })),
+            usage: { prompt_tokens: 40 * input.length },
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => gateway.listen(0, "127.0.0.1", resolve));
+    const sourceId = await createSource(
+      dbs.app.db,
+      tenant.id,
+      {
+        courseId,
+        kind: "interview",
+        title: "Interview with a freelancer",
+        locale: "en",
+        content: "Q: When do clients pay?\nA: Late, unless the first reminder names a due date.",
+        createdBy: author,
+      },
+      enqueue,
+    );
+    const saved = { url: process.env.LLM_BASE_URL, model: process.env.LLM_EMBEDDING_MODEL };
+    process.env.LLM_BASE_URL = `http://127.0.0.1:${(gateway.address() as AddressInfo).port}`;
+    process.env.LLM_EMBEDDING_MODEL = "embed-test";
+    try {
+      await extractSource(dbs.app.db, tenant.id, sourceId, { finalAttempt: true });
+    } finally {
+      gateway.close();
+      for (const [name, value] of [
+        ["LLM_BASE_URL", saved.url],
+        ["LLM_EMBEDDING_MODEL", saved.model],
+      ] as const) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+
+    const rows = await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.select().from(aiUsage).orderBy(asc(aiUsage.createdAt)),
+    );
+    expect(rows.map((row) => [row.kind, row.courseId, row.refId])).toEqual([
+      ["calibration", courseId, runId],
+      ["calibration", courseId, runId],
+      ["lesson_draft", courseId, draftId],
+      ["lesson_draft", courseId, draftId],
+      ["embedding", courseId, sourceId],
+    ]);
+    expect(rows.at(-1)).toMatchObject({ model: "embed-test", tokensIn: 40, costMicroUsd: 20 });
   });
 
   describe("by month", () => {
