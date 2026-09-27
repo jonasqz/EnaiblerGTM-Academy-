@@ -304,9 +304,9 @@ export const de: Record<keyof typeof en, string> = {
     "Daraus entwirft die KI deine Lektionen: Bildschirmaufnahmen mit Kommentar, Dokumente, deine Webseiten und ein Interview mit dir.",
   "lessons.sources.drafting": "Das Entwerfen startest du im Tab {lessons}.",
   "lessons.sources.draftingReady.one":
-    "Das Entwerfen startest du im Tab {lessons}; es nutzt die {n} einsatzbereite Quelle.",
+    "Das Entwerfen startest du im Tab {lessons}; es nutzt {n} einsatzbereite Quelle.",
   "lessons.sources.draftingReady.other":
-    "Das Entwerfen startest du im Tab {lessons}; es nutzt die {n} einsatzbereiten Quellen.",
+    "Das Entwerfen startest du im Tab {lessons}; es nutzt {n} einsatzbereite Quellen.",
   "lessons.sources.interviewSaved": "Interview als Quelle gespeichert",
   "lessons.sources.checked.changed":
     "Die Seite hat sich geändert. Lektionen, die darauf beruhen, sind jetzt zur Prüfung markiert.",
