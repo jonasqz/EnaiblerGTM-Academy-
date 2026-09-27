@@ -15,7 +15,7 @@ import {
   openBadgeJwtPayload,
 } from "@/core/credentials/open-badges";
 import { requiresTest } from "@/core/courses/completion";
-import { proofLine } from "@/core/credentials/proof";
+import { artifactNameFor, proofLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
@@ -121,7 +121,7 @@ export interface OpenBadgeExport {
 /** The learner's credential as a signed Open Badges 3.0 VC-JWT. */
 /** What the achievement asked for: the work, the final test, or both (core/credentials/proof). */
 function achievementTexts(t: Translator, credential: CredentialView, course: string) {
-  const artifact = credential.artifactName ?? "";
+  const artifact = artifactNameFor(t, credential) ?? "";
   switch (credential.basis) {
     case "work":
       return {

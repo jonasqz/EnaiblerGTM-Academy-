@@ -287,7 +287,7 @@ describe.skipIf(!hasDatabase)("core loop: create → learn → submit → review
     expect(state.credential).toMatchObject({
       visibility: "private",
       levelAtIssue: 1,
-      artifactName: "Validated idea brief",
+      artifactName: { en: "Validated idea brief" },
     });
     expect(state.enrollment?.completedAt).not.toBeNull();
     expect(state.eventNames).toEqual(

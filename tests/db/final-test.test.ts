@@ -449,7 +449,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
     const [attempt] = await attemptsOf(learner);
     expect(await credentialOf(learner)).toMatchObject({
       basis: "work_and_test",
-      artifactName: "Reminder playbook",
+      artifactName: { en: "Reminder playbook" },
       submissionId,
       testAttemptId: attempt!.id,
     });

@@ -176,12 +176,20 @@ describe("how a credential was earned", () => {
   const de = createTranslator({ locale: "de", termOverrides: { test: { de: "Wissenstest" } } });
 
   it("names the work, the test or both, and never work nobody handed in", () => {
-    expect(proofLine(en, { basis: "work", artifactName: "Reminder playbook" })).toBe(
+    expect(proofLine(en, { basis: "work", artifactName: { en: "Reminder playbook" } })).toBe(
       "Deliverable: Reminder playbook",
     );
     expect(proofLine(en, { basis: "test", artifactName: null })).toBe("Final Test passed");
-    expect(proofLine(de, { basis: "work_and_test", artifactName: "Mahnplan" })).toBe(
+    expect(proofLine(de, { basis: "work_and_test", artifactName: { de: "Mahnplan" } })).toBe(
       "Arbeitsergebnis: Mahnplan · Wissenstest bestanden",
+    );
+    // Each reader gets the artifact in their language, like the course title.
+    const both = { en: "Reminder playbook", de: "Mahn-Playbook" };
+    expect(proofLine(de, { basis: "work", artifactName: both })).toBe(
+      "Arbeitsergebnis: Mahn-Playbook",
+    );
+    expect(proofLine(de, { basis: "work", artifactName: { en: "Reminder playbook" } })).toBe(
+      "Arbeitsergebnis: Reminder playbook",
     );
     expect(earnedText(en, "test")).toBe("Earned by passing the Final Test.");
     expect(earnedText(en, "work")).toBe("Earned with real work that passed a rubric-based review.");

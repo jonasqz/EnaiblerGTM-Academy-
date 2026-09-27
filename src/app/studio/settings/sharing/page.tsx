@@ -42,7 +42,10 @@ export default async function SharingSettingsPage() {
         course: localize(SAMPLE_COURSE, learner.locale),
         academy: settings.author_display_name,
         artifact,
-        proof: proofLine(learner, { basis, artifactName: artifact }),
+        proof: proofLine(learner, {
+          basis,
+          artifactName: artifact ? { [learner.locale]: artifact } : null,
+        }),
         url,
       };
       return { facts, enaibler: suggestedPost(learner, facts, { template: null, hashtags: [] }) };

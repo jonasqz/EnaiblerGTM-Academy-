@@ -15,6 +15,7 @@ import {
   sharedUrl,
   suggestedPost,
 } from "@/core/credentials/share";
+import { artifactNameFor } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import { isBot } from "@/core/shared/bots";
 import { pathColor } from "@/core/theme/css";
@@ -116,7 +117,7 @@ export default async function VerifyPage({
               basis: credential.basis,
               course: copy.courseTitle,
               academy: copy.academy,
-              artifact: credential.artifactName,
+              artifact: artifactNameFor(t, credential),
               proof: copy.proofLine,
               url: sharedUrl(copy.verificationUrl, "post"),
             },

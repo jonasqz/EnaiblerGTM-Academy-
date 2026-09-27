@@ -1,5 +1,6 @@
 import type { CompletionMode } from "@/core/courses/completion";
 import { requiresTest } from "@/core/courses/completion";
+import { localize, type LocalizedText } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 
 /**
@@ -8,13 +9,20 @@ import type { Translator } from "@/core/i18n/translator";
  */
 export interface CredentialProof {
   basis: CompletionMode;
-  artifactName: string | null;
+  /** In every language the course had; each reader gets theirs (or any there is). */
+  artifactName: LocalizedText | null;
+}
+
+/** The artifact's name in the reader's language, or null when the credential names none. */
+export function artifactNameFor(t: Translator, credential: CredentialProof): string | null {
+  return localize(credential.artifactName, t.locale) || null;
 }
 
 /** "Deliverable: Reminder playbook · Final test passed" */
 export function proofLine(t: Translator, credential: CredentialProof): string {
+  const artifact = artifactNameFor(t, credential);
   return [
-    credential.artifactName ? t.t("verify.artifact", { name: credential.artifactName }) : null,
+    artifact ? t.t("verify.artifact", { name: artifact }) : null,
     requiresTest(credential.basis) ? t.t("verify.testPassed") : null,
   ]
     .filter((part): part is string => part !== null)

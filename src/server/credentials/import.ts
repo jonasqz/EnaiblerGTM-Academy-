@@ -108,7 +108,10 @@ async function importOne(
           levelAtIssue: item.level_at_issue ?? null,
           levelName,
           courseTitle: course.title,
-          artifactName: item.artifact_name,
+          // One language only: what the other platform sent, read as the academy's own.
+          artifactName: item.artifact_name
+            ? { [tenant.settings.default_locale]: item.artifact_name }
+            : null,
           displayName: item.display_name,
           issuedAt,
           visibility: item.visibility,

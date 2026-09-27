@@ -2,8 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { requiresWork, type CompletionMode } from "@/core/courses/completion";
 import { generatePublicId } from "@/core/credentials/public-id";
-import type { Locale } from "@/core/i18n/locales";
-import { localize } from "@/core/i18n/locales";
+import { localizedEntries, type Locale } from "@/core/i18n/locales";
 import { computeLevel, detectLevelUp, type LevelDefinition } from "@/core/levels/rules";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Transaction } from "@/db/client";
@@ -93,9 +92,11 @@ export async function issueCredential(
     levelName: levelAtIssue?.name ?? null,
     courseTitle: course.title,
     basis: input.basis,
-    artifactName: assignment
-      ? localize(assignment.artifactName, locale, [tenant.settings.default_locale])
-      : null,
+    // Every language the course has, like the title: each reader sees their own.
+    artifactName:
+      assignment && localizedEntries(assignment.artifactName).length > 0
+        ? assignment.artifactName
+        : null,
     displayName: profile?.displayName ?? "",
     submissionId: input.submissionId,
     testAttemptId: input.testAttemptId,

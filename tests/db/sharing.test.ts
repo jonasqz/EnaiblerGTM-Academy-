@@ -125,7 +125,7 @@ describe.skipIf(!hasDatabase)("sharing a credential and the page it leads to", (
         courseId,
         courseTitle: { en: "Get paid on time" },
         basis: "work",
-        artifactName: "Reminder playbook",
+        artifactName: { en: "Reminder playbook" },
         displayName: options.displayName ?? "Ada Lovelace",
         visibility: options.visibility ?? "public",
       }),

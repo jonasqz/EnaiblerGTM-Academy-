@@ -18,7 +18,8 @@ export interface CredentialView {
   courseTitle: LocalizedText;
   /** How it was earned (core/credentials/proof). */
   basis: CompletionMode;
-  artifactName: string | null;
+  /** In every language the course had at issue; null when earned by the test alone. */
+  artifactName: LocalizedText | null;
   issuedAt: Date;
   visibility: "private" | "public";
   /** Where it was issued: here, or on the platform the academy used before. */

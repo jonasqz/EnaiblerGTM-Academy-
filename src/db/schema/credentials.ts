@@ -54,8 +54,11 @@ export const credentials = pgTable(
     levelName: jsonb("level_name").$type<LocalizedText>(),
     courseTitle: jsonb("course_title").$type<LocalizedText>().notNull(),
     basis: credentialBasis("basis").notNull().default("work"),
-    /** What the learner built; null when the course ended with a test alone. */
-    artifactName: text("artifact_name"),
+    /**
+     * What the learner built, in every language the course had at issue
+     * (like the course title); null when the course ended with a test alone.
+     */
+    artifactName: jsonb("artifact_name").$type<LocalizedText>(),
     displayName: text("display_name").notNull(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     visibility: credentialVisibility("visibility").notNull().default("private"),

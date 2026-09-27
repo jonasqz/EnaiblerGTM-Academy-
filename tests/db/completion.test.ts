@@ -138,7 +138,7 @@ describe.skipIf(!hasDatabase)("completing a course: work, final test or both", (
     expect(result.issued).toBe(true);
     expect(await credentialOf(workFirst, courseId)).toMatchObject({
       basis: "work_and_test",
-      artifactName: "Reminder playbook",
+      artifactName: { en: "Reminder playbook" },
       submissionId,
       testAttemptId: attemptId,
       visibility: "private",
