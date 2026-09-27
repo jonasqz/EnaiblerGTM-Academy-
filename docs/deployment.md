@@ -70,10 +70,12 @@ Environment variables (Coolify → Environment). Required ones are marked; every
 | `LLM_EMBEDDING_MODEL`                                                    | worker      | Embeddings for source retrieval (1024 dimensions). Without it, drafting retrieves by keywords.                                      |
 | `WHISPER_BASE_URL`, `WHISPER_MODEL`, `WHISPER_API_KEY`                   | worker      | Self-hosted transcription, see §8. Without it, recordings are not transcribed.                                                      |
 | `PLATFORM_HOST`, `ACADEMY_DOMAIN`                                        | web, worker | Self-serve signup, see §5. Unset: academies from manifests only.                                                                    |
-| `PLATFORM_TERMS_URL`, `PLATFORM_DPA_URL`                                 | web         | enaibler's terms and DPA. Signup stays closed without both.                                                                         |
-| `PLATFORM_PRIVACY_URL`, `PLATFORM_IMPRINT_URL`                           | web         | Footer of the platform site                                                                                                         |
+| `PLATFORM_TERMS_URL`, `PLATFORM_DPA_URL`                                 | web         | Terms and DPA kept elsewhere, each replacing its built-in page (§5). Signup needs both in force: here, or built in and final.       |
+| `PLATFORM_PRIVACY_URL`, `PLATFORM_IMPRINT_URL`                           | web         | Privacy policy and imprint kept elsewhere, each replacing its built-in page (§5)                                                    |
 | `PLATFORM_DEMO_URL`                                                      | web         | An academy the website offers as a demo. Unset: no demo link.                                                                       |
-| `PLATFORM_AGREEMENT_VERSION`                                             | web         | Stored with every accepted agreement; bump it when the terms or the DPA change                                                      |
+| `PLATFORM_AGREEMENT_VERSION`                                             | web         | Stored with every accepted agreement. Unset: a built-in page's last-updated date (`2026-09` for documents kept elsewhere).          |
+| `PLATFORM_ABUSE_EMAIL`                                                   | web         | Where content reports from `/report` go (DSA notice and action, §5). Unset in production: the form is off, pointing to the imprint. |
+| `PLATFORM_NOTIFY_EMAIL`                                                  | web         | The operator's inbox for a note about every new academy. Unset: no note.                                                            |
 | `CUSTOM_DOMAIN_TARGET`                                                   | web, worker | Host that academies' own domains point at, see §6. Default: `<slug>.<ACADEMY_DOMAIN>`.                                              |
 | `PROXY_CONFIG_TOKEN`, `PROXY_SERVICE_URL`                                | web         | The reverse proxy's config endpoint for own domains, see §6                                                                         |
 | `PROXY_HTTP_ENTRYPOINT`, `PROXY_HTTPS_ENTRYPOINT`, `PROXY_CERT_RESOLVER` | web         | Traefik names; the defaults `http`, `https` and `letsencrypt` match Coolify's proxy                                                 |
@@ -94,9 +96,10 @@ Customers create academies themselves on the platform site. Nothing is deployed 
 
 1. **DNS.** Point the platform host (for example `enaibler.app`) and a wildcard for the academy domain (`*.academies.enaibler.app`) at the server.
 2. **TLS.** Add both to the **`web` service's domains** in Coolify, with the container port. The wildcard needs a wildcard certificate, which Let's Encrypt only issues through the DNS challenge: give Coolify's Traefik proxy a DNS provider token and a certificate resolver that uses it.
-3. **Environment.** Set `PLATFORM_HOST=enaibler.app`, `ACADEMY_DOMAIN=academies.enaibler.app` and the four `PLATFORM_*_URL` links. Every academy stores the version and the exact wording of the terms and DPA its admin accepted (`tenant_agreements`).
-4. **Brand import** works without `LLM_BASE_URL` too, by rules only.
-5. **Check.** Create a test academy on `https://<PLATFORM_HOST>/`, follow the e-mail into its Studio, import a brand from a real website, add the legal pages (publishing needs them) and publish a course.
+3. **Environment.** Set `PLATFORM_HOST=enaibler.app`, `ACADEMY_DOMAIN=academies.enaibler.app`, `PLATFORM_ABUSE_EMAIL` and, for a note about every new academy, `PLATFORM_NOTIFY_EMAIL`. Every academy stores the version and the exact wording of the terms and DPA its admin accepted (`tenant_agreements`).
+4. **Legal pages and reports.** enaibler's imprint, privacy policy, terms and DPA are built in: Markdown in `content/legal/<page>.<locale>.md`, served at `/imprint`, `/privacy`, `/terms` and `/dpa` and linked from the footer and the signup form. They ship as drafts with `[placeholders]`: a banner says so, search engines don't index them, and in production signup stays closed until the terms and the DPA are final in both languages. Have counsel review both languages, fill in every placeholder (CI fails on a final page that still has one), set `status: final` and a new `updated` date, and deploy. That date is the version recorded with each accepted agreement unless `PLATFORM_AGREEMENT_VERSION` is set. A `PLATFORM_*_URL` replaces its page with a document kept elsewhere. `/report` takes notices of illegal content (DSA Art. 16), e-mails them to `PLATFORM_ABUSE_EMAIL` and confirms receipt to the reporter; every academy page links to it next to "Powered by enaibler". Decide without undue delay, tell the reporter, and give the academy a statement of reasons when you restrict its content (Art. 17).
+5. **Brand import** works without `LLM_BASE_URL` too, by rules only.
+6. **Check.** Create a test academy on `https://<PLATFORM_HOST>/`, follow the e-mail into its Studio, import a brand from a real website, add the legal pages (publishing needs them) and publish a course.
 
 ## 6. Own domains for academies
 
@@ -165,7 +168,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - CI is green: lint, types, unit tests, build, migrations and RLS tests.
 - Migrations are reviewed. Any new tenant table has RLS forced (see `CLAUDE.md`).
 - Manifest warnings are resolved for live academies: legal links and sender.
-- Before signup opens: enaibler's terms, DPA, privacy page and imprint are published, and a test academy has gone through §5, step 5.
+- Before signup opens: counsel has reviewed enaibler's legal pages in both languages and they are final (§5, step 4), a test report reaches `PLATFORM_ABUSE_EMAIL` with its confirmation, and a test academy has gone through §5, step 6.
 - Storage: the bucket exists, and a test hand-in with a PDF uploads and downloads.
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
