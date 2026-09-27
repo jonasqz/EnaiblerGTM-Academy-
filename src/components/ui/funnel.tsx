@@ -31,10 +31,11 @@ export function Funnel(props: {
           return (
             <li
               key={row.label}
-              className="grid grid-cols-[minmax(7rem,11rem)_1fr] items-center gap-3"
+              className="grid grid-cols-[minmax(7rem,12rem)_1fr] items-center gap-3"
               title={`${row.label}: ${numbers.format(row.count)}${rate !== null ? ` (${rateTitle.replace("{rate}", String(rate))})` : ""}`}
             >
-              <span className="truncate text-sm">{row.label}</span>
+              {/* Wraps rather than cuts: German labels run long. */}
+              <span className="text-sm leading-snug [overflow-wrap:anywhere]">{row.label}</span>
               <span className="flex min-w-0 items-center gap-2">
                 <span className="bar" style={{ width: `${(row.count / max) * 80}%` }} />
                 <span className="text-sm font-semibold tabular-nums">

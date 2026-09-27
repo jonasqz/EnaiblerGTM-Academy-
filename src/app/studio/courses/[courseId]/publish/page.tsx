@@ -236,7 +236,12 @@ export default async function PublishPage({
                       row.lessonKeys
                         .map(
                           (key) =>
-                            editor.lessons.find((lesson) => lesson.key === key)?.title ?? key,
+                            // The lesson in the Studio's language, else in any of the course's.
+                            (
+                              editor.lessons.find(
+                                (lesson) => lesson.key === key && lesson.locale === t.locale,
+                              ) ?? editor.lessons.find((lesson) => lesson.key === key)
+                            )?.title ?? key,
                         )
                         .join(" · ")
                     )}

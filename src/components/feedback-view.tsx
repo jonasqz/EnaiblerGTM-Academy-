@@ -3,6 +3,9 @@ import { scoreRange, type Rubric } from "@/core/review/rubric";
 import type { ReviewCriterionResult } from "@/db/schema/learning";
 
 /** Per-criterion scores and feedback (brief §5): what to improve, criterion by criterion. */
+/** Quotation marks around evidence from the work, as each language writes them. */
+const QUOTES: Record<Locale, readonly [string, string]> = { en: ["“", "”"], de: ["„", "“"] };
+
 export function FeedbackView(props: {
   rubric: Rubric;
   criteria: ReviewCriterionResult[];
@@ -48,7 +51,9 @@ export function FeedbackView(props: {
                         key={quote.quote}
                         className="border-l-2 border-line pl-3 text-sm italic text-muted"
                       >
-                        “{quote.quote}”
+                        {QUOTES[props.locale][0]}
+                        {quote.quote}
+                        {QUOTES[props.locale][1]}
                       </li>
                     ))}
                 </ul>

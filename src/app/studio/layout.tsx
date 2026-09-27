@@ -43,7 +43,8 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
     ...(can(roles, "courses.view")
       ? [{ icon: "courses", href: "/studio/courses", label: t.t("common.nav.courses") } as const]
       : []),
-    ...(can(roles, "courses.edit")
+    // Like cohorts: nothing to manage until the academy turns paths on (Settings → Academy).
+    ...(tenant.settings.features.paths && can(roles, "courses.edit")
       ? [{ icon: "paths", href: "/studio/paths", label: t.t("common.nav.paths") } as const]
       : []),
     ...(cohortsOn && (can(roles, "cohorts.manage") || roles.includes("mentor"))
