@@ -350,7 +350,13 @@ export const tenantManifestSchema = z
 
     for (const check of wordingChecks(manifest)) {
       for (const finding of check.findings.filter((f) => f.severity === "error")) {
-        ctx.addIssue({ code: "custom", path: check.path, message: describeFinding(finding) });
+        // Marked, so the Studio can word blocked words itself (it lints them in its own check).
+        ctx.addIssue({
+          code: "custom",
+          path: check.path,
+          message: describeFinding(finding),
+          params: { wording: true },
+        });
       }
     }
 

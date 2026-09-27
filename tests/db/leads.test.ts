@@ -199,8 +199,10 @@ describe.skipIf(!hasDatabase)("lead generation in the Studio", () => {
     expect(await refused({ postText: { de: "Jetzt zertifiziert: {course} {url}" } })).toEqual([
       "„zertifiziert“ ist in Bescheinigungsvorlagen nicht erlaubt. Sprich von „Abschlussbescheinigung“ oder beschreibe, was gebaut wurde.",
     ]);
+    // Every problem at once, not one per save.
     expect(await refused({ hashtags: parseHashtags("#certified #cash-flow") })).toEqual([
       "„certified“ ist in Bescheinigungsvorlagen nicht erlaubt. Sprich von „Abschlussbescheinigung“ oder beschreibe, was gebaut wurde.",
+      "„#cash-flow“ ist kein Hashtag: Nutze ein Wort aus Buchstaben, Ziffern oder _.",
     ]);
     expect(await refused({ hashtags: parseHashtags("#cash-flow") })).toEqual([
       "„#cash-flow“ ist kein Hashtag: Nutze ein Wort aus Buchstaben, Ziffern oder _.",

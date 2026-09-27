@@ -101,8 +101,9 @@ export type SharingIssue =
   | { code: "other"; message: string };
 
 /**
- * Checked before the manifest: it would report a blocked word and an unknown
- * placeholder in a post the same way, in English.
+ * Blocked words in what learners are offered to post and in the button. The
+ * manifest schema does not lint wording (validateTenantManifest does, in
+ * English), so the Studio checks it here and words each finding itself.
  */
 export function sharingWording(input: SharingInput): WordingFinding[] {
   return [
@@ -115,6 +116,7 @@ export function sharingWording(input: SharingInput): WordingFinding[] {
 interface ManifestIssue {
   path: readonly PropertyKey[];
   message: string;
+  params?: Record<string, unknown>;
 }
 
 /** What the manifest schema refused in the sharing settings, by code. */
@@ -126,6 +128,9 @@ export function sharingIssues(
     const [root, section, field, item] = issue.path;
     const other = { code: "other" as const, message: `${issue.path.join(".")}: ${issue.message}` };
     if (root !== "tenant") return [other];
+    // Blocked words here come from sharingWording, worded in the admin's language.
+    const shared = section === "sharing" || section === "verification_cta";
+    if (shared && issue.params?.wording === true) return [];
     if (section === "linkedin_organization_id") return [{ code: "linkedin_id" }];
     if (section === "verification_cta") {
       return field === "url" ? [{ code: "cta_url" }] : [{ code: "cta_label" }];

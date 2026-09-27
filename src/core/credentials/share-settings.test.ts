@@ -154,6 +154,10 @@ describe("sharing settings in the Studio", () => {
       { code: "cta_url" },
     ]);
     expect(manifestIssues(input({ ctaUrl: "/courses/{course}?from={path}" }))).toEqual([]);
+    // Blocked words are the Studio's own check (sharingWording), so they are not named twice.
+    expect(manifestIssues(input({ postText: { en: "Now certified in {course}: {url}" } }))).toEqual(
+      [],
+    );
     expect(
       sharingIssues([{ path: ["theme", "colors"], message: "Too little contrast" }], input()),
     ).toEqual([{ code: "other", message: "theme.colors: Too little contrast" }]);

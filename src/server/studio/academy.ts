@@ -132,10 +132,6 @@ export async function updateSharingSettings(
   tenant: TenantContext,
   input: SharingInput,
 ): Promise<SharingResult> {
-  const blocked = sharingWording(input).filter((finding) => finding.severity === "error");
-  if (blocked.length > 0) {
-    return { ok: false, issues: blocked.map((finding) => ({ code: "wording", finding })) };
-  }
   const row = await loadRow(db, tenant.id);
   const parsed = tenantManifestSchema.safeParse(
     manifestWith(row, tenant, {
@@ -150,7 +146,14 @@ export async function updateSharingSettings(
       },
     }),
   );
-  if (!parsed.success) return { ok: false, issues: sharingIssues(parsed.error.issues, input) };
+  // Everything at once, so one save shows the admin every problem to fix.
+  const issues: SharingIssue[] = [
+    ...sharingWording(input)
+      .filter((finding) => finding.severity === "error")
+      .map((finding): SharingIssue => ({ code: "wording", finding })),
+    ...(parsed.success ? [] : sharingIssues(parsed.error.issues, input)),
+  ];
+  if (issues.length > 0 || !parsed.success) return { ok: false, issues };
   await saveConfig(db, tenant, parsed.data);
   return { ok: true, postsWithoutUrl: postsWithoutUrl(input.postText) };
 }
