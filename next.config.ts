@@ -64,6 +64,9 @@ const nextConfig: NextConfig = {
     "/platform/og": [
       `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
     ],
+    // enaibler's legal pages are read on request: by the pages themselves, and
+    // by signup and the sitemap, which go by whether they are final.
+    "/platform/**": ["./content/legal/*.md"],
   },
 };
 

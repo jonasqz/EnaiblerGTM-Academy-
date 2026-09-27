@@ -4,10 +4,16 @@ import { SITE_COMMON } from "@/core/i18n/site/common";
 import { CREATE } from "@/core/i18n/site/create";
 import { HOME } from "@/core/i18n/site/home";
 import { HOW } from "@/core/i18n/site/how";
+import { LEGAL } from "@/core/i18n/site/legal";
+import { REPORT } from "@/core/i18n/site/report";
+import { REPORT_PATH } from "@/core/platform/report";
 
-/* enaibler's website on the platform host: its pages and where they live. */
+/*
+ * enaibler's website on the platform host: its pages and where they live.
+ * The legal pages come from Markdown instead (core/platform/legal.ts).
+ */
 
-export const SITE_PAGES = ["home", "how", "consultancies", "software", "create"] as const;
+export const SITE_PAGES = ["home", "how", "consultancies", "software", "create", "report"] as const;
 export type SitePage = (typeof SITE_PAGES)[number];
 
 /** Addresses on the platform host (served from src/app/platform through the proxy). */
@@ -17,6 +23,7 @@ export const SITE_PATHS: Record<SitePage, string> = {
   consultancies: "/for/consultancies",
   software: "/for/software",
   create: "/create",
+  report: REPORT_PATH,
 };
 
 export function isSitePage(value: unknown): value is SitePage {
@@ -36,6 +43,8 @@ export function siteMeta(page: SitePage, locale: Locale): { title: string; descr
       return SOFTWARE[locale].meta;
     case "create":
       return CREATE[locale].meta;
+    case "report":
+      return REPORT[locale].meta;
   }
 }
 
@@ -54,6 +63,8 @@ export function sitePreview(page: SitePage, locale: Locale): { eyebrow: string; 
       return SOFTWARE[locale].hero;
     case "create":
       return CREATE[locale];
+    case "report":
+      return REPORT[locale];
   }
 }
 
@@ -65,4 +76,6 @@ export const SITE_COPY = {
   consultancies: CONSULTANCIES,
   software: SOFTWARE,
   create: CREATE,
+  report: REPORT,
+  legal: LEGAL,
 } as const;

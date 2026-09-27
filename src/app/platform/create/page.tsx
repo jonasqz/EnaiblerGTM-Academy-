@@ -7,7 +7,9 @@ import { SignupForm } from "@/app/platform/signup-form";
 import { SUPPORTED_LOCALES, type Locale } from "@/core/i18n/locales";
 import { platformText } from "@/core/i18n/platform-messages";
 import { CREATE } from "@/core/i18n/site/create";
-import { academyOrigin, platformConfig, signupOpen } from "@/server/platform/config";
+import { legalHref } from "@/core/platform/legal";
+import { academyOrigin, platformConfig } from "@/server/platform/config";
+import { signupOpen } from "@/server/platform/legal";
 import { getLocale } from "@/server/request";
 
 const LANGUAGE_NAMES: Record<Locale, Record<Locale, string>> = {
@@ -25,7 +27,8 @@ export default async function CreateAcademy() {
   const t = platformText(locale);
   const copy = CREATE[locale];
   const config = platformConfig();
-  const open = signupOpen(config);
+  const open = await signupOpen(config);
+  const links = config?.links ?? {};
   // Show the address the way it will be: https://<slug>.academies.example
   const sample = config ? academyOrigin(`slug.${config.academyDomain}`).origin : "";
   const [prefix, suffix] = sample.split("slug");
@@ -98,7 +101,7 @@ export default async function CreateAcademy() {
             }))}
             defaultLanguage={locale}
             address={{ prefix: prefix ?? "", suffix: suffix ?? "" }}
-            links={{ terms: config?.links.terms, dpa: config?.links.dpa }}
+            links={{ terms: legalHref("terms", links), dpa: legalHref("dpa", links) }}
           />
         ) : (
           <p className="text-muted">{t("unavailable")}</p>

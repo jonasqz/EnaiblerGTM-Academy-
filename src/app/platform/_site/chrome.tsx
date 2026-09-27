@@ -6,6 +6,7 @@ import { Container } from "@/app/platform/_site/ui";
 import { SUPPORTED_LOCALES, type Locale } from "@/core/i18n/locales";
 import { SITE_PATHS } from "@/core/i18n/site";
 import type { SiteCommonCopy } from "@/core/i18n/site/common";
+import { legalHref, type LegalPage } from "@/core/platform/legal";
 
 const NAV = [
   ["how", SITE_PATHS.how],
@@ -102,22 +103,23 @@ export function SiteHeader(props: { locale: Locale; copy: SiteCommonCopy }) {
 
 export function SiteFooter(props: {
   copy: SiteCommonCopy;
-  legal: { imprint?: string; privacy?: string; terms?: string };
+  /** The operator's own addresses; a page without one links to the built-in page. */
+  legal: Partial<Record<LegalPage, string>>;
 }) {
   const { copy } = props;
-  const legal = (
-    [
-      [copy.footer.imprint, props.legal.imprint],
-      [copy.footer.privacy, props.legal.privacy],
-      [copy.footer.terms, props.legal.terms],
-    ] as const
-  ).filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
+  const legal: ReadonlyArray<readonly [string, string]> = [
+    [copy.footer.imprint, legalHref("imprint", props.legal)],
+    [copy.footer.privacy, legalHref("privacy", props.legal)],
+    [copy.footer.terms, legalHref("terms", props.legal)],
+    [copy.footer.dpa, legalHref("dpa", props.legal)],
+    [copy.footer.report, SITE_PATHS.report],
+  ];
   const column = (title: string, links: ReadonlyArray<readonly [string, string]>) => (
     <nav aria-label={title} className="space-y-3">
       <h2 className="text-sm font-semibold">{title}</h2>
       <ul className="space-y-2 text-sm text-muted">
         {links.map(([label, href]) => (
-          <li key={href}>
+          <li key={label}>
             <a href={href} className="hover:text-ink hover:underline">
               {label}
             </a>
@@ -142,7 +144,7 @@ export function SiteFooter(props: {
           [copy.nav.consultancies, SITE_PATHS.consultancies],
           [copy.nav.software, SITE_PATHS.software],
         ])}
-        {legal.length > 0 && column(copy.footer.legal, legal)}
+        {column(copy.footer.legal, legal)}
       </Container>
     </footer>
   );

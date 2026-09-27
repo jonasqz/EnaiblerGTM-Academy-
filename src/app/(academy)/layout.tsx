@@ -5,7 +5,8 @@ import { ErrorTextProvider } from "@/components/ui/error-view";
 import { can } from "@/core/access/roles";
 import { getSession } from "@/server/access";
 import { pageAnalytics } from "@/server/analytics";
-import { getTenant, getTranslator } from "@/server/request";
+import { platformOrigin } from "@/server/platform/config";
+import { getOrigin, getTenant, getTranslator } from "@/server/request";
 
 /** Learner chrome: the tenant's brand in front, "Powered by enaibler" at the bottom. */
 export default async function AcademyLayout({ children }: LayoutProps<"/">) {
@@ -13,6 +14,7 @@ export default async function AcademyLayout({ children }: LayoutProps<"/">) {
   const t = await getTranslator();
   const session = await getSession();
   const analytics = pageAnalytics();
+  const platform = platformOrigin();
   return (
     <>
       <SiteHeader
@@ -35,7 +37,11 @@ export default async function AcademyLayout({ children }: LayoutProps<"/">) {
           {children}
         </ErrorTextProvider>
       </main>
-      <SiteFooter tenant={tenant} t={t} />
+      <SiteFooter
+        tenant={tenant}
+        t={t}
+        report={platform ? { platformOrigin: platform, pageOrigin: await getOrigin() } : undefined}
+      />
       {analytics && <PageAnalytics config={analytics} />}
     </>
   );

@@ -64,15 +64,25 @@ const envSchema = z.object({
   PLATFORM_HOST: optional,
   /** New academies get <slug>.<ACADEMY_DOMAIN> (needs wildcard DNS and TLS). */
   ACADEMY_DOMAIN: optional,
-  /** enaibler's own legal pages, shown on the platform site and at signup. */
+  /**
+   * enaibler's own legal pages kept elsewhere: each replaces its built-in page
+   * (content/legal) on the platform site and at signup.
+   */
   PLATFORM_TERMS_URL: optional,
   PLATFORM_DPA_URL: optional,
   PLATFORM_PRIVACY_URL: optional,
   PLATFORM_IMPRINT_URL: optional,
   /** An academy the website links to as a demo; no link without it. */
   PLATFORM_DEMO_URL: optional,
-  /** Recorded with every accepted agreement; bump it when the terms or the DPA change. */
-  PLATFORM_AGREEMENT_VERSION: z.string().trim().min(1).default("2026-09"),
+  /**
+   * Recorded with every accepted agreement. Unset: a built-in page's
+   * last-updated date, and 2026-09 for documents kept elsewhere.
+   */
+  PLATFORM_AGREEMENT_VERSION: optional,
+  /** Where content reports from the website go (DSA notice and action). */
+  PLATFORM_ABUSE_EMAIL: z.email().optional(),
+  /** The operator's inbox for each new academy; no notice without it. */
+  PLATFORM_NOTIFY_EMAIL: z.email().optional(),
 });
 
 export type Env = z.output<typeof envSchema> & { APP_PROTOCOL: "http" | "https" };

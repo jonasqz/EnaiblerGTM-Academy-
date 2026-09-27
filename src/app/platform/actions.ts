@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { continueUrl } from "@/components/entry-links";
@@ -9,7 +10,9 @@ import { platformText, type PlatformMessageKey } from "@/core/i18n/platform-mess
 import { getDb } from "@/db/client";
 import { authFor } from "@/server/auth";
 import { createAcademy } from "@/server/platform/academies";
-import { academyOrigin, platformConfig, signupOpen } from "@/server/platform/config";
+import { academyOrigin, platformConfig } from "@/server/platform/config";
+import { acceptedDocuments, signupOpen } from "@/server/platform/legal";
+import { notifyNewAcademy } from "@/server/platform/notices";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { getLocale } from "@/server/request";
 
@@ -47,7 +50,9 @@ export async function createAcademyAction(
   const locale = await getLocale();
   const t = platformText(locale);
   const config = platformConfig();
-  if (!signupOpen(config)) return { status: "error", fields: {}, message: t("unavailable") };
+  if (!config || !(await signupOpen(config))) {
+    return { status: "error", fields: {}, message: t("unavailable") };
+  }
   const fail = (
     fields: Partial<Record<SignupField, PlatformMessageKey>>,
     message?: PlatformMessageKey,
@@ -88,9 +93,10 @@ export async function createAcademyAction(
   const locales: Locale[] = formData.get("alsoOffer") === "on" ? [main, other] : [main];
 
   // What the person agreed to, in the words they saw, with the documents' addresses.
+  const documents = await acceptedDocuments(config, locale);
   const wording = t("form.accept", {
-    terms: `${t("form.termsLink")} (${config.links.terms ?? "n/a"})`,
-    dpa: `${t("form.dpaLink")} (${config.links.dpa ?? "n/a"})`,
+    terms: `${t("form.termsLink")} (${documents.terms.url})`,
+    dpa: `${t("form.dpaLink")} (${documents.dpa.url})`,
   });
   const result = await createAcademy(
     getDb(),
@@ -101,8 +107,8 @@ export async function createAcademyAction(
       locales,
       website,
       agreements: [
-        { kind: "terms", version: config.agreementVersion, wording },
-        { kind: "dpa", version: config.agreementVersion, wording },
+        { kind: "terms", version: documents.terms.version, wording },
+        { kind: "dpa", version: documents.dpa.version, wording },
       ],
     },
     config.academyDomain,
@@ -115,6 +121,11 @@ export async function createAcademyAction(
   }
 
   const { host, origin } = academyOrigin(result.tenant.primaryDomain);
+  const notify = config.notifyEmail;
+  if (notify) {
+    const tenant = result.tenant;
+    after(() => notifyNewAcademy({ to: notify, tenant, adminEmail: email.data }));
+  }
   try {
     // The link is issued by the new academy's own auth, on the academy's own host.
     await authFor(result.tenant).api.signInMagicLink({
