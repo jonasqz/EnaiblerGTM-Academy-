@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 
 import { localize } from "@/core/i18n/locales";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
@@ -14,6 +14,7 @@ import type { Database, Transaction } from "@/db/client";
 import {
   assignments,
   courses,
+  credentials,
   enrollments,
   learnerProfiles,
   levelSchemes,
@@ -168,6 +169,20 @@ async function reviewReadyMail(
       );
     }
   }
+  // A pass that completed the course leads to the credential, where sharing it starts.
+  const [credential] =
+    passed && !payload.testPending
+      ? await tx
+          .select({ publicId: credentials.publicId })
+          .from(credentials)
+          .where(
+            and(
+              eq(credentials.userId, submission.userId),
+              eq(credentials.courseId, course.id),
+              isNull(credentials.revokedAt),
+            ),
+          )
+      : [];
   const rendered = await renderNoticeEmail({
     tenant,
     t,
@@ -176,10 +191,15 @@ async function reviewReadyMail(
       artifact,
     }),
     paragraphs,
-    button: {
-      label: t.t("email.reviewReady.button"),
-      url: academyUrl(tenant, `/courses/${course.slug}/assignment#attempts`),
-    },
+    button: credential
+      ? {
+          label: t.t("course.viewCredential"),
+          url: academyUrl(tenant, `/verify/${credential.publicId}#share`),
+        }
+      : {
+          label: t.t("email.reviewReady.button"),
+          url: academyUrl(tenant, `/courses/${course.slug}/assignment#attempts`),
+        },
     reason: t.t("email.reason", { academy: tenant.settings.author_display_name }),
   });
   return { mail: outgoing(tenant, to, rendered) };
@@ -204,6 +224,25 @@ async function levelUpMail(
     .from(learnerProfiles)
     .where(eq(learnerProfiles.userId, userId));
 
+  // A level reached by finishing a course leads to that course's credential;
+  // one the team granted has none, so it leads to the profile.
+  const manual = level.rule.type === "manual_grant";
+  const [credential] = manual
+    ? []
+    : await tx
+        .select({ publicId: credentials.publicId })
+        .from(credentials)
+        .where(
+          and(
+            eq(credentials.userId, userId),
+            eq(credentials.pathId, path.id),
+            eq(credentials.levelAtIssue, level.n),
+            isNull(credentials.revokedAt),
+          ),
+        )
+        .orderBy(desc(credentials.issuedAt))
+        .limit(1);
+
   const t = tenantTranslator(tenant, profile?.locale);
   const fallback = [tenant.settings.default_locale];
   const academy = tenant.settings.author_display_name;
@@ -215,13 +254,18 @@ async function levelUpMail(
     heading: t.t("email.levelUp.heading", { n: level.n, name }),
     paragraphs: [
       // Only the team grants manual levels; the others are reached by finishing courses.
-      t.t(level.rule.type === "manual_grant" ? "email.levelUp.body" : "email.levelUp.bodyReached", {
+      t.t(manual ? "email.levelUp.body" : "email.levelUp.bodyReached", {
         academy,
         name,
         path: localize(path.title, t.locale, fallback),
       }),
     ],
-    button: { label: t.t("email.levelUp.button"), url: academyUrl(tenant, "/me") },
+    button: credential
+      ? {
+          label: t.t("course.viewCredential"),
+          url: academyUrl(tenant, `/verify/${credential.publicId}#share`),
+        }
+      : { label: t.t("email.levelUp.button"), url: academyUrl(tenant, "/me") },
     reason: t.t("email.reason", { academy }),
   });
   return { mail: outgoing(tenant, to, rendered) };

@@ -1,8 +1,9 @@
-import { ArrowLeft, Award, Clock, Hammer, ListChecks, RotateCcw, CircleCheck } from "lucide-react";
+import { ArrowLeft, Clock, Hammer, ListChecks, RotateCcw, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { SubmissionForm } from "@/app/(academy)/courses/[slug]/assignment/submission-form";
+import { CredentialReady } from "@/components/credential-ready";
 import { SubmittedFiles } from "@/components/submitted-files";
 import { uploadLabels } from "@/components/upload-labels";
 import { FeedbackView } from "@/components/feedback-view";
@@ -101,14 +102,16 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
       </section>
 
       {data.credential && (
-        <Notice tone="good" title={t.t("assignment.passed")}>
-          <Link
-            href={`/verify/${data.credential.publicId}`}
-            className="inline-flex items-center gap-1.5 font-semibold underline"
-          >
-            <Award aria-hidden size={16} /> {t.t("course.viewCredential")}
-          </Link>
-        </Notice>
+        <CredentialReady
+          publicId={data.credential.publicId}
+          isPublic={data.credential.visibility === "public"}
+          labels={{
+            title: t.t("test.credentialReady"),
+            private: t.t("test.credentialPrivate"),
+            share: t.t("share.cta"),
+            view: t.t("course.viewCredential"),
+          }}
+        />
       )}
       {!data.credential && data.workPassed && data.test && !data.test.attempts.passed && (
         <Notice tone="info" title={t.t("test.oneStepLeft")}>

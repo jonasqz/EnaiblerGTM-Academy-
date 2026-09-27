@@ -32,6 +32,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
     ? {
         kind: "passed",
         credentialId: data.credential?.publicId ?? null,
+        credentialPublic: data.credential?.visibility === "public",
         correct: passed.correct,
         total: passed.total,
         percent: passed.percent,
@@ -108,6 +109,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
           credentialReady: t.t("test.credentialReady"),
           credentialPrivate: t.t("test.credentialPrivate"),
           viewCredential: t.t("course.viewCredential"),
+          shareCredential: t.t("share.cta"),
           oneStepLeft: t.t("test.oneStepLeft"),
           workMissing: t.t("test.workMissing"),
           workInReview: t.t("test.workInReview"),

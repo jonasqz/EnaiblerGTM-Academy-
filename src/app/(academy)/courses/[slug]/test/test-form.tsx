@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import { submitTestAction, type TestState } from "@/app/(academy)/courses/[slug]/actions";
+import { CredentialReady } from "@/components/credential-ready";
 import { Notice } from "@/components/ui/notice";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { PublicQuestion } from "@/core/questions/questions";
@@ -34,6 +35,7 @@ export interface TestLabels {
   credentialReady: string;
   credentialPrivate: string;
   viewCredential: string;
+  shareCredential: string;
   oneStepLeft: string;
   workMissing: string;
   workInReview: string;
@@ -45,7 +47,7 @@ type Score = { correct: number; total: number; percent: number };
 /** Where the learner stood with the test when the page was rendered. */
 export type TestStanding =
   | { kind: "open"; last: Score | null }
-  | ({ kind: "passed"; credentialId: string | null } & Score)
+  | ({ kind: "passed"; credentialId: string | null; credentialPublic: boolean } & Score)
   /** A credential earned before the course asked for a test. */
   | { kind: "completed"; credentialId: string };
 
@@ -123,6 +125,8 @@ export function TestForm(props: {
           <PassedNext
             slug={props.slug}
             credentialId={result.credential?.publicId ?? null}
+            // Issued with this pass: private until the learner shares it.
+            credentialPublic={false}
             levelLine={result.credential?.levelLine ?? null}
             work={{ ...props.work, missing: result.missing.includes("work") }}
             labels={labels}
@@ -168,6 +172,7 @@ export function TestForm(props: {
         <PassedNext
           slug={props.slug}
           credentialId={props.standing.credentialId}
+          credentialPublic={props.standing.credentialPublic}
           levelLine={null}
           work={props.work}
           labels={labels}
@@ -313,6 +318,7 @@ function ScoreHeader(props: { id: string; title: string; score: Score; labels: T
 function PassedNext(props: {
   slug: string;
   credentialId: string | null;
+  credentialPublic: boolean;
   levelLine: string | null;
   work: { missing: boolean; inReview: boolean };
   labels: TestLabels;
@@ -320,13 +326,17 @@ function PassedNext(props: {
   const { labels } = props;
   if (props.credentialId) {
     return (
-      <Notice tone="good" title={labels.credentialReady}>
-        <div className="space-y-2">
-          {props.levelLine && <p className="font-semibold">{props.levelLine}</p>}
-          <p>{labels.credentialPrivate}</p>
-          <CredentialLink publicId={props.credentialId} label={labels.viewCredential} />
-        </div>
-      </Notice>
+      <CredentialReady
+        publicId={props.credentialId}
+        isPublic={props.credentialPublic}
+        levelLine={props.levelLine}
+        labels={{
+          title: labels.credentialReady,
+          private: labels.credentialPrivate,
+          share: labels.shareCredential,
+          view: labels.viewCredential,
+        }}
+      />
     );
   }
   if (!props.work.missing) return null;

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MAX_SEND_ATTEMPTS } from "@/core/notifications/rules";
 import type { TenantContext } from "@/core/tenant/context";
 import { validateTenantManifest } from "@/core/tenant/manifest";
-import { notifications, submissions } from "@/db/schema";
+import { credentials, notifications, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { applyTenantManifest, findTenantById } from "@/db/tenants";
 import type { OutgoingEmail } from "@/server/email/mailer";
@@ -168,7 +168,16 @@ describe.skipIf(!hasDatabase)("learner mail: review ready and level-up", () => {
     expect(mail.subject).toBe("Feedback on “Late-invoice playbook” is ready");
     expect(mail.text).toContain("passed the review");
     expect(mail.text).toContain("You also reached Level 1 · Apprentice.");
-    expect(mail.html).toContain(`/courses/get-paid-on-time/assignment#attempts`);
+    // One link: to the credential, where sharing it starts.
+    const [issued] = await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx
+        .select({ publicId: credentials.publicId })
+        .from(credentials)
+        .where(eq(credentials.userId, learner)),
+    );
+    expect(mail.html).toContain(`/verify/${issued!.publicId}#share`);
+    expect(mail.html).not.toContain("/assignment#attempts");
+    expect(mail.text).toContain("View your Certificate of Completion");
     expect(mail.headers).toEqual({ "Auto-Submitted": "auto-generated" });
     expect((await rows())[0]).toMatchObject({ status: "sent", attempts: 1 });
 
@@ -225,6 +234,9 @@ describe.skipIf(!hasDatabase)("learner mail: review ready and level-up", () => {
       subject: `New Level at ${tenant.settings.author_display_name}: Mentor`,
     });
     expect(sent.at(-1)!.text).toContain("gave you the Level “Mentor” in Builder.");
+    // A granted level has no credential behind it: the mail leads to the profile.
+    expect(sent.at(-1)!.html).toContain('/me"');
+    expect(sent.at(-1)!.html).not.toContain("/verify/");
   });
 
   it("retries a failed send with backoff, then gives up", async () => {

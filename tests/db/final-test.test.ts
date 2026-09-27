@@ -311,6 +311,10 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
     );
     expect(mail).toMatchObject({ kind: "level_up", payload: { pathId, level: 1 }, status: "sent" });
     expect(sent.at(-1)?.text).toContain("You reached the Level “Apprentice” in Builder.");
+    // It leads to the credential that brought the level, where sharing it starts.
+    expect(sent.at(-1)?.html).toContain(
+      `/verify/${completion && completion.issued ? completion.publicId : ""}#share`,
+    );
   });
 
   it("gives learners the questions without the answer key, in their language", async () => {
