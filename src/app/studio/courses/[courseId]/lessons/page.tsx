@@ -229,13 +229,14 @@ export default async function LessonsPage({
                           );
                         }
                         const empty = !markdownOf(lesson.blocks).trim();
+                        const attention = empty || lesson.flaggedAt !== null;
                         return (
                           <td key={locale} className="whitespace-nowrap">
                             <Link
                               href={`/studio/courses/${courseId}/lessons/${lesson.id}`}
                               className="inline-flex items-center gap-1.5 font-semibold hover:underline"
                             >
-                              {empty ? (
+                              {attention ? (
                                 <TriangleAlert
                                   aria-hidden
                                   size={16}
@@ -251,7 +252,11 @@ export default async function LessonsPage({
                               Edit
                             </Link>
                             <span className="block text-xs text-muted">
-                              {empty ? "No content yet" : `Version ${lesson.version}`}
+                              {empty
+                                ? "No content yet"
+                                : lesson.flaggedAt
+                                  ? "Source changed: review"
+                                  : `Version ${lesson.version}`}
                             </span>
                           </td>
                         );

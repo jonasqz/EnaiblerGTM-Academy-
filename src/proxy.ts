@@ -51,8 +51,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target, 308);
   }
 
-  return withLanguage(request, tenant.settings.locales, (headers) =>
-    NextResponse.next({ request: { headers } }),
+  // The path picker lives in other sites' pages: it takes the language, but stores nothing.
+  const embedded = pathname.startsWith("/embed/");
+  return withLanguage(
+    request,
+    tenant.settings.locales,
+    (headers) => NextResponse.next({ request: { headers } }),
+    { persist: !embedded },
   );
 }
 
@@ -60,11 +65,13 @@ function withLanguage(
   request: NextRequest,
   offered: readonly Locale[],
   respond: (headers: Headers) => NextResponse,
+  options: { persist: boolean } = { persist: true },
 ): NextResponse {
   const lang = request.nextUrl.searchParams.get("lang")?.toLowerCase();
   if (!isLocale(lang) || !offered.includes(lang)) return respond(request.headers);
   request.cookies.set(LOCALE_COOKIE, lang);
   const response = respond(request.headers);
+  if (!options.persist) return response;
   response.cookies.set(LOCALE_COOKIE, lang, {
     path: "/",
     maxAge: LOCALE_COOKIE_MAX_AGE,

@@ -10,7 +10,7 @@ import { isPublicAddress } from "@/core/net/address";
  * connection, including each redirect hop, may only reach public addresses:
  * the check runs on the addresses the socket actually connects to, so DNS
  * rebinding cannot slip past it. Small, text-only, time-boxed responses.
- * BRAND_IMPORT_ALLOWED_HOSTS (host:port list) exempts local test servers.
+ * SAFE_FETCH_ALLOWED_HOSTS (host:port list) exempts local test servers.
  */
 
 export interface FetchTextOptions {
@@ -30,11 +30,20 @@ class Blocked extends Error {}
 
 function allowedHosts(): Set<string> {
   return new Set(
-    (process.env.BRAND_IMPORT_ALLOWED_HOSTS ?? "")
+    (process.env.SAFE_FETCH_ALLOWED_HOSTS ?? "")
       .split(",")
       .map((entry) => entry.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+/** A local test server from SAFE_FETCH_ALLOWED_HOSTS (never set in production). */
+export function isAllowedTestHost(input: string): boolean {
+  try {
+    return allowedHosts().has(new URL(input).host.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 type LookupCallback = (
@@ -147,4 +156,67 @@ export const safeFetchText: FetchText = async (input, options) => {
     return { ok: true, url: url.toString(), contentType: result.contentType, text: result.text };
   }
   return { ok: false, reason: "unreachable" };
+};
+
+export type PostResult =
+  | { ok: true; status: number }
+  | { ok: false; reason: "blocked" | "unreachable" | "status"; status?: number };
+
+export type SafePost = (
+  url: string,
+  input: { body: string; headers: Record<string, string>; timeoutMs?: number },
+) => Promise<PostResult>;
+
+/**
+ * POSTs to a customer-supplied URL (webhooks) under the same rules as
+ * safeFetchText: public addresses only, checked per connection, ports 80
+ * and 443. Redirects are not followed and the answer is not read.
+ */
+export const safePost: SafePost = async (input, { body, headers, timeoutMs = 10_000 }) => {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return { ok: false, reason: "blocked" };
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    return { ok: false, reason: "blocked" };
+  if (url.username || url.password) return { ok: false, reason: "blocked" };
+  const exempt = allowedHosts().has(url.host.toLowerCase());
+  if (!exempt) {
+    if (url.port && url.port !== "80" && url.port !== "443")
+      return { ok: false, reason: "blocked" };
+    const literal = url.hostname.replace(/^\[|\]$/g, "");
+    if (isIP(literal) && !isPublicAddress(literal)) return { ok: false, reason: "blocked" };
+  }
+  return new Promise((resolve) => {
+    const client = url.protocol === "https:" ? https : http;
+    const req = client.request(
+      url,
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+          "content-length": String(Buffer.byteLength(body)),
+          "user-agent": "enaibler-webhooks/1.0",
+        },
+        ...(exempt ? {} : { lookup: guardedLookup as unknown as typeof dnsLookup }),
+        timeout: timeoutMs,
+      },
+      (response) => {
+        response.resume();
+        const status = response.statusCode ?? 0;
+        resolve(
+          status >= 200 && status < 300
+            ? { ok: true, status }
+            : { ok: false, reason: "status", status },
+        );
+      },
+    );
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", (error) =>
+      resolve({ ok: false, reason: error instanceof Blocked ? "blocked" : "unreachable" }),
+    );
+    req.end(body);
+  });
 };

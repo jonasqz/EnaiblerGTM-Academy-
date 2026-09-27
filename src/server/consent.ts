@@ -16,6 +16,7 @@ import { withTenant } from "@/db/tenant-scope";
 import { sendEmail, senderFor } from "@/server/email/mailer";
 import { renderNoticeEmail } from "@/server/email/templates/notice";
 import { academyUrl } from "@/server/platform/config";
+import { queueWebhookEvent } from "@/server/webhooks";
 
 /*
  * Consent to hear from the academy (brief §9). Marketing needs double
@@ -121,6 +122,11 @@ export async function confirmMarketingConsent(
       .update(consents)
       .set({ confirmedAt: new Date(), confirmTokenHash: null })
       .where(eq(consents.id, row.id));
+    await queueWebhookEvent(tx, {
+      tenantId,
+      type: "marketing_consent_confirmed",
+      userId: row.userId,
+    });
     return true;
   });
 }
@@ -131,8 +137,8 @@ export async function withdrawMarketingConsent(
   tenantId: string,
   userId: string,
 ): Promise<void> {
-  await withTenant(db, tenantId, (tx) =>
-    tx
+  await withTenant(db, tenantId, async (tx) => {
+    const withdrawn = await tx
       .update(consents)
       .set({ revokedAt: new Date(), confirmTokenHash: null })
       .where(
@@ -141,8 +147,13 @@ export async function withdrawMarketingConsent(
           eq(consents.kind, "tenant_marketing"),
           isNull(consents.revokedAt),
         ),
-      ),
-  );
+      )
+      .returning({ confirmedAt: consents.confirmedAt });
+    // Only a confirmed subscription reached anyone's list; a cancelled request did not.
+    if (withdrawn[0]?.confirmedAt) {
+      await queueWebhookEvent(tx, { tenantId, type: "marketing_consent_withdrawn", userId });
+    }
+  });
 }
 
 export async function sendMarketingConfirmation(

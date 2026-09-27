@@ -57,6 +57,8 @@ export interface StudioOverview {
   pendingReviews: number;
   publishedCourses: number;
   draftCourses: number;
+  /** Lessons whose source changed (auto-update); `courseId` when they are all in one course. */
+  flaggedLessons: { count: number; courseId: string | null };
   funnel: FunnelStep[];
 }
 
@@ -98,6 +100,11 @@ export async function studioOverview(
       await tx.select({ n }).from(courses).where(eq(courses.status, "published")),
     );
     const drafts = first(await tx.select({ n }).from(courses).where(eq(courses.status, "draft")));
+    const flagged = await tx
+      .select({ courseId: lessons.courseId, n })
+      .from(lessons)
+      .where(isNotNull(lessons.flaggedAt))
+      .groupBy(lessons.courseId);
     const to = new Date();
     const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
     return {
@@ -109,6 +116,10 @@ export async function studioOverview(
       pendingReviews: pending,
       publishedCourses: published,
       draftCourses: drafts,
+      flaggedLessons: {
+        count: flagged.reduce((sum, row) => sum + row.n, 0),
+        courseId: flagged.length === 1 ? flagged[0]!.courseId : null,
+      },
       funnel: await loadFunnel(tx, { from, to }),
     };
   });

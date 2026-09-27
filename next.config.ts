@@ -16,7 +16,14 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // No framing by other sites (clickjacking), except the path picker below.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
+      },
+      {
+        // Later rules win for the same header: academies embed this on their websites.
+        source: "/embed/:path*",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
       },
     ];
   },

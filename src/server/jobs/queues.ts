@@ -16,6 +16,9 @@ export const QUEUES = {
   sourcesExtract: "sources.extract",
   calibration: "calibration.run",
   domainsCheck: "domains.check",
+  webhooks: "webhooks.dispatch",
+  housekeeping: "housekeeping.run",
+  sourcesRecheck: "sources.recheck",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -35,6 +38,12 @@ export interface JobPayloads {
   "calibration.run": { tenantId: string; runId: string };
   /** Every ten minutes: DNS of the custom domains academies are waiting for. */
   "domains.check": Record<string, never>;
+  /** Every minute, for every academy: webhook deliveries that are due (see server/webhooks.ts). */
+  "webhooks.dispatch": Record<string, never>;
+  /** Daily, for every academy: delivery logs and sent mail past their retention. */
+  "housekeeping.run": Record<string, never>;
+  /** Daily, for every academy: web page sources read again; changes flag lessons (brief §7). */
+  "sources.recheck": Record<string, never>;
 }
 
 export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
@@ -49,4 +58,9 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "sources.extract": { retryLimit: 2, retryDelay: 30, expireInSeconds: 10 * 60 },
   "calibration.run": { retryLimit: 1, retryDelay: 60, expireInSeconds: 30 * 60 },
   "domains.check": { retryLimit: 0, expireInSeconds: 10 * 60 },
+  // Like mail: retries live on each delivery.
+  "webhooks.dispatch": { retryLimit: 0, expireInSeconds: 5 * 60 },
+  "housekeeping.run": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
+  // A page that is down is simply tried again the next day.
+  "sources.recheck": { retryLimit: 0, expireInSeconds: 60 * 60 },
 };

@@ -22,9 +22,11 @@ import {
   session,
   submissions,
   user,
+  webhookDeliveries,
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
 import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
+import { queueWebhookEvent } from "@/server/webhooks";
 
 /*
  * The learner's own data in this academy (brief §5 profile, §9 data rights
@@ -118,6 +120,11 @@ export async function setContactOptIn(
 ): Promise<void> {
   await withTenant(db, tenant.id, async (tx) => {
     const now = new Date();
+    const [before] = await tx
+      .select({ confirmedAt: consents.confirmedAt, revokedAt: consents.revokedAt })
+      .from(consents)
+      .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
+    const wasGiven = Boolean(before?.confirmedAt && !before.revokedAt);
     if (optIn) {
       await tx
         .insert(consents)
@@ -131,6 +138,14 @@ export async function setContactOptIn(
         .update(consents)
         .set({ revokedAt: now })
         .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
+    }
+    // A CRM following the academy learns about changes, not about repeated saves.
+    if (optIn !== wasGiven) {
+      await queueWebhookEvent(tx, {
+        tenantId: tenant.id,
+        type: optIn ? "contact_consent_given" : "contact_consent_withdrawn",
+        userId,
+      });
     }
   });
 }
@@ -262,6 +277,7 @@ export async function deleteMyData(
     await tx.delete(consents).where(eq(consents.userId, userId));
     await tx.delete(notifications).where(eq(notifications.userId, userId));
     await tx.delete(cohortMembers).where(eq(cohortMembers.userId, userId));
+    await tx.delete(webhookDeliveries).where(eq(webhookDeliveries.userId, userId));
     await tx.delete(learnerProfiles).where(eq(learnerProfiles.userId, userId));
     await tx.delete(files).where(eq(files.ownerUserId, userId));
     await tx.delete(memberships).where(eq(memberships.userId, userId));

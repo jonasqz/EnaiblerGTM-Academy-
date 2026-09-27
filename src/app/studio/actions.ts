@@ -30,8 +30,10 @@ import {
   createLesson,
   deleteLesson,
   loadLessonEditor,
+  markLessonReviewed,
   moveLesson,
   restoreLessonVersion,
+  setLessonSources,
   updateLesson,
 } from "@/server/studio/lessons";
 import { decideSubmission } from "@/server/studio/reviews";
@@ -321,6 +323,25 @@ export async function restoreLessonVersionAction(formData: FormData): Promise<vo
   redirect(
     `/studio/courses/${editor.course.id}/lessons/${lessonId}?restored=${version}&v=${result.version}`,
   );
+}
+
+export async function markLessonReviewedAction(formData: FormData): Promise<void> {
+  const lessonId = z.uuid().parse(text(formData, "lessonId"));
+  const { tenant } = await requireCapability("courses.edit");
+  const editor = await loadLessonEditor(getDb(), tenant.id, lessonId);
+  if (!editor) redirect("/studio/courses");
+  await markLessonReviewed(getDb(), tenant.id, lessonId);
+  revalidatePath(`/studio/courses/${editor.course.id}`, "layout");
+  revalidatePath("/studio");
+}
+
+export async function setLessonSourcesAction(formData: FormData): Promise<void> {
+  const lessonId = z.uuid().parse(text(formData, "lessonId"));
+  const { tenant } = await requireCapability("courses.edit");
+  const editor = await loadLessonEditor(getDb(), tenant.id, lessonId);
+  if (!editor) redirect("/studio/courses");
+  await setLessonSources(getDb(), tenant.id, lessonId, formData.getAll("sourceId").map(String));
+  revalidatePath(`/studio/courses/${editor.course.id}`, "layout");
 }
 
 export async function moveLessonAction(formData: FormData): Promise<void> {

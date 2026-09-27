@@ -122,7 +122,7 @@ describe("safe fetch", () => {
 
   afterAll(() => {
     server.close();
-    delete process.env.BRAND_IMPORT_ALLOWED_HOSTS;
+    delete process.env.SAFE_FETCH_ALLOWED_HOSTS;
   });
 
   const html = { accept: /text\/html/, maxBytes: 10_000, timeoutMs: 2_000 };
@@ -141,7 +141,7 @@ describe("safe fetch", () => {
   });
 
   it("reads an explicitly allowed test host, but re-checks every redirect", async () => {
-    process.env.BRAND_IMPORT_ALLOWED_HOSTS = origin.replace("http://", "");
+    process.env.SAFE_FETCH_ALLOWED_HOSTS = origin.replace("http://", "");
     expect(await safeFetchText(`${origin}/`, html)).toMatchObject({
       ok: true,
       text: "<html>ok</html>",

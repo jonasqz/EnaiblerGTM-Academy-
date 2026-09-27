@@ -8,6 +8,7 @@ import {
   ListChecks,
   PencilLine,
   Plus,
+  RefreshCw,
   Rocket,
   Target,
 } from "lucide-react";
@@ -169,7 +170,10 @@ export default async function StudioOverviewPage() {
         />
       </section>
 
-      {(toDecide > 0 || spotChecks > 0 || overview.draftCourses > 0) && (
+      {(toDecide > 0 ||
+        spotChecks > 0 ||
+        overview.draftCourses > 0 ||
+        (canEdit && overview.flaggedLessons.count > 0)) && (
         <section aria-labelledby="attention-heading" className="space-y-3">
           <h2 id="attention-heading" className="text-lg font-semibold">
             Needs attention
@@ -189,6 +193,18 @@ export default async function StudioOverviewPage() {
                 icon={<ListChecks aria-hidden size={20} />}
                 title={`${spotChecks} spot ${spotChecks === 1 ? "check" : "checks"}`}
                 body="Released AI results sampled for a second look."
+              />
+            )}
+            {canEdit && overview.flaggedLessons.count > 0 && (
+              <AttentionCard
+                href={
+                  overview.flaggedLessons.courseId
+                    ? `/studio/courses/${overview.flaggedLessons.courseId}/lessons`
+                    : "/studio/courses"
+                }
+                icon={<RefreshCw aria-hidden size={20} />}
+                title={`${overview.flaggedLessons.count} ${overview.flaggedLessons.count === 1 ? "lesson" : "lessons"} to check`}
+                body={`A web page ${overview.flaggedLessons.count === 1 ? "it was" : "they were"} written from has changed.`}
               />
             )}
             {overview.draftCourses > 0 && (

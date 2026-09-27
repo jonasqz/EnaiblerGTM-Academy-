@@ -1,9 +1,20 @@
-import { FileText, Globe, Library, MessageSquareQuote, Trash, Video } from "lucide-react";
+import {
+  FileText,
+  Globe,
+  Library,
+  MessageSquareQuote,
+  RefreshCw,
+  Trash,
+  Video,
+} from "lucide-react";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { deleteSourceAction } from "@/app/studio/courses/[courseId]/sources/actions";
+import {
+  deleteSourceAction,
+  recheckSourceAction,
+} from "@/app/studio/courses/[courseId]/sources/actions";
 import { AddSource } from "@/app/studio/courses/[courseId]/sources/add-source";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { SourceStatusBadge } from "@/components/studio/status-badges";
@@ -20,6 +31,19 @@ import { getCourseEditor } from "@/server/studio/course-context";
 export const metadata: Metadata = { title: "Sources" };
 
 const ICONS = { recording: Video, document: FileText, url: Globe, interview: MessageSquareQuote };
+const when = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
+
+const CHECKED: Record<string, { tone: "good" | "warning" | "critical" | "info"; title: string }> = {
+  changed: {
+    tone: "warning",
+    title: "The page changed. Lessons written from it are flagged for review.",
+  },
+  unchanged: { tone: "good", title: "No change since the last check." },
+  failed: { tone: "critical", title: "The page could not be read. The text read before is kept." },
+  skipped: { tone: "info", title: "Only web pages that were read successfully can be checked." },
+  limit: { tone: "critical", title: "Too many checks this hour. Try again later." },
+};
+
 const KIND_LABELS = {
   recording: "Recording",
   document: "Document",
@@ -32,7 +56,7 @@ export default async function SourcesPage({
   searchParams,
 }: PageProps<"/studio/courses/[courseId]/sources">) {
   const { courseId } = await params;
-  const { interview } = await searchParams;
+  const { interview, checked } = await searchParams;
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/sources`);
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
@@ -55,6 +79,9 @@ export default async function SourcesPage({
         </p>
       </div>
       {interview === "1" && <Notice tone="good" title="Interview saved as a source" />}
+      {typeof checked === "string" && CHECKED[checked] && (
+        <Notice tone={CHECKED[checked].tone} title={CHECKED[checked].title} />
+      )}
 
       <AddSource courseId={courseId} languages={editor.course.languages.filter(isLocale)} />
 
@@ -94,7 +121,10 @@ export default async function SourcesPage({
                     {row.kind !== "recording" && row.contentLength > 0 && (
                       <span>{Math.round(row.contentLength / 6).toLocaleString("en")} words</span>
                     )}
-                    {row.changedAt && <span>Changed since the lessons were written</span>}
+                    {row.kind === "url" && row.checkedAt && (
+                      <span>Checked daily · last {when.format(row.checkedAt)}</span>
+                    )}
+                    {row.changedAt && <span>Changed {when.format(row.changedAt)}</span>}
                   </p>
                   {row.error && (
                     <p
@@ -105,6 +135,15 @@ export default async function SourcesPage({
                     </p>
                   )}
                 </div>
+                {row.kind === "url" && row.status === "ready" && (
+                  <form action={recheckSourceAction}>
+                    <input type="hidden" name="courseId" value={courseId} />
+                    <input type="hidden" name="sourceId" value={row.id} />
+                    <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Checking…">
+                      <RefreshCw aria-hidden size={16} /> Check now
+                    </SubmitButton>
+                  </form>
+                )}
                 <form action={deleteSourceAction}>
                   <input type="hidden" name="courseId" value={courseId} />
                   <input type="hidden" name="sourceId" value={row.id} />

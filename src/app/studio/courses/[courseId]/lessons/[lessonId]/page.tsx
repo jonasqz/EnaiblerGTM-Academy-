@@ -1,14 +1,20 @@
-import { ArrowLeft, Plus, RotateCcw } from "lucide-react";
-import type { Metadata } from "next";
+import { ArrowLeft, CircleCheck, Plus, RotateCcw } from "lucide-react";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
-import { createLessonAction, restoreLessonVersionAction } from "@/app/studio/actions";
+import {
+  createLessonAction,
+  markLessonReviewedAction,
+  restoreLessonVersionAction,
+  setLessonSourcesAction,
+} from "@/app/studio/actions";
 import { LessonEditor } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/lesson-editor";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { changedSourceOf } from "@/core/authoring/auto-update";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
@@ -42,6 +48,7 @@ export default async function LessonEditorPage({
   const missing = courseLanguages.filter(
     (language) => !data.translations.some((row) => row.locale === language),
   );
+  const changedSource = data.sources.find((row) => row.id === changedSourceOf(lesson.flagReason));
 
   return (
     <div className="space-y-6">
@@ -60,6 +67,34 @@ export default async function LessonEditorPage({
       {translation === "1" && (
         <Notice tone="info" title={`New ${LANGUAGE_NAMES[locale]} version`}>
           Translate the title and write the text. The original is below the editor for reference.
+        </Notice>
+      )}
+
+      {lesson.flaggedAt && (
+        <Notice tone="warning" title="A source of this lesson changed">
+          <p>
+            {changedSource ? (
+              <>
+                <Link
+                  href={`/studio/courses/${courseId}/sources/${changedSource.id}` as Route}
+                  className="font-semibold underline"
+                >
+                  {changedSource.title}
+                </Link>{" "}
+                changed
+              </>
+            ) : (
+              "A source changed"
+            )}{" "}
+            on {when.format(lesson.flaggedAt)}, after this lesson was written. Check that the lesson
+            still holds, then mark it as reviewed.
+          </p>
+          <form action={markLessonReviewedAction} className="pt-2">
+            <input type="hidden" name="lessonId" value={lesson.id} />
+            <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Saving…">
+              <CircleCheck aria-hidden size={16} /> Mark as reviewed
+            </SubmitButton>
+          </form>
         </Notice>
       )}
 
@@ -124,6 +159,38 @@ export default async function LessonEditorPage({
               </form>
             ))}
           </section>
+
+          {data.sources.length > 0 && (
+            <section aria-labelledby="sources-heading" className="card-flat space-y-3 p-4">
+              <div className="space-y-1">
+                <h2 id="sources-heading" className="font-semibold">
+                  Based on
+                </h2>
+                <p className="text-xs text-muted">
+                  Web pages are read again every day. When one of them changes, this lesson is
+                  flagged for review.
+                </p>
+              </div>
+              <form action={setLessonSourcesAction} className="space-y-2">
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                {data.sources.map((source) => (
+                  <label key={source.id} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="sourceId"
+                      value={source.id}
+                      defaultChecked={lesson.sourceIds.includes(source.id)}
+                      className="mt-1"
+                    />
+                    <span className="min-w-0 break-words">{source.title}</span>
+                  </label>
+                ))}
+                <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Saving…">
+                  Save sources
+                </SubmitButton>
+              </form>
+            </section>
+          )}
 
           <section aria-labelledby="history-heading" className="card-flat space-y-3 p-4">
             <h2 id="history-heading" className="font-semibold">

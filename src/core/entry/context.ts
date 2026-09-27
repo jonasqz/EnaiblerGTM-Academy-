@@ -91,6 +91,35 @@ export function entryDestination(context: EntryContext): string {
   return "/";
 }
 
+/** The context as deep-link parameters again (the /start URL format above). */
+export function entryQuery(context: EntryContext): string {
+  const params = new URLSearchParams();
+  if (context.path) params.set("path", context.path);
+  if (context.course) params.set("course", context.course);
+  if (context.lang) params.set("lang", context.lang);
+  for (const key of UTM_KEYS) {
+    const value = context.utm?.[key];
+    if (value) params.set(`utm_${key}`, value);
+  }
+  return params.toString();
+}
+
+/**
+ * Context of the embedded path picker (brief §2, entry by embed): language
+ * and utm_* from the embed code, the path or course from the learner's click.
+ * Unless the embed code says otherwise, the visit counts as medium "embed".
+ */
+export function embedEntryContext(
+  params: URLSearchParams,
+  options: { tenantLocales: readonly Locale[] },
+): EntryContext {
+  const { lang, utm } = parseEntryParams(params, options);
+  return {
+    ...(lang ? { lang } : {}),
+    utm: { medium: "embed", content: "path-picker", ...utm },
+  };
+}
+
 /** Flattens the context into event properties (brief §10: every event carries utm_*). */
 export function entryEventProperties(
   context: EntryContext | null | undefined,

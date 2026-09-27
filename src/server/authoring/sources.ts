@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
+import { recheckDue, sourceChangedReason } from "@/core/authoring/auto-update";
 import { chunkText, readableText } from "@/core/authoring/text";
 import type { Locale } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
-import { EMBEDDING_DIMENSIONS, files, sourceChunks, sources } from "@/db/schema";
+import { EMBEDDING_DIMENSIONS, files, lessons, sourceChunks, sources } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { embed, embeddingConfig } from "@/server/authoring/speech";
 import { safeFetchText, type FetchText } from "@/server/brand/safe-fetch";
@@ -122,7 +123,14 @@ export async function deleteSource(db: Database, tenantId: string, sourceId: str
     source.fileId,
     ...(source.transcript ?? []).map((segment) => segment.keyframeFileId),
   ].filter((id): id is string => Boolean(id));
-  await withTenant(db, tenantId, (tx) => tx.delete(sources).where(eq(sources.id, sourceId)));
+  await withTenant(db, tenantId, async (tx) => {
+    await tx.delete(sources).where(eq(sources.id, sourceId));
+    // Lessons no longer watch it; a flag it raised stays until someone reviewed the lesson.
+    await tx
+      .update(lessons)
+      .set({ sourceIds: sql`array_remove(${lessons.sourceIds}, ${sourceId}::uuid)` })
+      .where(sql`${lessons.sourceIds} @> array[${sourceId}]::uuid[]`);
+  });
   if (fileIds.length === 0) return;
   const owned = await withTenant(db, tenantId, (tx) =>
     tx
@@ -138,15 +146,30 @@ export function contentHash(text: string): string {
 }
 
 /**
- * Stores the source's text and replaces its chunks (and embeddings). Returns
- * whether the text differs from what was stored before.
+ * Stores the source's text and replaces its chunks (and embeddings). When
+ * the text differs from what was stored before, the lessons written from
+ * this source are flagged for review (auto-update, brief §7).
  */
 export async function storeSourceText(
   db: Database,
   tenantId: string,
   sourceId: string,
   text: string,
-): Promise<{ changed: boolean }> {
+): Promise<{ changed: boolean; flagged: number }> {
+  const hash = contentHash(text);
+  const [before] = await withTenant(db, tenantId, (tx) =>
+    tx.select({ hash: sources.contentHash }).from(sources).where(eq(sources.id, sourceId)),
+  );
+  if (before?.hash === hash) {
+    // Same text as last time: nothing to chunk or embed again.
+    await withTenant(db, tenantId, (tx) =>
+      tx
+        .update(sources)
+        .set({ checkedAt: new Date(), status: "ready", error: null })
+        .where(eq(sources.id, sourceId)),
+    );
+    return { changed: false, flagged: 0 };
+  }
   const chunks = chunkText(text);
   const config = embeddingConfig();
   const vectors = config
@@ -159,12 +182,7 @@ export async function storeSourceText(
         return null;
       })
     : null;
-  const hash = contentHash(text);
   return withTenant(db, tenantId, async (tx) => {
-    const [before] = await tx
-      .select({ hash: sources.contentHash })
-      .from(sources)
-      .where(eq(sources.id, sourceId));
     await tx.delete(sourceChunks).where(eq(sourceChunks.sourceId, sourceId));
     if (chunks.length > 0) {
       await tx.insert(sourceChunks).values(
@@ -177,7 +195,8 @@ export async function storeSourceText(
         })),
       );
     }
-    const changed = before?.hash !== null && before?.hash !== undefined && before.hash !== hash;
+    // The first read is no change; only a different text after that is.
+    const changed = Boolean(before?.hash);
     const now = new Date();
     await tx
       .update(sources)
@@ -190,7 +209,13 @@ export async function storeSourceText(
         error: null,
       })
       .where(eq(sources.id, sourceId));
-    return { changed };
+    if (!changed) return { changed, flagged: 0 };
+    const flagged = await tx
+      .update(lessons)
+      .set({ flaggedAt: now, flagReason: sourceChangedReason(sourceId) })
+      .where(sql`${lessons.sourceIds} @> array[${sourceId}]::uuid[]`)
+      .returning({ id: lessons.id });
+    return { changed, flagged: flagged.length };
   });
 }
 
@@ -264,4 +289,65 @@ export async function extractSource(
     }
     await updateSource(db, tenantId, sourceId, { status: "failed", error: message.slice(0, 300) });
   }
+}
+
+export type RecheckOutcome = "unchanged" | "changed" | "failed" | "skipped";
+
+/** Reads a web page source again (auto-update). A failed read keeps the text read before. */
+export async function recheckSource(
+  db: Database,
+  tenantId: string,
+  sourceId: string,
+  options: { fetchText?: FetchText } = {},
+): Promise<RecheckOutcome> {
+  const source = await loadSource(db, tenantId, sourceId);
+  if (!source || source.kind !== "url" || source.status !== "ready") return "skipped";
+  try {
+    const { text } = await readSourceText(db, tenantId, source, options.fetchText);
+    if (!text.trim()) throw new Error("No readable text found.");
+    const { changed } = await storeSourceText(db, tenantId, sourceId, text.slice(0, 400_000));
+    return changed ? "changed" : "unchanged";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The page could not be loaded.";
+    await withTenant(db, tenantId, (tx) =>
+      tx
+        .update(sources)
+        .set({ checkedAt: new Date(), error: message.slice(0, 300) })
+        .where(eq(sources.id, sourceId)),
+    );
+    return "failed";
+  }
+}
+
+/** The daily round of one academy: web pages not read in the last day. */
+export async function recheckDueSources(
+  db: Database,
+  tenantId: string,
+  options: { fetchText?: FetchText; now?: Date; limit?: number } = {},
+): Promise<Record<RecheckOutcome, number>> {
+  const now = options.now ?? new Date();
+  const candidates = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({
+        id: sources.id,
+        kind: sources.kind,
+        status: sources.status,
+        checkedAt: sources.checkedAt,
+      })
+      .from(sources)
+      .where(and(eq(sources.kind, "url"), eq(sources.status, "ready")))
+      .orderBy(sql`${sources.checkedAt} asc nulls first`)
+      .limit(500),
+  );
+  const result: Record<RecheckOutcome, number> = {
+    unchanged: 0,
+    changed: 0,
+    failed: 0,
+    skipped: 0,
+  };
+  const due = candidates.filter((row) => recheckDue(row, now)).slice(0, options.limit ?? 100);
+  for (const row of due) {
+    result[await recheckSource(db, tenantId, row.id, { fetchText: options.fetchText })]++;
+  }
+  return result;
 }

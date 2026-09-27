@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { lessonKeyFor } from "@/core/courses/lessons";
 import type { Locale } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
-import { assignments, courses, lessons, lessonVersions, rubrics } from "@/db/schema";
+import { assignments, courses, lessons, lessonVersions, rubrics, sources } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
 
@@ -117,7 +117,65 @@ export async function loadLessonEditor(db: Database, tenantId: string, lessonId:
       })
       .from(lessons)
       .where(and(eq(lessons.courseId, lesson.courseId), eq(lessons.key, lesson.key)));
-    return { lesson, course: course!, rubric: rubric ?? null, versions, translations };
+    const courseSources = await tx
+      .select({
+        id: sources.id,
+        title: sources.title,
+        kind: sources.kind,
+        changedAt: sources.changedAt,
+      })
+      .from(sources)
+      .where(eq(sources.courseId, lesson.courseId))
+      .orderBy(asc(sources.createdAt));
+    return {
+      lesson,
+      course: course!,
+      rubric: rubric ?? null,
+      versions,
+      translations,
+      sources: courseSources,
+    };
+  });
+}
+
+/** The author checked a flagged lesson against its changed source (auto-update, brief §7). */
+export async function markLessonReviewed(
+  db: Database,
+  tenantId: string,
+  lessonId: string,
+): Promise<void> {
+  await withTenant(db, tenantId, (tx) =>
+    tx.update(lessons).set({ flaggedAt: null, flagReason: null }).where(eq(lessons.id, lessonId)),
+  );
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The sources a lesson is based on: when one of them changes, the lesson is flagged. */
+export async function setLessonSources(
+  db: Database,
+  tenantId: string,
+  lessonId: string,
+  sourceIds: string[],
+): Promise<void> {
+  const wanted = [...new Set(sourceIds.filter((id) => UUID.test(id)))];
+  await withTenant(db, tenantId, async (tx) => {
+    const [lesson] = await tx
+      .select({ courseId: lessons.courseId })
+      .from(lessons)
+      .where(eq(lessons.id, lessonId));
+    if (!lesson) return;
+    // Only this course's sources.
+    const valid = wanted.length
+      ? await tx
+          .select({ id: sources.id })
+          .from(sources)
+          .where(and(eq(sources.courseId, lesson.courseId), inArray(sources.id, wanted)))
+      : [];
+    await tx
+      .update(lessons)
+      .set({ sourceIds: valid.map((row) => row.id) })
+      .where(eq(lessons.id, lessonId));
   });
 }
 

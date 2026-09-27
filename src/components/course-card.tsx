@@ -14,6 +14,8 @@ export function CourseCard(props: {
   accent: string;
   href: string;
   index?: number;
+  /** Embedded on another site: the academy opens in a new tab. */
+  newTab?: boolean;
 }) {
   const { entry, t } = props;
   const { course, status } = entry;
@@ -24,6 +26,8 @@ export function CourseCard(props: {
     <Link
       href={props.href as never}
       className="card card-interactive flex h-full flex-col overflow-hidden"
+      // Embedded: no prefetching of /start from inside someone else's page.
+      {...(props.newTab ? { target: "_blank", rel: "noopener", prefetch: false } : {})}
     >
       <span className="block h-2" style={{ background: props.accent }} />
       <span className="flex flex-1 flex-col gap-3 p-5">
@@ -33,6 +37,7 @@ export function CourseCard(props: {
               <span className="mr-2 text-muted">{props.index + 1}</span>
             )}
             {localize(course.title, t.locale, props.fallback)}
+            {props.newTab && <span className="sr-only"> {t.t("embed.newTab")}</span>}
           </span>
           {status?.completed && (
             <Badge tone="good" icon={CircleCheck}>

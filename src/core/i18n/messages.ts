@@ -234,6 +234,10 @@ const en = {
   "email.news.button": "Yes, send me news",
   "email.news.note":
     "The link works for {days} days. If you didn't ask for this, ignore this email and you won't hear from us.",
+
+  "embed.title": "{terms.path} at {academy}",
+  "embed.coursesTitle": "{terms.course} at {academy}",
+  "embed.newTab": "(opens in a new tab)",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -479,6 +483,10 @@ const de: Record<MessageKey, string> = {
   "email.news.button": "Ja, schickt mir Neuigkeiten",
   "email.news.note":
     "Der Link ist {days} Tage gültig. Wenn du das nicht angefordert hast, ignoriere diese E-Mail. Dann hörst du nichts von uns.",
+
+  "embed.title": "{terms.path} bei {academy}",
+  "embed.coursesTitle": "{terms.course} bei {academy}",
+  "embed.newTab": "(öffnet in einem neuen Tab)",
 };
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = { en, de };

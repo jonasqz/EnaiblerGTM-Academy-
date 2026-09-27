@@ -58,7 +58,7 @@ Environment variables (Coolify → Environment):
 | `PLATFORM_PRIVACY_URL`, `PLATFORM_IMPRINT_URL`                         | Footer of the platform site                                                    |
 | `PLATFORM_AGREEMENT_VERSION`                                           | Stored with every accepted agreement; bump it when the terms or the DPA change |
 
-Leave `HOSTNAME=0.0.0.0` as the Dockerfile sets it: the proxy's rewrite to the platform pages only stays inside the server when Next's own origin matches the request. Never set `BRAND_IMPORT_ALLOWED_HOSTS` outside local tests, because it exempts hosts from the private-address check of the brand import.
+Leave `HOSTNAME=0.0.0.0` as the Dockerfile sets it: the proxy's rewrite to the platform pages only stays inside the server when Next's own origin matches the request. Never set `SAFE_FETCH_ALLOWED_HOSTS` outside local tests, because it exempts hosts from the private-address check of the brand import and of webhooks.
 
 ## 4. Self-serve academies
 

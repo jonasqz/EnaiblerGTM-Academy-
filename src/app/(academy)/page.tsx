@@ -1,10 +1,9 @@
 import { Award, BookOpen, Hammer } from "lucide-react";
-import Link from "next/link";
 
 import { CourseCard } from "@/components/course-card";
+import { PathCard } from "@/components/path-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HeroArt } from "@/components/ui/hero-art";
-import { localize } from "@/core/i18n/locales";
 import { pathColor } from "@/core/theme/css";
 import { getSession } from "@/server/access";
 import { loadCatalog } from "@/server/catalog";
@@ -84,38 +83,14 @@ export default async function HomePage() {
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {paths.map((path, index) => (
               <li key={path.id}>
-                <Link
+                <PathCard
+                  path={path}
+                  index={index}
+                  theme={theme}
+                  t={t}
+                  fallback={fallback}
                   href={`/paths/${path.slug}`}
-                  className="card card-interactive flex h-full flex-col overflow-hidden"
-                >
-                  <span
-                    className="grid h-24 place-items-center border-b-outline border-line"
-                    style={{ background: pathColor(theme, index, path.color) }}
-                  >
-                    {path.visual?.svg || path.visual?.png ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- uploaded path picture
-                      <img
-                        src={path.visual.svg ?? path.visual.png}
-                        alt=""
-                        className="h-20 w-20 object-contain"
-                      />
-                    ) : (
-                      <span className="font-display text-4xl opacity-90">
-                        {localize(path.title, t.locale, fallback).slice(0, 1)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="space-y-1 p-5">
-                    <span className="block font-display text-xl">
-                      {localize(path.title, t.locale, fallback)}
-                    </span>
-                    {path.promise && (
-                      <span className="block text-sm text-muted">
-                        {localize(path.promise, t.locale, fallback)}
-                      </span>
-                    )}
-                  </span>
-                </Link>
+                />
               </li>
             ))}
           </ul>

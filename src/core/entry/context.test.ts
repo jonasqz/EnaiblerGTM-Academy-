@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   decodeEntryContext,
+  embedEntryContext,
   encodeEntryContext,
   entryDestination,
   entryEventProperties,
+  entryQuery,
   isEmptyEntryContext,
   parseEntryParams,
 } from "@/core/entry/context";
@@ -105,5 +107,31 @@ describe("safeNextPath", () => {
     ]) {
       expect(safeNextPath(value), String(value)).toBeNull();
     }
+  });
+});
+
+describe("embedded path picker", () => {
+  const embed = (query: string) => embedEntryContext(new URLSearchParams(query), tenant);
+
+  it("counts visits as coming from the embed unless the embed code says otherwise", () => {
+    expect(embed("")).toEqual({ utm: { medium: "embed", content: "path-picker" } });
+    expect(embed("lang=de&utm_source=website&utm_medium=sidebar")).toEqual({
+      lang: "de",
+      utm: { medium: "sidebar", content: "path-picker", source: "website" },
+    });
+  });
+
+  it("leaves the path and course to the learner's click", () => {
+    expect(embed("path=validator&course=validation-lab")).not.toHaveProperty("path");
+    expect(embed("path=validator&course=validation-lab")).not.toHaveProperty("course");
+  });
+
+  it("links back into the deep-link format", () => {
+    const context = { ...embed("lang=en&utm_source=website"), path: "validator" };
+    const query = entryQuery(context);
+    expect(query).toBe(
+      "path=validator&lang=en&utm_source=website&utm_medium=embed&utm_content=path-picker",
+    );
+    expect(parse(query)).toEqual(context);
   });
 });

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import { localize } from "@/core/i18n/locales";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
@@ -317,4 +317,16 @@ export async function dispatchNotifications(
     if (outcome === "failed") break;
   }
   return result;
+}
+
+/** Mail that went out (or never will) is kept 90 days, for support questions. */
+export async function purgeProcessedNotifications(db: Database, tenantId: string): Promise<number> {
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60_000);
+  const removed = await withTenant(db, tenantId, (tx) =>
+    tx
+      .delete(notifications)
+      .where(and(isNotNull(notifications.processedAt), lt(notifications.processedAt, cutoff)))
+      .returning({ id: notifications.id }),
+  );
+  return removed.length;
 }

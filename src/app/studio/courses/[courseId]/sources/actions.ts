@@ -14,7 +14,7 @@ import { requireCapability } from "@/server/access";
 import { suggestInterviewQuestions } from "@/server/authoring/interview";
 import { requestLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel } from "@/server/authoring/model";
-import { createSource, deleteSource, loadSource } from "@/server/authoring/sources";
+import { createSource, deleteSource, loadSource, recheckSource } from "@/server/authoring/sources";
 import { normalizeWebsite } from "@/server/brand/import";
 import { loadFile } from "@/server/files";
 import { enqueue } from "@/server/jobs/producer";
@@ -181,4 +181,18 @@ export async function draftLessonsAction(formData: FormData): Promise<void> {
   );
   revalidatePath(`/studio/courses/${courseId}/lessons`);
   redirect(`/studio/courses/${courseId}/lessons?drafting=1`);
+}
+
+/** "Check now": reads a web page source again instead of waiting for the daily round. */
+export async function recheckSourceAction(formData: FormData): Promise<void> {
+  const { tenant, courseId } = await courseFor(formData);
+  const sourceId = z.uuid().parse(text(formData, "sourceId"));
+  const source = await loadSource(getDb(), tenant.id, sourceId);
+  if (!source || source.courseId !== courseId) redirect(`/studio/courses/${courseId}/sources`);
+  const outcome = rateLimit(`source-check:${tenant.id}`, 30, HOUR)
+    ? await recheckSource(getDb(), tenant.id, sourceId)
+    : "limit";
+  revalidatePath(`/studio/courses/${courseId}`, "layout");
+  revalidatePath("/studio");
+  redirect(`/studio/courses/${courseId}/sources?checked=${outcome}`);
 }

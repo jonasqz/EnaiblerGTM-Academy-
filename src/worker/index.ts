@@ -11,7 +11,7 @@ import { findTenantById } from "@/db/tenants";
 import { runLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel } from "@/server/authoring/model";
 import { extractKeyframes, transcribeRecording } from "@/server/authoring/recordings";
-import { extractSource } from "@/server/authoring/sources";
+import { extractSource, recheckDueSources } from "@/server/authoring/sources";
 import { embeddingConfig, whisperConfig } from "@/server/authoring/speech";
 import { checkOpenClaims } from "@/server/domains/claims";
 import { systemDns } from "@/server/domains/dns";
@@ -19,10 +19,11 @@ import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
-import { dispatchNotifications } from "@/server/notifications";
+import { dispatchNotifications, purgeProcessedNotifications } from "@/server/notifications";
 import { runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
 import { storageConfigured } from "@/server/storage";
+import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -46,12 +47,15 @@ for (const [name, options] of Object.entries(QUEUE_OPTIONS) as Array<
   await boss.createQueue(name, options);
 }
 
+const activeTenants = () =>
+  db
+    .select({ id: tenants.id, slug: tenants.slug })
+    .from(tenants)
+    .where(eq(tenants.status, "active"));
+
 // Learner mail (review ready, level-up), every minute for every active academy.
 await boss.work(QUEUES.notifications, async () => {
-  for (const { id } of await db
-    .select({ id: tenants.id })
-    .from(tenants)
-    .where(eq(tenants.status, "active"))) {
+  for (const { id } of await activeTenants()) {
     const tenant = await findTenantById(db, id);
     if (!tenant) continue;
     const result = await dispatchNotifications(db, tenant, { send: sendEmail });
@@ -61,6 +65,44 @@ await boss.work(QUEUES.notifications, async () => {
   }
 });
 await boss.schedule(QUEUES.notifications, "* * * * *");
+
+// Webhooks (brief §10): queued with the event, sent here with retries.
+await boss.work(QUEUES.webhooks, async () => {
+  for (const tenant of await activeTenants()) {
+    const result = await dispatchWebhooks(db, tenant.id);
+    if (result.delivered + result.failed > 0) {
+      console.log(
+        `[worker] webhooks for ${tenant.slug}: ${result.delivered} delivered, ${result.failed} failed`,
+      );
+    }
+  }
+});
+await boss.schedule(QUEUES.webhooks, "* * * * *");
+
+// Retention: delivery logs hold learner data, sent mail only needs to be traceable for a while.
+await boss.work(QUEUES.housekeeping, async () => {
+  for (const tenant of await db.select({ id: tenants.id }).from(tenants)) {
+    const deliveries = await purgeOldDeliveries(db, tenant.id);
+    const mails = await purgeProcessedNotifications(db, tenant.id);
+    if (deliveries + mails > 0) {
+      console.log(`[worker] housekeeping ${tenant.id}: ${deliveries} deliveries, ${mails} mails`);
+    }
+  }
+});
+await boss.schedule(QUEUES.housekeeping, "41 3 * * *");
+
+// Auto-update (brief §7): web pages lessons were written from, read again once a day.
+await boss.work(QUEUES.sourcesRecheck, async () => {
+  for (const tenant of await activeTenants()) {
+    const result = await recheckDueSources(db, tenant.id);
+    if (result.changed + result.failed > 0) {
+      console.log(
+        `[worker] sources of ${tenant.slug}: ${result.changed} changed, ${result.failed} unreadable`,
+      );
+    }
+  }
+});
+await boss.schedule(QUEUES.sourcesRecheck, "23 4 * * *");
 
 // Custom domains waiting for DNS: they go live without anyone pressing "check".
 await boss.work(QUEUES.domainsCheck, async () => {
