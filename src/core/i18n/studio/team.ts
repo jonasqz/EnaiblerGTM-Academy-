@@ -286,7 +286,7 @@ export const de: Record<keyof typeof en, string> = {
   "team.decision.reasonPlaceholder":
     "Bleibt für das Protokoll und die Übereinstimmung mit der KI gespeichert; die lernende Person sieht es nicht.",
   "team.decision.passes": "bestanden",
-  "team.decision.passAt": "(bestanden ab {threshold} %)",
+  "team.decision.passAt": "(Bestehensgrenze: {threshold} %)",
   "team.decision.scoreEvery": "Bewerte jedes Kriterium.",
   "team.decision.submit.decide": "Ergebnis freigeben",
   "team.decision.submit.check": "Stichprobe speichern",
@@ -314,7 +314,7 @@ export const de: Record<keyof typeof en, string> = {
   "team.people.grantButton": "Vergeben",
   "team.people.contacts": "Kontakte",
   "team.people.contactsBody":
-    "Lernende, die von dir hören möchten, für deinen Newsletter oder dein CRM. Nur bestätigte Einwilligungen; sie lassen sich jederzeit widerrufen, also exportiere vor jedem Versand neu.",
+    "Lernende, die zugestimmt haben, von dir zu hören, für deinen Newsletter oder dein CRM. Nur bestätigte Einwilligungen; Lernende können sie jederzeit widerrufen, also exportiere vor jedem Versand neu.",
   "team.people.newsletter": "Newsletter",
   "team.people.newsletterHint":
     "Per Double-Opt-in bestätigt (die lernende Person hat auf den Link in unserer E-Mail geklickt).",
@@ -344,7 +344,7 @@ export const de: Record<keyof typeof en, string> = {
   "team.paths.moveDown": "Nach unten",
   "team.paths.levels": "Level",
   "team.paths.levelsBody":
-    "Das Level zählt je Lernpfad. Es steht auf den Abschlussbescheinigungen als „Level N · Name“, deshalb gelten für Level-Namen dieselben Formulierungsregeln wie für Kurstitel.",
+    "Das Level von Lernenden zählt je Lernpfad. Es steht auf ihren Abschlussbescheinigungen als „Level N · Name“; für Level-Namen gelten daher dieselben Formulierungsregeln wie für Kurstitel.",
   "team.paths.levelsOff": "Level sind ausgeschaltet",
   "team.paths.levelsOffBody":
     "Du kannst sie hier vorbereiten; Lernende sehen sie, sobald Level in den {settings} eingeschaltet sind.",
@@ -385,7 +385,7 @@ export const de: Record<keyof typeof en, string> = {
   "team.path.removePicture": "Bild entfernen",
   "team.path.courses": "Kurse in Reihenfolge",
   "team.path.coursesBody":
-    "Lernende auf diesem Lernpfad machen sie in dieser Reihenfolge; die Level-Regeln zählen die darin abgeschlossenen Kurse. Nur veröffentlichte Kurse sind für Lernende sichtbar.",
+    "Lernende auf diesem Lernpfad durchlaufen sie in dieser Reihenfolge; die Level-Regeln zählen die darin abgeschlossenen Kurse. Nur veröffentlichte Kurse sind für Lernende sichtbar.",
   "team.path.noCourses": "Noch keine Kurse in diesem Lernpfad.",
   "team.path.removeCourse": "Aus dem Lernpfad entfernen",
   "team.path.addCourse": "Kurs hinzufügen",
@@ -411,7 +411,7 @@ export const de: Record<keyof typeof en, string> = {
 
   "team.cohorts.title": "Gruppen",
   "team.cohorts.description":
-    "Gruppen, die gemeinsam mit einem Kurs beginnen: Sie treten über einen Link bei, sehen ihre Termine, und ihre Mentor:innen bewerten ihre Arbeit.",
+    "Gruppen, die gemeinsam mit einem Kurs beginnen: Sie treten über einen Link bei, sehen ihre Termine und ihre Mentor:innen bewerten ihre Arbeit.",
   "team.cohorts.off": "Gruppen sind ausgeschaltet",
   "team.cohorts.offBody":
     "Schalte sie unter Einstellungen → Module ein, damit Lernende die Termine ihrer Gruppe sehen.",
