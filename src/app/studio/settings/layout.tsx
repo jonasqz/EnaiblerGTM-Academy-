@@ -24,6 +24,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/studio/
         label={t.t("settings.title")}
         items={[
           { href: "/studio/settings", label: t.t("settings.tab.academy"), exact: true },
+          { href: "/studio/settings/team", label: t.t("team.members.tab") },
           { href: "/studio/settings/brand", label: t.t("settings.tab.brand") },
           { href: "/studio/settings/sharing", label: t.t("settings.tab.sharing") },
           { href: "/studio/settings/domains", label: t.t("settings.tab.domains") },
