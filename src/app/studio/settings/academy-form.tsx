@@ -9,6 +9,35 @@ import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import type { Features } from "@/core/tenant/manifest";
+
+const MODULES: Array<{ key: keyof Features; label: string; body: string }> = [
+  {
+    key: "ai_review",
+    label: "AI review",
+    body: "Hand-ins get AI feedback within minutes; your team spot-checks. Off: every hand-in waits for a person.",
+  },
+  {
+    key: "paths",
+    label: "Paths",
+    body: "Ordered sets of courses learners choose as their direction. Off: a plain course catalogue.",
+  },
+  {
+    key: "levels",
+    label: "Levels",
+    body: "Progress along a path earns levels, shown on certificates. Needs paths.",
+  },
+  {
+    key: "cohorts",
+    label: "Cohorts",
+    body: "Groups that start a course together, with dates and mentors.",
+  },
+  {
+    key: "showcase",
+    label: "Showcase",
+    body: "Learners may show an excerpt of their work on their public certificate page.",
+  },
+];
 
 export function AcademyForm(props: {
   address: string;
@@ -19,6 +48,7 @@ export function AcademyForm(props: {
   website: string;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
   ctaLabel: LocalizedText;
+  features: Features;
 }) {
   const { state, pending, onSubmit } = useActionForm<FormState>(saveAcademySettingsAction, {});
   const [locales, setLocales] = useState<Locale[]>([...props.locales]);
@@ -180,6 +210,31 @@ export function AcademyForm(props: {
             />
           </div>
         ))}
+      </section>
+
+      <section aria-labelledby="modules-heading" className="card-flat space-y-4 p-5 sm:p-6">
+        <div>
+          <h2 id="modules-heading" className="text-lg font-semibold">
+            Modules
+          </h2>
+          <p className="text-sm text-muted">Switch parts of the academy on when you need them.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {MODULES.map((module) => (
+            <label key={module.key} className="flex gap-3 rounded-control border border-line p-3">
+              <input
+                type="checkbox"
+                name={`feature.${module.key}`}
+                defaultChecked={props.features[module.key]}
+                className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+              />
+              <span>
+                <span className="block text-sm font-semibold">{module.label}</span>
+                <span className="text-xs text-muted">{module.body}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
 
       <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-line bg-surface/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-card sm:border">

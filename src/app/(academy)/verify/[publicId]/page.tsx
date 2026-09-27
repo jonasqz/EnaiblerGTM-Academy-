@@ -114,7 +114,16 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
             )}
             {copy.levelLine && <p>{copy.levelLine}</p>}
             {copy.pathTitle && (
-              <p className="text-sm opacity-80">
+              <p className="flex items-center gap-2 text-sm opacity-80">
+                {(credential.path?.visual?.svg || credential.path?.visual?.png) && (
+                  // eslint-disable-next-line @next/next/no-img-element -- uploaded path picture
+                  <img
+                    src={credential.path.visual.svg ?? credential.path.visual.png}
+                    alt=""
+                    className="size-8 rounded-control object-contain p-0.5"
+                    style={{ background: color }}
+                  />
+                )}
                 {t.term("path")}: {copy.pathTitle}
               </p>
             )}

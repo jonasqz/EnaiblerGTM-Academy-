@@ -1,15 +1,19 @@
-import { Users } from "lucide-react";
+import { Award, Users, X } from "lucide-react";
 import type { Metadata } from "next";
 
+import { grantLevelAction, revokeGrantAction } from "@/app/studio/paths/actions";
 import { LearnerName } from "@/components/studio/learner-name";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { can } from "@/core/access/roles";
 import { localize } from "@/core/i18n/locales";
 import { createTranslator } from "@/core/i18n/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listPeople } from "@/server/studio/insights";
+import { listLevelGrants, listStudioPaths, loadLevels } from "@/server/studio/paths";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -17,9 +21,22 @@ const dates = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", ye
 
 /** Everyone learning in this academy, private by default (brief §9). */
 export default async function PeoplePage() {
-  const { tenant } = await requireCapability("people.view", "/studio/people");
+  const { tenant, roles } = await requireCapability("people.view", "/studio/people");
   const people = await listPeople(getDb(), tenant.id);
   const paths = tenant.settings.features.paths;
+  const locale = tenant.settings.default_locale;
+  // Levels granted by the team (rule "manual grant", e.g. Mentor): only with paths and levels on.
+  const granting = paths && tenant.settings.features.levels && can(roles, "courses.edit");
+  const [levels, pathRows, grants] = granting
+    ? await Promise.all([
+        loadLevels(getDb(), tenant.id),
+        listStudioPaths(getDb(), tenant.id),
+        listLevelGrants(getDb(), tenant.id),
+      ])
+    : [[], [], []];
+  const manual = levels.filter((level) => level.rule.type === "manual_grant");
+  const pathTitle = (id: string) =>
+    localize(pathRows.find((row) => row.path.id === id)?.path.title, locale);
   const pathTerm = createTranslator({ locale: "en", termOverrides: tenant.terminology }).term(
     "path",
   );
@@ -62,6 +79,7 @@ export default async function PeoplePage() {
                   Certificates
                 </th>
                 <th scope="col">Joined</th>
+                {manual.length > 0 && <th scope="col">Granted levels</th>}
               </tr>
             </thead>
             <tbody>
@@ -89,6 +107,76 @@ export default async function PeoplePage() {
                   <td className="whitespace-nowrap text-sm text-muted">
                     {dates.format(person.joinedAt)}
                   </td>
+                  {manual.length > 0 && (
+                    <td className="min-w-56 space-y-2 text-sm">
+                      {grants
+                        .filter((grant) => grant.userId === person.userId)
+                        .map((grant) => (
+                          <form
+                            key={grant.id}
+                            action={revokeGrantAction}
+                            className="flex items-center gap-1"
+                          >
+                            <input type="hidden" name="grantId" value={grant.id} />
+                            <Award aria-hidden size={14} />
+                            <span>
+                              {localize(
+                                levels.find((level) => level.n === grant.levelN)?.name,
+                                locale,
+                              )}{" "}
+                              · {pathTitle(grant.pathId)}
+                            </span>
+                            <SubmitButton
+                              className="btn btn-ghost btn-sm"
+                              title="Take the level back"
+                              confirm="Take this level back?"
+                            >
+                              <X aria-hidden size={14} />
+                            </SubmitButton>
+                          </form>
+                        ))}
+                      {pathRows.length > 0 && (
+                        <details>
+                          <summary className="cursor-pointer font-semibold">Grant a level</summary>
+                          <form action={grantLevelAction} className="mt-2 space-y-2">
+                            <input type="hidden" name="userId" value={person.userId} />
+                            <select name="levelN" aria-label="Level" className="select">
+                              {manual.map((level) => (
+                                <option key={level.n} value={level.n}>
+                                  {level.n} · {localize(level.name, locale)}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              name="pathId"
+                              aria-label={pathTerm}
+                              className="select"
+                              defaultValue={person.pathId ?? pathRows[0]!.path.id}
+                            >
+                              {pathRows.map((row) => (
+                                <option key={row.path.id} value={row.path.id}>
+                                  {localize(row.path.title, locale)}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              name="reason"
+                              aria-label="Reason"
+                              className="input"
+                              placeholder="Reason (optional)"
+                              maxLength={200}
+                            />
+                            <SubmitButton
+                              className="btn btn-secondary btn-sm"
+                              pendingLabel="Granting…"
+                            >
+                              Grant
+                            </SubmitButton>
+                          </form>
+                        </details>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

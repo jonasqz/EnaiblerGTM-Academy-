@@ -119,6 +119,7 @@ export interface PersonRow {
   alias: string;
   displayName: string | null;
   joinedAt: Date;
+  pathId: string | null;
   pathTitle: LocalizedText | null;
   started: number;
   completed: number;
@@ -133,6 +134,7 @@ export async function listPeople(db: Database, tenantId: string): Promise<Person
         userId: memberships.userId,
         joinedAt: memberships.createdAt,
         displayName: learnerProfiles.displayName,
+        pathId: learnerProfiles.currentPathId,
         pathTitle: paths.title,
         started: sql<number>`(select count(*)::int from ${enrollments} e where e.user_id = "memberships"."user_id")`,
         completed: sql<number>`(select count(*)::int from ${enrollments} e where e.user_id = "memberships"."user_id" and e.completed_at is not null)`,

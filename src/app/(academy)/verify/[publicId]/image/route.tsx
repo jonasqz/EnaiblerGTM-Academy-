@@ -5,6 +5,8 @@ import { pathColor } from "@/core/theme/css";
 import { getViewer } from "@/server/auth";
 import { credentialCopy } from "@/server/credential-copy";
 import { canView, loadCredential } from "@/server/credentials";
+import { getDb } from "@/db/client";
+import { fileBytes, loadFile } from "@/server/files";
 import { imageFonts } from "@/server/og-fonts";
 import { getOrigin, getTenant, getTranslator } from "@/server/request";
 
@@ -12,6 +14,16 @@ const SIZES = {
   og: { width: 1200, height: 630 }, // link previews
   card: { width: 1200, height: 848 }, // download
 } as const;
+
+/** The path picture as a data URL (PNG from our storage; SVGs were rendered to PNG on upload). */
+async function pathPng(tenantId: string, url: string | undefined): Promise<string | null> {
+  const id = url?.match(/^\/files\/([0-9a-f-]{36})\.png$/)?.[1];
+  if (!id) return null;
+  const record = await loadFile(getDb(), tenantId, id);
+  if (!record || record.contentType !== "image/png" || record.purpose !== "path_visual")
+    return null;
+  return `data:image/png;base64,${Buffer.from(await fileBytes(record)).toString("base64")}`;
+}
 
 /** Credential image rendered from the tenant theme (brief §6, §11: Satori via next/og). */
 export async function GET(
@@ -34,6 +46,7 @@ export async function GET(
     ? pathColor(theme, credential.path.position, credential.path.color)
     : theme.colors.primary;
   const outlined = theme.visual_style === "outlined";
+  const pathPicture = await pathPng(tenant.id, credential.path?.visual?.png);
   const border = `${theme.border_width} solid ${outlined ? theme.colors.ink : `${theme.colors.ink}26`}`;
 
   const headers: Record<string, string> = {
@@ -81,7 +94,19 @@ export async function GET(
           <div style={{ display: "flex", fontWeight: 700 }}>{copy.academy}</div>
           {copy.pathTitle && (
             <div style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ width: 22, height: 22, marginRight: 10, background: accent, border }} />
+              {pathPicture ? (
+                // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text -- Satori renders plain img
+                <img
+                  src={pathPicture}
+                  width={44}
+                  height={44}
+                  style={{ marginRight: 12, background: accent, borderRadius: 6 }}
+                />
+              ) : (
+                <div
+                  style={{ width: 22, height: 22, marginRight: 10, background: accent, border }}
+                />
+              )}
               {copy.pathTitle}
             </div>
           )}

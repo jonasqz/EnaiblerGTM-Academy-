@@ -58,15 +58,18 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [uploadKey, setUploadKey] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
-  const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
-    const result = await addSourceAction(previous, formData);
-    if (result.ok) {
-      setFile(null);
-      setUploadKey((value) => value + 1);
-      formRef.current?.reset();
-    }
-    return result;
-  }, {});
+  const { state, pending, onSubmit, submit } = useActionForm<FormState>(
+    async (previous, formData) => {
+      const result = await addSourceAction(previous, formData);
+      if (result.ok) {
+        setFile(null);
+        setUploadKey((value) => value + 1);
+        formRef.current?.reset();
+      }
+      return result;
+    },
+    {},
+  );
   const endpoint = `/api/uploads?purpose=source&course=${props.courseId}`;
   const current = KINDS.find((option) => option.kind === kind)!;
 
@@ -147,7 +150,10 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
                 endpoint={endpoint}
                 onUploaded={(uploaded) => {
                   setFile(uploaded);
-                  setTimeout(() => formRef.current?.requestSubmit(), 0);
+                  // Straight in: the hidden fileId input is not rendered yet at this point.
+                  const data = new FormData(formRef.current ?? undefined);
+                  data.set("fileId", uploaded.id);
+                  submit(data);
                 }}
               />
             )}

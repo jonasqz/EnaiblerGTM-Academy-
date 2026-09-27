@@ -25,14 +25,27 @@ export default async function PathPage({ params, searchParams }: PageProps<"/pat
     <div className="space-y-10">
       <header className="card overflow-hidden">
         <div className="h-3" style={{ background: color }} />
-        <div className="space-y-3 p-6 sm:p-10">
-          <p className="eyebrow">{t.term("path")}</p>
-          <h1 className="font-display text-4xl">{localize(data.path.title, t.locale, fallback)}</h1>
-          {data.path.promise && (
-            <p className="max-w-2xl text-lg text-muted">
-              {localize(data.path.promise, t.locale, fallback)}
-            </p>
+        <div className="flex flex-wrap items-center gap-6 p-6 sm:p-10">
+          {(data.path.visual?.svg || data.path.visual?.png) && (
+            // eslint-disable-next-line @next/next/no-img-element -- uploaded path picture
+            <img
+              src={data.path.visual.svg ?? data.path.visual.png}
+              alt=""
+              className="size-28 shrink-0 rounded-card object-contain p-2"
+              style={{ background: color }}
+            />
           )}
+          <div className="min-w-0 flex-1 space-y-3">
+            <p className="eyebrow">{t.term("path")}</p>
+            <h1 className="font-display text-4xl">
+              {localize(data.path.title, t.locale, fallback)}
+            </h1>
+            {data.path.promise && (
+              <p className="max-w-2xl text-lg text-muted">
+                {localize(data.path.promise, t.locale, fallback)}
+              </p>
+            )}
+          </div>
         </div>
       </header>
       <section className="space-y-5">

@@ -32,6 +32,9 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
   const items: StudioNavItem[] = [
     { icon: "overview", href: "/studio", label: "Overview" },
     { icon: "courses", href: "/studio/courses", label: "Courses" },
+    ...(can(roles, "courses.edit")
+      ? [{ icon: "paths", href: "/studio/paths", label: "Paths & levels" } as const]
+      : []),
     ...(reviewer
       ? [{ icon: "reviews", href: "/studio/reviews", label: "Reviews", count: waiting } as const]
       : []),

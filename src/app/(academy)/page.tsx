@@ -92,9 +92,18 @@ export default async function HomePage() {
                     className="grid h-24 place-items-center border-b-outline border-line"
                     style={{ background: pathColor(theme, index, path.color) }}
                   >
-                    <span className="font-display text-4xl opacity-90">
-                      {localize(path.title, t.locale, fallback).slice(0, 1)}
-                    </span>
+                    {path.visual?.svg || path.visual?.png ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- uploaded path picture
+                      <img
+                        src={path.visual.svg ?? path.visual.png}
+                        alt=""
+                        className="h-20 w-20 object-contain"
+                      />
+                    ) : (
+                      <span className="font-display text-4xl opacity-90">
+                        {localize(path.title, t.locale, fallback).slice(0, 1)}
+                      </span>
+                    )}
                   </span>
                   <span className="space-y-1 p-5">
                     <span className="block font-display text-xl">

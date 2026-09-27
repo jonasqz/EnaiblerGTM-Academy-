@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
-import { validateTenantManifest } from "@/core/tenant/manifest";
+import { validateTenantManifest, type Features } from "@/core/tenant/manifest";
 import { themeContrastIssues } from "@/core/theme/contrast";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 import type { Database } from "@/db/client";
@@ -25,6 +25,8 @@ export interface AcademySettingsInput {
   website: string | null;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
   ctaLabel: LocalizedText;
+  /** Modules on or off; unchanged when omitted. */
+  features?: Features;
 }
 
 async function loadRow(db: Database, tenantId: string) {
@@ -50,6 +52,7 @@ export async function updateAcademySettings(
       website: input.website ?? undefined,
       legal_links: input.legalLinks,
       verification_cta: { ...row.config.verification_cta, label: input.ctaLabel },
+      features: input.features ?? row.config.features,
     },
     ...(row.theme ? { theme: row.theme } : {}),
     terminology: row.terminology,

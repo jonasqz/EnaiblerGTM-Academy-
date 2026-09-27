@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { FormState } from "@/app/studio/actions";
 import { isLocale, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import { FEATURE_KEYS } from "@/core/tenant/manifest";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -50,6 +51,9 @@ export async function saveAcademySettingsAction(
     },
     ctaLabel:
       Object.keys(ctaLabel).length > 0 ? ctaLabel : { en: "Start this course", de: "Kurs starten" },
+    features: Object.fromEntries(
+      FEATURE_KEYS.map((key) => [key, formData.get(`feature.${key}`) === "on"]),
+    ) as Record<(typeof FEATURE_KEYS)[number], boolean>,
   });
   if (!result.ok) return { errors: result.errors.map(readable) };
   revalidatePath("/", "layout");

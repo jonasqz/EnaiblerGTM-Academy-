@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { localized, text } from "@/app/studio/form-data";
+import { localized, text, wording } from "@/app/studio/form-data";
 import {
   FILE_KINDS,
   formFieldsFromSchema,
@@ -13,14 +13,7 @@ import {
   type SubmissionType,
 } from "@/core/assignments/submission-types";
 import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
-import {
-  describeFinding,
-  hasBlockingWording,
-  lintLocalizedWording,
-  lintWording,
-  type WordingContext,
-} from "@/core/compliance/wording-lint";
-import { isLocale, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import { isLocale, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
 import { slugify } from "@/core/shared/slug";
 import { getDb } from "@/db/client";
@@ -58,16 +51,6 @@ export interface FormState {
 const courseIdSchema = z.uuid();
 
 /** Wording findings split into blocking errors and warnings (brief §9). */
-function wording(checks: Array<[LocalizedText | string, WordingContext]>) {
-  const findings = checks.flatMap(([value, context]) =>
-    typeof value === "string" ? lintWording(value, context) : lintLocalizedWording(value, context),
-  );
-  return {
-    blocking: hasBlockingWording(findings),
-    errors: findings.filter((finding) => finding.severity === "error").map(describeFinding),
-    warnings: findings.filter((finding) => finding.severity === "warning").map(describeFinding),
-  };
-}
 
 function courseLanguages(formData: FormData, allowed: readonly Locale[]): Locale[] {
   const picked = formData.getAll("languages").filter((value): value is Locale => isLocale(value));

@@ -25,6 +25,7 @@ export interface CredentialView {
     title: LocalizedText;
     color: string | null;
     position: number;
+    visual: { svg?: string; png?: string } | null;
   } | null;
 }
 
@@ -59,6 +60,7 @@ export async function loadCredential(
           title: found.title,
           color: found.color,
           position: index,
+          visual: found.visual ?? null,
         };
     }
 

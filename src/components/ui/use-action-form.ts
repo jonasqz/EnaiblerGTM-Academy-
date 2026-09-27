@@ -20,5 +20,7 @@ export function useActionForm<State>(
     const formData = new FormData(event.currentTarget, submitter);
     startTransition(() => dispatch(formData));
   };
-  return { state, pending, onSubmit };
+  /** Submits data assembled in code, e.g. right after an upload finished. */
+  const submit = (formData: FormData) => startTransition(() => dispatch(formData));
+  return { state, pending, onSubmit, submit };
 }

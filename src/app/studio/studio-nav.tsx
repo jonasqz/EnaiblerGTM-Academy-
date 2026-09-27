@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardCheck,
   LayoutDashboard,
+  Milestone,
   Settings,
   Users,
   type LucideIcon,
@@ -15,6 +16,7 @@ import { usePathname } from "next/navigation";
 const ICONS = {
   overview: LayoutDashboard,
   courses: BookOpen,
+  paths: Milestone,
   reviews: ClipboardCheck,
   people: Users,
   settings: Settings,

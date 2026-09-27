@@ -16,6 +16,7 @@ export default async function AcademySettingsPage() {
       website={settings.website ?? ""}
       legalLinks={settings.legal_links}
       ctaLabel={settings.verification_cta.label}
+      features={settings.features}
     />
   );
 }
