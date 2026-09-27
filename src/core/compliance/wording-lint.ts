@@ -22,6 +22,8 @@ export const WORDING_CONTEXTS = {
   terminology: "error",
   brand_name: "error",
   cta_label: "error",
+  /** A learner's excerpt on their public credential page. */
+  showcase: "error",
   lesson_text: "warning",
   course_description: "warning",
   assignment_prompt: "warning",

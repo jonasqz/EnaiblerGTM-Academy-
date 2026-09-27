@@ -159,6 +159,28 @@ const en = {
   "verify.publicNotice": "This page is public. Anyone with the link can see it.",
   "verify.makePublic": "Make public",
   "verify.makePrivate": "Make private",
+  "verify.imported": "Issued by {academy} on {platform} and moved here with the academy.",
+  "verify.openBadge": "Download as Open Badge",
+  "verify.openBadgeHint":
+    "Open Badges 3.0, signed by {academy}: for digital wallets and other platforms.",
+
+  "showcase.title": "The work behind it",
+  "showcase.edit": "Show your work",
+  "showcase.hint": "Optional: an excerpt of what you built, shown on this page while it is public.",
+  "showcase.textLabel": "Excerpt (Markdown)",
+  "showcase.pictures": "Pictures (up to {max})",
+  "showcase.save": "Save",
+  "showcase.remove": "Remove from the page",
+  "showcase.saved": "Saved.",
+  "showcase.private": "Visible here as soon as you make the page public.",
+  "showcase.wording":
+    "Please don't describe this as a formal qualification: it is a {term.credential}.",
+  "showcase.tooLong": "Keep the excerpt under {max} characters.",
+
+  "openBadge.description": "Completed {course} by building “{artifact}”.",
+  "openBadge.criteria":
+    "Hand in “{artifact}” and pass a review against every criterion of the course rubric.",
+  "openBadge.evidence": "The work passed a review against every criterion of the course rubric.",
 
   "consent.confirmTitle": "Confirm news from {academy}",
   "consent.confirmBody":
@@ -364,6 +386,31 @@ const de: Record<MessageKey, string> = {
   "verify.publicNotice": "Diese Seite ist öffentlich. Alle mit dem Link können sie sehen.",
   "verify.makePublic": "Öffentlich machen",
   "verify.makePrivate": "Privat machen",
+  "verify.imported":
+    "Von {academy} auf {platform} ausgestellt und mit der Akademie hierher umgezogen.",
+  "verify.openBadge": "Als Open Badge herunterladen",
+  "verify.openBadgeHint":
+    "Open Badges 3.0, signiert von {academy}: für digitale Wallets und andere Plattformen.",
+
+  "showcase.title": "Die Arbeit dahinter",
+  "showcase.edit": "Zeig deine Arbeit",
+  "showcase.hint":
+    "Freiwillig: ein Ausschnitt aus dem, was du gebaut hast, auf dieser Seite, solange sie öffentlich ist.",
+  "showcase.textLabel": "Ausschnitt (Markdown)",
+  "showcase.pictures": "Bilder (bis zu {max})",
+  "showcase.save": "Speichern",
+  "showcase.remove": "Von der Seite entfernen",
+  "showcase.saved": "Gespeichert.",
+  "showcase.private": "Hier sichtbar, sobald du die Seite öffentlich machst.",
+  "showcase.wording":
+    "Bitte stell das nicht als formale Qualifikation dar: Es ist eine {term.credential}.",
+  "showcase.tooLong": "Halte den Ausschnitt unter {max} Zeichen.",
+
+  "openBadge.description": "{course} abgeschlossen mit „{artifact}“.",
+  "openBadge.criteria":
+    "„{artifact}“ einreichen und die Bewertung in jedem Kriterium der Kurs-Rubrik bestehen.",
+  "openBadge.evidence":
+    "Die Arbeit hat die Bewertung in jedem Kriterium der Kurs-Rubrik bestanden.",
 
   "consent.confirmTitle": "Neuigkeiten von {academy} bestätigen",
   "consent.confirmBody":

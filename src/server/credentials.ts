@@ -3,8 +3,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { normalizePublicId } from "@/core/credentials/public-id";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
-import { getDb } from "@/db/client";
-import { courses, credentials, paths } from "@/db/schema";
+import { getDb, type Database } from "@/db/client";
+import { courses, credentials, paths, type Showcase } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 
 export interface CredentialView {
@@ -18,6 +18,9 @@ export interface CredentialView {
   artifactName: string;
   issuedAt: Date;
   visibility: "private" | "public";
+  /** Where it was issued: here, or on the platform the academy used before. */
+  source: { kind: "native" } | { kind: "imported"; platform: string };
+  showcase: Showcase | null;
   level: { n: number; name: LocalizedText | null } | null;
   path: {
     id: string;
@@ -36,10 +39,11 @@ export interface CredentialView {
 export async function loadCredential(
   tenant: TenantContext,
   rawPublicId: string,
+  db: Database = getDb(),
 ): Promise<CredentialView | null> {
   const publicId = normalizePublicId(rawPublicId);
   if (!publicId) return null;
-  return withTenant(getDb(), tenant.id, async (tx) => {
+  return withTenant(db, tenant.id, async (tx) => {
     const [row] = await tx
       .select({ credential: credentials, courseSlug: courses.slug })
       .from(credentials)
@@ -75,6 +79,11 @@ export async function loadCredential(
       artifactName: credential.artifactName,
       issuedAt: credential.issuedAt,
       visibility: credential.visibility,
+      source:
+        credential.source === "imported"
+          ? { kind: "imported", platform: credential.sourcePlatform ?? "" }
+          : { kind: "native" },
+      showcase: credential.showcase ?? null,
       level: credential.levelAtIssue
         ? { n: credential.levelAtIssue, name: credential.levelName }
         : null,

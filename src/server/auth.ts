@@ -13,6 +13,7 @@ import { account, session, user, verification } from "@/db/schema";
 import { sendEmail, senderFor } from "@/server/email/mailer";
 import { renderMagicLinkEmail } from "@/server/email/templates/magic-link";
 import { env, isProduction } from "@/server/env";
+import { rateLimit } from "@/server/rate-limit";
 
 /**
  * Better Auth, one instance per academy (brief §11: magic links only, one
@@ -45,6 +46,24 @@ export function confirmUrlFor(verifyUrl: string): string {
   return `${url.origin}/sign-in/confirm?${url.searchParams.toString()}`;
 }
 
+/**
+ * Proxies whose X-Forwarded-For entries are trusted, so rate limits see the
+ * learner's address: Traefik and anything else in the private Docker network
+ * by default (TRUSTED_PROXY_CIDRS overrides, e.g. to add a CDN's ranges).
+ * Without this, Better Auth falls back to one bucket shared by everyone.
+ */
+function trustedProxies(): string[] {
+  const configured = process.env.TRUSTED_PROXY_CIDRS?.split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return configured?.length
+    ? configured
+    : ["127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7"];
+}
+
+/** Sign-in links per e-mail address: nobody can flood someone's inbox. */
+const LINKS_PER_ADDRESS = { max: 5, windowMs: 15 * 60_000 };
+
 function createTenantAuth(tenant: TenantContext) {
   return betterAuth({
     appName: tenant.settings.author_display_name,
@@ -68,12 +87,26 @@ function createTenantAuth(tenant: TenantContext) {
         },
       },
     },
-    advanced: { cookiePrefix: "enaibler" },
+    advanced: { cookiePrefix: "enaibler", ipAddress: { trustedProxies: trustedProxies() } },
     plugins: [
       magicLink({
         expiresIn: MAGIC_LINK_TTL_MINUTES * 60,
         storeToken: "hashed",
+        // Per IP and minute (default 5): a class behind one school network signs in together.
+        rateLimit: { window: 60, max: 30 },
         sendMagicLink: async ({ email, url, metadata }) => {
+          const address = email.trim().toLowerCase();
+          if (
+            !rateLimit(
+              `magic-link:${tenant.id}:${address}`,
+              LINKS_PER_ADDRESS.max,
+              LINKS_PER_ADDRESS.windowMs,
+            )
+          ) {
+            // Same answer as a sent link: the form does not reveal anything.
+            console.warn(`[auth] sign-in links for one address throttled in ${tenant.slug}`);
+            return;
+          }
           const t = tenantTranslator(tenant, metadata?.locale);
           const rendered = await renderMagicLinkEmail({
             tenant,

@@ -20,6 +20,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/studio/
           { href: "/studio/settings", label: "Academy", exact: true },
           { href: "/studio/settings/brand", label: "Brand" },
           { href: "/studio/settings/domains", label: "Domains" },
+          { href: "/studio/settings/integrations", label: "Integrations" },
         ]}
       />
       {children}

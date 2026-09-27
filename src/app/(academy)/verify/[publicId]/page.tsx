@@ -3,6 +3,9 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { setCredentialVisibility } from "@/app/(academy)/verify/[publicId]/actions";
+import { ShowcaseEditor } from "@/app/(academy)/verify/[publicId]/showcase-editor";
+import { uploadLabels } from "@/components/upload-labels";
+import { Markdown } from "@/components/ui/markdown";
 import { localize } from "@/core/i18n/locales";
 import { isBot } from "@/core/shared/bots";
 import { pathColor } from "@/core/theme/css";
@@ -11,6 +14,11 @@ import { withTenant } from "@/db/tenant-scope";
 import { getViewer } from "@/server/auth";
 import { credentialCopy } from "@/server/credential-copy";
 import { canView, loadCredential } from "@/server/credentials";
+import {
+  SHOWCASE_MAX_PICTURES,
+  SHOWCASE_MAX_TEXT,
+  showcaseDraft,
+} from "@/server/credentials/showcase";
 import { trackEvent } from "@/server/events";
 import { getOrigin, getTenant, getTranslator } from "@/server/request";
 
@@ -51,6 +59,13 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
   if (!credential || !canView(credential, viewer?.userId ?? null)) notFound();
 
   const isOwner = credential.userId === viewer?.userId;
+  const showcaseOn = tenant.settings.features.showcase;
+  const showcase =
+    showcaseOn && credential.showcase && (credential.visibility === "public" || isOwner)
+      ? credential.showcase
+      : null;
+  const draft =
+    showcaseOn && isOwner ? await showcaseDraft(getDb(), tenant.id, credential.id) : null;
   const copy = credentialCopy(tenant, credential, t, await getOrigin());
   const color = credential.path
     ? pathColor(tenant.theme, credential.path.position, credential.path.color)
@@ -129,7 +144,14 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
             )}
           </div>
 
-          <p className="opacity-80">{t.t("verify.backedByWork")}</p>
+          <p className="opacity-80">
+            {credential.source.kind === "imported"
+              ? t.t("verify.imported", {
+                  academy: copy.academy,
+                  platform: credential.source.platform,
+                })
+              : t.t("verify.backedByWork")}
+          </p>
 
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
@@ -150,6 +172,54 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
         </div>
       </article>
 
+      {showcase && (
+        <section aria-labelledby="showcase-heading" className="card space-y-4 p-6 sm:p-10">
+          <h2 id="showcase-heading" className="font-display text-2xl">
+            {t.t("showcase.title")}
+          </h2>
+          {credential.visibility !== "public" && <p className="hint">{t.t("showcase.private")}</p>}
+          {showcase.text && <Markdown source={showcase.text} untrusted />}
+          {showcase.fileIds.length > 0 && (
+            <ul className="grid gap-3 sm:grid-cols-3">
+              {showcase.fileIds.map((id) => (
+                <li key={id}>
+                  <a href={`/files/${id}`} target="_blank" rel="noopener">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- the learner's picture */}
+                    <img
+                      src={`/files/${id}`}
+                      alt=""
+                      className="aspect-4/3 w-full rounded-card border-outline border-line object-cover"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {isOwner && draft && (
+        <ShowcaseEditor
+          publicId={credential.publicId}
+          text={draft.text}
+          pictures={draft.fileIds}
+          maxText={SHOWCASE_MAX_TEXT}
+          maxPictures={SHOWCASE_MAX_PICTURES}
+          hasShowcase={credential.showcase !== null}
+          labels={{
+            title: t.t("showcase.edit"),
+            hint: t.t("showcase.hint"),
+            text: t.t("showcase.textLabel"),
+            pictures: t.t("showcase.pictures", { max: SHOWCASE_MAX_PICTURES }),
+            save: t.t("showcase.save"),
+            saving: t.t("assignment.submitting"),
+            remove: t.t("showcase.remove"),
+            saved: t.t("showcase.saved"),
+            upload: uploadLabels(t),
+          }}
+        />
+      )}
+
       <div className="flex flex-wrap gap-3">
         {isOwner && credential.visibility === "public" && (
           <>
@@ -169,6 +239,15 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
               {t.t("verify.downloadCard")}
             </a>
           </>
+        )}
+        {isOwner && (
+          <a
+            href={`/verify/${credential.publicId}/open-badge`}
+            className="btn btn-secondary"
+            title={t.t("verify.openBadgeHint", { academy: copy.academy })}
+          >
+            {t.t("verify.openBadge")}
+          </a>
         )}
         {!isOwner && (
           <a href={`/verify/${credential.publicId}/cta`} className="btn btn-primary">

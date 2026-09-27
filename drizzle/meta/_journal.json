@@ -127,6 +127,20 @@
       "when": 1790494272375,
       "tag": "0017_force_rls_domain_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790494975683,
+      "tag": "0018_credentials_phase2",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790494976609,
+      "tag": "0019_force_rls_integrations",
+      "breakpoints": true
     }
   ]
 }

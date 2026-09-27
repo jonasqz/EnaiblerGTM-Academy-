@@ -6,6 +6,7 @@ import {
   buildOpenBadgeCredential,
   hashRecipientEmail,
   OB3_CONTEXT,
+  openBadgeJwtPayload,
 } from "@/core/credentials/open-badges";
 import {
   formatPublicId,
@@ -91,8 +92,13 @@ describe("Open Badges 3.0", () => {
         description: "Built a validated idea brief.",
         criteriaNarrative: "Submitted a validated idea brief that passed a rubric-based review.",
       },
-      recipient: { identityHash, salt: "salt" },
+      subject: {
+        id: "urn:uuid:0b7a1f6e-8a51-8d1c-9a55-3f0c2f7f9b10",
+        email: { identityHash, salt: "salt" },
+        name: "Ada Lovelace",
+      },
       credentialName: "Certificate of Completion",
+      evidence: { name: "Validated idea brief", narrative: "Reviewed against three criteria." },
     });
 
     expect(credential["@context"]).toEqual([...OB3_CONTEXT]);
@@ -108,7 +114,20 @@ describe("Open Badges 3.0", () => {
           achievementType: "CertificateOfCompletion",
           name: "Validation Lab",
         },
+        identifier: [
+          { identityType: "emailAddress", hashed: true, identityHash },
+          { identityType: "name", hashed: false, identityHash: "Ada Lovelace" },
+        ],
       },
+      evidence: [{ type: ["Evidence"], name: "Validated idea brief" }],
+    });
+
+    // VC-JWT claims mirror the credential (OB 3.0, JSON Web Token proof format).
+    expect(openBadgeJwtPayload(credential)).toMatchObject({
+      iss: "https://academy.scaling-product.com",
+      jti: "https://academy.scaling-product.com/verify/ABCDEFGHJKMNPQRS",
+      sub: "urn:uuid:0b7a1f6e-8a51-8d1c-9a55-3f0c2f7f9b10",
+      nbf: Date.UTC(2027, 1, 1, 10) / 1000,
     });
   });
 });

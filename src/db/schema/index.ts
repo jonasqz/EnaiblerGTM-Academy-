@@ -10,3 +10,4 @@ export * from "@/db/schema/platform";
 export * from "@/db/schema/files";
 export * from "@/db/schema/messaging";
 export * from "@/db/schema/domains";
+export * from "@/db/schema/integrations";

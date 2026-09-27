@@ -118,6 +118,17 @@ describe("file read access", () => {
     expect(canReadFile({ ...handIn, status: "pending" }, reviewer)).toBe(false);
   });
 
+  it("shows showcase pictures to everyone only while a public credential shows them", () => {
+    const picture = { ...handIn, purpose: "showcase" as const };
+    expect(canReadFile(picture, learner)).toBe(true);
+    expect(canReadFile(picture, null)).toBe(false);
+    expect(canReadFile(picture, reviewer)).toBe(false);
+    expect(canReadFile(picture, null, { showcasedPublicly: true })).toBe(true);
+    expect(canReadFile({ ...picture, status: "pending" }, null, { showcasedPublicly: true })).toBe(
+      false,
+    );
+  });
+
   it("serves lesson media and brand assets to anyone, sources only to authors", () => {
     const media = {
       purpose: "lesson_media" as const,

@@ -17,6 +17,14 @@ import { courses, paths } from "@/db/schema/catalog";
 import { tenants } from "@/db/schema/tenancy";
 
 export const credentialVisibility = pgEnum("credential_visibility", ["private", "public"]);
+
+export interface Showcase {
+  /** Markdown excerpt, as the learner wrote it. */
+  text: string;
+  /** Pictures (files with purpose "showcase"), in order. */
+  fileIds: string[];
+  updatedAt: string;
+}
 export const credentialSource = pgEnum("credential_source", ["native", "imported"]);
 
 /**
@@ -51,7 +59,13 @@ export const credentials = pgTable(
     sourcePlatform: text("source_platform"),
     externalId: text("external_id"),
     submissionId: uuid("submission_id"),
+    /** The original Open Badges document of an imported credential, kept as received. */
     ob3Json: jsonb("ob3_json").$type<Record<string, unknown>>(),
+    /**
+     * An excerpt of the work the learner chose to show on the public page
+     * (brief §6, showcase; features.showcase). Shown only while public.
+     */
+    showcase: jsonb("showcase").$type<Showcase>(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     revokeReason: text("revoke_reason"),
     createdAt: createdAt(),

@@ -192,15 +192,20 @@ export interface FileReader {
  * person who uploaded it. Showcase files are public while a public
  * credential shows them (checked by the caller); otherwise owner only.
  */
-export function canReadFile(file: FileAccessSubject, reader: FileReader | null): boolean {
+export function canReadFile(
+  file: FileAccessSubject,
+  reader: FileReader | null,
+  context: { showcasedPublicly?: boolean } = {},
+): boolean {
   const isOwner = reader !== null && file.ownerUserId === reader.userId;
   if (file.status === "pending") return isOwner;
   switch (PURPOSE_RULES[file.purpose].access) {
     case "public":
       return true;
     case "owner":
-    case "showcase":
       return isOwner;
+    case "showcase":
+      return isOwner || context.showcasedPublicly === true;
     case "owner_or_reviewer":
       return isOwner || (reader?.canReview ?? false);
     case "studio":

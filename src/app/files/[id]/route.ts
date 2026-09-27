@@ -5,6 +5,7 @@ import { canReadFile, inlineAllowed, PURPOSE_RULES } from "@/core/files/policy";
 import type { FileFamily } from "@/core/files/sniff";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
+import { showcasedPublicly } from "@/server/credentials/showcase";
 import { loadFile, openFile } from "@/server/files";
 import { getTenant } from "@/server/request";
 
@@ -38,7 +39,14 @@ export async function GET(
     canReview: can(session.roles, "reviews.decide"),
     canEditCourses: can(session.roles, "courses.edit"),
   };
-  if (!record || !canReadFile(record, reader)) return new Response("Not found", { status: 404 });
+  // Showcase pictures: public while a public credential shows them (and never cached).
+  const shownPublicly =
+    record?.purpose === "showcase" && record.status === "attached"
+      ? await showcasedPublicly(getDb(), tenant.id, record.id)
+      : false;
+  if (!record || !canReadFile(record, reader, { showcasedPublicly: shownPublicly })) {
+    return new Response("Not found", { status: 404 });
+  }
 
   const etag = `"${record.sha256}"`;
   const family = familyOf(record.contentType);

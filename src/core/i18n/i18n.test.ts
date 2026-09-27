@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { lintWording } from "@/core/compliance/wording-lint";
 import { localize, localizedTextInputSchema, resolveLocale } from "@/core/i18n/locales";
 import { MESSAGES, MESSAGE_KEYS } from "@/core/i18n/messages";
 import { createTranslator } from "@/core/i18n/translator";
@@ -85,5 +86,18 @@ describe("translator", () => {
     const t = createTranslator({ locale: "en" });
     expect(t.t("verify.level", { n: 2, name: "Practitioner" })).toBe("Level 2 · Practitioner");
     expect(t.t("signIn.title")).toBe("Sign in to {academy}");
+  });
+});
+
+describe("UI copy", () => {
+  it("never claims a certification, in any locale (brief §9)", () => {
+    for (const messages of Object.values(MESSAGES)) {
+      for (const [key, text] of Object.entries(messages)) {
+        expect({ key, findings: lintWording(text, "credential_template") }).toEqual({
+          key,
+          findings: [],
+        });
+      }
+    }
   });
 });
