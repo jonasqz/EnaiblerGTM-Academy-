@@ -5,39 +5,14 @@ import { useState } from "react";
 import type { FormState } from "@/app/studio/actions";
 import { saveAcademySettingsAction } from "@/app/studio/settings/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 import type { Features } from "@/core/tenant/manifest";
 
-const MODULES: Array<{ key: keyof Features; label: string; body: string }> = [
-  {
-    key: "ai_review",
-    label: "AI review",
-    body: "Hand-ins get AI feedback within minutes; your team spot-checks. Off: every hand-in waits for a person.",
-  },
-  {
-    key: "paths",
-    label: "Paths",
-    body: "Ordered sets of courses learners choose as their direction. Off: a plain course catalogue.",
-  },
-  {
-    key: "levels",
-    label: "Levels",
-    body: "Progress along a path earns levels, shown on certificates. Needs paths.",
-  },
-  {
-    key: "cohorts",
-    label: "Cohorts",
-    body: "Groups that start a course together, with dates and mentors.",
-  },
-  {
-    key: "showcase",
-    label: "Showcase",
-    body: "Learners may show an excerpt of their work on their public certificate page.",
-  },
-];
+const MODULES: Array<keyof Features> = ["ai_review", "paths", "levels", "cohorts", "showcase"];
 
 export function AcademyForm(props: {
   address: string;
@@ -53,6 +28,7 @@ export function AcademyForm(props: {
   ctaLabel: LocalizedText;
   features: Features;
 }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(saveAcademySettingsAction, {});
   const [locales, setLocales] = useState<Locale[]>([...props.locales]);
   const [defaultLocale, setDefaultLocale] = useState<Locale>(props.defaultLocale);
@@ -64,11 +40,11 @@ export function AcademyForm(props: {
         className="card-flat grid gap-5 p-5 sm:grid-cols-2 sm:p-6"
       >
         <h2 id="academy-heading" className="text-lg font-semibold sm:col-span-2">
-          Academy
+          {t.t("settings.academy.heading")}
         </h2>
         <div className="field">
           <label htmlFor="academy-name" className="label">
-            Name
+            {t.t("settings.academy.name")}
           </label>
           <input
             id="academy-name"
@@ -78,21 +54,17 @@ export function AcademyForm(props: {
             maxLength={80}
             defaultValue={props.name}
           />
-          <p className="hint">
-            A brand, never a person. It is the sender of e-mails and the issuer of certificates.
-          </p>
+          <p className="hint">{t.t("settings.academy.nameHint")}</p>
         </div>
         <div className="field">
-          <span className="label">Address</span>
+          <span className="label">{t.t("settings.academy.address")}</span>
           <p className="input flex items-center bg-subtle text-muted">
             {props.address.replace(/^https?:\/\//, "")}
           </p>
-          <p className="hint">
-            Your own domain (academy.your-company.com) can be connected on request.
-          </p>
+          <p className="hint">{t.t("settings.academy.addressHint")}</p>
         </div>
         <fieldset className="field">
-          <legend className="label mb-1.5">Languages</legend>
+          <legend className="label mb-1.5">{t.t("settings.academy.languages")}</legend>
           <div className="flex flex-wrap gap-4">
             {props.allLocales.map((locale) => (
               <label key={locale} className="inline-flex items-center gap-2">
@@ -110,14 +82,14 @@ export function AcademyForm(props: {
                   }
                   className="size-4 accent-(--tenant-primary)"
                 />
-                {LANGUAGE_NAMES[locale]}
+                {languageName(t, locale)}
               </label>
             ))}
           </div>
         </fieldset>
         <div className="field">
           <label htmlFor="academy-default" className="label">
-            Default language
+            {t.t("settings.academy.defaultLanguage")}
           </label>
           <select
             id="academy-default"
@@ -128,41 +100,38 @@ export function AcademyForm(props: {
           >
             {locales.map((locale) => (
               <option key={locale} value={locale}>
-                {LANGUAGE_NAMES[locale]}
+                {languageName(t, locale)}
               </option>
             ))}
           </select>
         </div>
         <div className="field sm:col-span-2">
           <label htmlFor="academy-website" className="label">
-            Website
+            {t.t("settings.academy.website")}
           </label>
           <input
             id="academy-website"
             name="website"
             className="input"
             inputMode="url"
-            placeholder="https://your-company.com"
+            placeholder={t.t("settings.academy.websitePlaceholder")}
             defaultValue={props.website}
           />
-          <p className="hint">Brand import reads your colours and fonts from here.</p>
+          <p className="hint">{t.t("settings.academy.websiteHint")}</p>
         </div>
         <div className="field sm:col-span-2">
           <label htmlFor="academy-reply-to" className="label">
-            Replies go to
+            {t.t("settings.academy.replyTo")}
           </label>
           <input
             id="academy-reply-to"
             name="replyTo"
             type="email"
             className="input"
-            placeholder="hello@your-company.com"
+            placeholder={t.t("settings.academy.replyToPlaceholder")}
             defaultValue={props.replyTo}
           />
-          <p className="hint">
-            Mails to learners (sign-in links, feedback, levels) come from {props.sender}. When a
-            learner replies, the answer goes to this address.
-          </p>
+          <p className="hint">{t.t("settings.academy.replyToHint", { sender: props.sender })}</p>
         </div>
       </section>
 
@@ -172,31 +141,28 @@ export function AcademyForm(props: {
       >
         <div className="sm:col-span-3">
           <h2 id="legal-heading" className="text-lg font-semibold">
-            Legal pages
+            {t.t("settings.legal.heading")}
           </h2>
-          <p className="text-sm text-muted">
-            Your academy’s own pages, linked in its footer and e-mails. Imprint and privacy page are
-            required before the first course goes live.
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.legal.intro")}</p>
         </div>
         {(
           [
-            ["imprint", "Imprint", true],
-            ["privacy", "Privacy policy", true],
-            ["terms", "Terms (optional)", false],
+            ["imprint", true],
+            ["privacy", true],
+            ["terms", false],
           ] as const
-        ).map(([key, label, required]) => (
+        ).map(([key, required]) => (
           <div key={key} className="field">
             <label htmlFor={`legal-${key}`} className="label">
-              {label}
-              {required && <span className="sr-only"> (required to publish)</span>}
+              {t.t(`settings.legal.${key}`)}
+              {required && <span className="sr-only"> {t.t("settings.legal.required")}</span>}
             </label>
             <input
               id={`legal-${key}`}
               name={key}
               className="input"
               inputMode="url"
-              placeholder={`https://your-company.com/${key}`}
+              placeholder={t.t(`settings.legal.${key}Placeholder`)}
               defaultValue={props.legalLinks[key] ?? ""}
             />
           </div>
@@ -209,17 +175,14 @@ export function AcademyForm(props: {
       >
         <div className="sm:col-span-2">
           <h2 id="cta-heading" className="text-lg font-semibold">
-            Button on shared certificates
+            {t.t("settings.cta.heading")}
           </h2>
-          <p className="text-sm text-muted">
-            Everyone who opens a shared Certificate of Completion sees this button; it leads into
-            your academy.
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.cta.intro")}</p>
         </div>
         {locales.map((locale) => (
           <div key={locale} className="field">
             <label htmlFor={`cta-${locale}`} className="label">
-              {LANGUAGE_NAMES[locale]}
+              {languageName(t, locale)}
             </label>
             <input
               id={`cta-${locale}`}
@@ -235,22 +198,24 @@ export function AcademyForm(props: {
       <section aria-labelledby="modules-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="modules-heading" className="text-lg font-semibold">
-            Modules
+            {t.t("settings.modules.heading")}
           </h2>
-          <p className="text-sm text-muted">Switch parts of the academy on when you need them.</p>
+          <p className="text-sm text-muted">{t.t("settings.modules.intro")}</p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           {MODULES.map((module) => (
-            <label key={module.key} className="flex gap-3 rounded-control border border-line p-3">
+            <label key={module} className="flex gap-3 rounded-control border border-line p-3">
               <input
                 type="checkbox"
-                name={`feature.${module.key}`}
-                defaultChecked={props.features[module.key]}
+                name={`feature.${module}`}
+                defaultChecked={props.features[module]}
                 className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
               />
               <span>
-                <span className="block text-sm font-semibold">{module.label}</span>
-                <span className="text-xs text-muted">{module.body}</span>
+                <span className="block text-sm font-semibold">
+                  {t.t(`settings.module.${module}.label`)}
+                </span>
+                <span className="text-xs text-muted">{t.t(`settings.module.${module}.body`)}</span>
               </span>
             </label>
           ))}
@@ -260,8 +225,8 @@ export function AcademyForm(props: {
       <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-line bg-surface/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-card sm:border">
         <FormFeedback state={state} />
         <div className="flex justify-end">
-          <SubmitButton pending={pending} pendingLabel="Saving…">
-            Save settings
+          <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+            {t.t("settings.academy.save")}
           </SubmitButton>
         </div>
       </div>

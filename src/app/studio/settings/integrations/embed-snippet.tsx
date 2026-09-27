@@ -3,6 +3,8 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useStudioText } from "@/components/studio/studio-text";
+
 interface EmbedLanguage {
   code: string;
   label: string;
@@ -11,6 +13,7 @@ interface EmbedLanguage {
 }
 
 function CopyButton(props: { text: string; label: string }) {
+  const t = useStudioText();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -23,7 +26,7 @@ function CopyButton(props: { text: string; label: string }) {
       }}
     >
       {copied ? <Check aria-hidden size={16} /> : <Copy aria-hidden size={16} />}
-      {copied ? "Copied" : props.label}
+      {copied ? t.t("common.copied") : props.label}
     </button>
   );
 }
@@ -32,6 +35,7 @@ const escapeAttribute = (value: string) => value.replace(/&/g, "&amp;").replace(
 
 /** Embed code for the path picker, with a live preview in the academy's own look. */
 export function EmbedSnippet(props: { origin: string; languages: EmbedLanguage[] }) {
+  const t = useStudioText();
   const [code, setCode] = useState(props.languages[0]!.code);
   const [source, setSource] = useState("website");
   const [heading, setHeading] = useState(true);
@@ -75,7 +79,7 @@ export function EmbedSnippet(props: { origin: string; languages: EmbedLanguage[]
         {props.languages.length > 1 && (
           <div className="space-y-1">
             <label htmlFor="embed-lang" className="text-sm font-semibold">
-              Language
+              {t.t("common.language")}
             </label>
             <select
               id="embed-lang"
@@ -109,28 +113,25 @@ export function EmbedSnippet(props: { origin: string; languages: EmbedLanguage[]
             checked={heading}
             onChange={(event) => setHeading(event.target.checked)}
           />
-          Show heading
+          {t.t("settings.embed.showHeading")}
         </label>
       </div>
 
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">Embed code</p>
-          <CopyButton text={script} label="Copy code" />
+          <p className="text-sm font-semibold">{t.t("settings.embed.code")}</p>
+          <CopyButton text={script} label={t.t("settings.embed.copyCode")} />
         </div>
         <pre className="overflow-auto whitespace-pre-wrap break-all rounded-control bg-subtle p-3 font-mono text-xs">
           {script}
         </pre>
       </div>
       <details className="text-sm">
-        <summary className="cursor-pointer font-semibold">Without JavaScript</summary>
+        <summary className="cursor-pointer font-semibold">{t.t("settings.embed.noScript")}</summary>
         <div className="mt-3 space-y-2">
-          <p>
-            Where your website does not allow scripts, an iframe works too. It does not adjust its
-            height, so set one that fits.
-          </p>
+          <p>{t.t("settings.embed.noScriptBody")}</p>
           <div className="flex justify-end">
-            <CopyButton text={iframe} label="Copy iframe" />
+            <CopyButton text={iframe} label={t.t("settings.embed.copyIframe")} />
           </div>
           <pre className="overflow-auto whitespace-pre-wrap break-all rounded-control bg-subtle p-3 font-mono text-xs">
             {iframe}
@@ -139,12 +140,12 @@ export function EmbedSnippet(props: { origin: string; languages: EmbedLanguage[]
       </details>
 
       <div className="space-y-1">
-        <p className="text-sm font-semibold">Preview</p>
+        <p className="text-sm font-semibold">{t.t("settings.embed.preview")}</p>
         <iframe
           ref={preview}
           key={frameUrl}
           src={frameUrl}
-          title={`Preview: ${language.title}`}
+          title={t.t("settings.embed.previewTitle", { title: language.title })}
           className="block w-full rounded-card border border-line"
           style={{ height: previewHeight }}
         />

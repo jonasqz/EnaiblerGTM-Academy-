@@ -17,30 +17,22 @@ import {
 import { systemDns } from "@/server/domains/dns";
 import { academyOrigin } from "@/server/platform/config";
 import { rateLimit } from "@/server/rate-limit";
+import { getStudioText } from "@/server/studio-text";
 
 const PAGE = "/studio/settings/domains";
 
-const ADD_ERRORS = {
-  invalid: "Enter a domain such as academy.your-company.com.",
-  reserved: "This address belongs to enaibler or is not a public domain.",
-  ip: "Enter a domain name, not an IP address.",
-  taken: "This domain is already in use by an academy.",
-  limit: `An academy can have up to ${MAX_CUSTOM_DOMAINS} own domains. Remove one first.`,
-  unavailable: "Own domains are not set up on this server yet.",
-} as const;
-
 export async function addDomainAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant, viewer } = await requireCapability("academy.manage", PAGE);
+  const t = await getStudioText();
   const result = await addDomainClaim(getDb(), tenant, {
     domain: text(formData, "domain"),
     createdBy: viewer.userId,
   });
-  if (!result.ok) return { errors: [ADD_ERRORS[result.error]] };
+  if (!result.ok) {
+    return { errors: [t.t(`settings.domains.error.${result.error}`, { max: MAX_CUSTOM_DOMAINS })] };
+  }
   revalidatePath(PAGE);
-  return {
-    ok: true,
-    message: `Added. Set the two DNS records below; we check every ten minutes for ${CLAIM_TTL_DAYS} days.`,
-  };
+  return { ok: true, message: t.t("settings.domains.add.done", { days: CLAIM_TTL_DAYS }) };
 }
 
 export async function checkDomainAction(formData: FormData): Promise<void> {

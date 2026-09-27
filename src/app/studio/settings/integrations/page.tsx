@@ -1,5 +1,6 @@
 import { CircleCheck, CircleX, Clock, KeyRound, Pause, Webhook } from "lucide-react";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 import {
   deleteWebhookAction,
@@ -16,23 +17,25 @@ import {
 } from "@/app/studio/settings/integrations/forms";
 import {
   describeWebhookResult,
-  WEBHOOK_EVENT_LABELS,
+  webhookEventLabel,
 } from "@/app/studio/settings/integrations/webhook-labels";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { languageName } from "@/core/i18n/studio/helpers";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
 import { isWebhookEvent, MAX_DELIVERY_ATTEMPTS, MAX_WEBHOOKS } from "@/core/webhooks/events";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listApiKeys } from "@/server/api-keys";
 import { academyOrigin, academyUrl } from "@/server/platform/config";
+import { getStudioText } from "@/server/studio-text";
 import { listWebhooks, type StudioWebhook } from "@/server/webhooks";
 
-export const metadata: Metadata = { title: "Integrations" };
-
-const when = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
-const at = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("settings.tab.integrations") };
+}
 
 const PAYLOAD_EXAMPLE = {
   id: "5b0c9a4e-6f1d-4c1e-9d3a-2f7c1b8e0a11",
@@ -56,27 +59,41 @@ export function isFromAcademy(signatureHeader, rawBody, secret) {
   return fresh && given.length === expected.length && timingSafeEqual(given, expected);
 }`;
 
-function DeliveryState(props: { delivery: StudioWebhook["recent"][number] }) {
-  const { delivery } = props;
+/** A catalogue text with its {placeholders} shown as code: header and field names stay literal. */
+function withCode(text: string, code: Record<string, string>): ReactNode[] {
+  return text
+    .split(/\{(\w+)\}/)
+    .map((part, index) =>
+      index % 2 === 0 ? part : <code key={index}>{code[part] ?? `{${part}}`}</code>,
+    );
+}
+
+function DeliveryState(props: { t: StudioText; delivery: StudioWebhook["recent"][number] }) {
+  const { t, delivery } = props;
   if (delivery.status === "delivered") {
     return (
       <Badge tone="good" icon={CircleCheck}>
-        {describeWebhookResult(delivery.lastResult)}
+        {describeWebhookResult(t, delivery.lastResult)}
       </Badge>
     );
   }
   if (delivery.status === "failed") {
     return (
       <Badge tone="critical" icon={CircleX}>
-        {describeWebhookResult(delivery.lastResult)}
+        {describeWebhookResult(t, delivery.lastResult)}
       </Badge>
     );
   }
   return (
     <Badge tone="info" icon={Clock}>
       {delivery.attempts === 0
-        ? "Queued"
-        : `${describeWebhookResult(delivery.lastResult)}, retry ${delivery.attempts + 1} of ${MAX_DELIVERY_ATTEMPTS} at ${at.format(delivery.nextAttemptAt)}`}
+        ? t.t("settings.webhooks.queued")
+        : t.t("settings.webhooks.retry", {
+            result: describeWebhookResult(t, delivery.lastResult),
+            attempt: delivery.attempts + 1,
+            max: MAX_DELIVERY_ATTEMPTS,
+            time: t.date(delivery.nextAttemptAt, "dateTime"),
+          })}
     </Badge>
   );
 }
@@ -99,20 +116,22 @@ const EXAMPLE = {
 /** Connecting other tools: the credential import and API keys (brief §6), webhooks (§10). */
 export default async function IntegrationsPage() {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings/integrations");
+  const t = await getStudioText();
   const [keys, webhooks] = await Promise.all([
     listApiKeys(getDb(), tenant.id),
     listWebhooks(getDb(), tenant.id),
   ]);
   const endpoint = academyUrl(tenant, "/api/credentials/import");
   const embedLanguages = tenant.settings.locales.map((code) => {
-    const t = tenantTranslator(tenant, code);
+    // The embed speaks to the academy's visitors: its title comes from the learner messages.
+    const learnerText = tenantTranslator(tenant, code);
     const academy = tenant.settings.author_display_name;
     return {
       code,
-      label: LANGUAGE_NAMES[code],
+      label: languageName(t, code),
       title: tenant.settings.features.paths
-        ? t.t("embed.title", { academy })
-        : t.t("embed.coursesTitle", { academy }),
+        ? learnerText.t("embed.title", { academy })
+        : learnerText.t("embed.coursesTitle", { academy }),
     };
   });
 
@@ -121,27 +140,27 @@ export default async function IntegrationsPage() {
       <section aria-labelledby="import-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="import-heading" className="text-lg font-semibold">
-            Import certificates from another platform
+            {t.t("settings.import.heading")}
           </h2>
-          <p className="text-sm text-muted">
-            Learners keep what they earned before: each certificate keeps its date, stays private
-            unless it was public before, and shows where it was issued. Running the same file again
-            changes nothing. Courses must exist here first (same slug).
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.import.intro")}</p>
         </div>
         <ImportForm />
         <details className="text-sm">
-          <summary className="cursor-pointer font-semibold">File format and API</summary>
+          <summary className="cursor-pointer font-semibold">
+            {t.t("settings.import.format")}
+          </summary>
           <div className="mt-3 space-y-3">
             <p>
-              A JSON file like this (up to 1,000 per file). Optional: <code>path_slug</code>,{" "}
-              <code>level_at_issue</code>, and <code>public_id</code> to keep links that were
-              already shared working.
+              {withCode(t.t("settings.import.formatBody"), {
+                path: "path_slug",
+                level: "level_at_issue",
+                publicId: "public_id",
+              })}
             </p>
             <pre className="overflow-auto rounded-control bg-subtle p-3 font-mono text-xs">
               {JSON.stringify(EXAMPLE, null, 2)}
             </pre>
-            <p>The same body can be sent by a script with an API key:</p>
+            <p>{t.t("settings.import.api")}</p>
             <pre className="overflow-auto rounded-control bg-subtle p-3 font-mono text-xs">
               {`curl -X POST ${endpoint} \\\n  -H "Authorization: Bearer enk_…" \\\n  -H "Content-Type: application/json" \\\n  --data @certificates.json`}
             </pre>
@@ -152,12 +171,9 @@ export default async function IntegrationsPage() {
       <section aria-labelledby="keys-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="keys-heading" className="text-lg font-semibold">
-            API keys
+            {t.t("settings.keys.heading")}
           </h2>
-          <p className="text-sm text-muted">
-            For your own tools. A key works only for this academy and only for importing
-            certificates.
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.keys.intro")}</p>
         </div>
         {keys.length > 0 && (
           <ul className="divide-y divide-line">
@@ -167,17 +183,20 @@ export default async function IntegrationsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{key.name}</span>
                   <span className="text-muted">
-                    <code>{key.prefix}…</code> · created {when.format(key.createdAt)} ·{" "}
-                    {key.lastUsedAt ? `last used ${when.format(key.lastUsedAt)}` : "not used yet"}
+                    <code>{key.prefix}…</code> ·{" "}
+                    {t.t("settings.keys.created", { date: t.date(key.createdAt) })} ·{" "}
+                    {key.lastUsedAt
+                      ? t.t("settings.keys.lastUsed", { date: t.date(key.lastUsedAt) })
+                      : t.t("settings.keys.notUsed")}
                   </span>
                 </span>
                 <form action={revokeApiKeyAction}>
                   <input type="hidden" name="id" value={key.id} />
                   <SubmitButton
                     className="btn btn-ghost btn-sm"
-                    confirm={`Revoke "${key.name}"? Tools using it stop working.`}
+                    confirm={t.t("settings.keys.revokeConfirm", { name: key.name })}
                   >
-                    Revoke
+                    {t.t("settings.keys.revoke")}
                   </SubmitButton>
                 </form>
               </li>
@@ -190,13 +209,15 @@ export default async function IntegrationsPage() {
       <section aria-labelledby="embed-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="embed-heading" className="text-lg font-semibold">
-            Embed on your website
+            {t.t("settings.embed.heading")}
           </h2>
           <p className="text-sm text-muted">
-            Show your {tenant.settings.features.paths ? "paths" : "courses"} on your own website.
-            Visitors pick one and continue in the academy in a new tab. The language and utm_*
-            values come along, so the dashboard shows where sign-ups come from. Nothing is stored in
-            the visitor&apos;s browser.
+            {t.t(
+              tenant.settings.features.paths
+                ? "settings.embed.showPaths"
+                : "settings.embed.showCourses",
+            )}{" "}
+            {t.t("settings.embed.intro")}
           </p>
         </div>
         <EmbedSnippet
@@ -208,19 +229,14 @@ export default async function IntegrationsPage() {
       <section aria-labelledby="webhooks-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="webhooks-heading" className="text-lg font-semibold">
-            Webhooks
+            {t.t("settings.webhooks.heading")}
           </h2>
-          <p className="text-sm text-muted">
-            Tell your own tools (a CRM, a newsletter tool, n8n or Zapier) what happens in the
-            academy, within a minute. Learners appear under a stable pseudonymous id. Their e-mail
-            address and name are only included once they agreed to be contacted, and in consent
-            events.
-          </p>
+          <p className="text-sm text-muted">{t.t("settings.webhooks.intro")}</p>
         </div>
         {webhooks.map((hook) => (
           <article
             key={hook.id}
-            aria-label={`Webhook to ${hook.url}`}
+            aria-label={t.t("settings.webhooks.label", { url: hook.url })}
             className="space-y-3 rounded-card border border-line p-4"
           >
             <div className="flex flex-wrap items-center gap-3">
@@ -230,33 +246,33 @@ export default async function IntegrationsPage() {
               </span>
               {hook.enabled ? (
                 <Badge tone="good" icon={CircleCheck}>
-                  Active
+                  {t.t("settings.webhooks.active")}
                 </Badge>
               ) : (
                 <Badge tone="warning" icon={Pause}>
-                  Paused
+                  {t.t("settings.webhooks.paused")}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-muted">
               {hook.events
                 .filter(isWebhookEvent)
-                .map((event) => WEBHOOK_EVENT_LABELS[event])
+                .map((event) => webhookEventLabel(t, event))
                 .join(" · ")}
             </p>
             {hook.recent.length > 0 && (
               <table className="w-full text-left text-sm">
-                <caption className="sr-only">Latest deliveries</caption>
+                <caption className="sr-only">{t.t("settings.webhooks.deliveries")}</caption>
                 <thead className="text-xs text-muted">
                   <tr>
                     <th scope="col" className="py-1 pr-3 font-semibold">
-                      Event
+                      {t.t("settings.webhooks.column.event")}
                     </th>
                     <th scope="col" className="py-1 pr-3 font-semibold">
-                      Time
+                      {t.t("settings.webhooks.column.time")}
                     </th>
                     <th scope="col" className="py-1 font-semibold">
-                      Result
+                      {t.t("settings.webhooks.column.result")}
                     </th>
                   </tr>
                 </thead>
@@ -265,20 +281,20 @@ export default async function IntegrationsPage() {
                     <tr key={delivery.id}>
                       <td className="py-2 pr-3">
                         {isWebhookEvent(delivery.event)
-                          ? WEBHOOK_EVENT_LABELS[delivery.event]
+                          ? webhookEventLabel(t, delivery.event)
                           : delivery.event}
                       </td>
                       <td className="whitespace-nowrap py-2 pr-3 text-muted">
-                        {at.format(delivery.createdAt)}
+                        {t.date(delivery.createdAt, "dateTime")}
                       </td>
                       <td className="py-2">
                         <span className="flex flex-wrap items-center gap-2">
-                          <DeliveryState delivery={delivery} />
+                          <DeliveryState t={t} delivery={delivery} />
                           {delivery.status === "failed" && delivery.event !== "ping" && (
                             <form action={retryDeliveryAction}>
                               <input type="hidden" name="id" value={delivery.id} />
                               <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="…">
-                                Send again
+                                {t.t("settings.webhooks.sendAgain")}
                               </SubmitButton>
                             </form>
                           )}
@@ -295,16 +311,16 @@ export default async function IntegrationsPage() {
                 <input type="hidden" name="id" value={hook.id} />
                 <input type="hidden" name="enabled" value={hook.enabled ? "0" : "1"} />
                 <SubmitButton className="btn btn-ghost btn-sm">
-                  {hook.enabled ? "Pause" : "Resume"}
+                  {hook.enabled ? t.t("settings.webhooks.pause") : t.t("settings.webhooks.resume")}
                 </SubmitButton>
               </form>
               <form action={deleteWebhookAction}>
                 <input type="hidden" name="id" value={hook.id} />
                 <SubmitButton
                   className="btn btn-ghost btn-sm"
-                  confirm={`Delete the webhook to ${hook.url}? Deliveries still waiting are dropped.`}
+                  confirm={t.t("settings.webhooks.deleteConfirm", { url: hook.url })}
                 >
-                  Delete
+                  {t.t("common.delete")}
                 </SubmitButton>
               </form>
             </div>
@@ -313,29 +329,30 @@ export default async function IntegrationsPage() {
         <NewWebhookForm startOpen={webhooks.length === 0} full={webhooks.length >= MAX_WEBHOOKS} />
         <details className="text-sm">
           <summary className="cursor-pointer font-semibold">
-            What arrives and how to check it
+            {t.t("settings.webhooks.docs")}
           </summary>
           <div className="mt-3 space-y-3">
             <p>
-              A <code>POST</code> with a JSON body like this. <code>X-Enaibler-Event</code> names
-              the event and <code>X-Enaibler-Delivery</code> is unique per delivery: the same event
-              can arrive twice, so skip ids you have seen.
+              {withCode(t.t("settings.webhooks.docsBody"), {
+                post: "POST",
+                event: "X-Enaibler-Event",
+                delivery: "X-Enaibler-Delivery",
+              })}
             </p>
             <pre className="overflow-auto rounded-control bg-subtle p-3 font-mono text-xs">
               {JSON.stringify(PAYLOAD_EXAMPLE, null, 2)}
             </pre>
             <p>
-              <code>X-Enaibler-Signature</code> is <code>t=&lt;unix time&gt;,v1=&lt;hex&gt;</code>:
-              an HMAC-SHA256 of <code>&lt;t&gt;.&lt;body&gt;</code> with the webhook&apos;s signing
-              secret. For example in Node.js:
+              {withCode(t.t("settings.webhooks.docsSignature"), {
+                signature: "X-Enaibler-Signature",
+                format: "t=<unix time>,v1=<hex>",
+                signed: "<t>.<body>",
+              })}
             </p>
             <pre className="overflow-auto rounded-control bg-subtle p-3 font-mono text-xs">
               {VERIFY_EXAMPLE}
             </pre>
-            <p>
-              Answer with a 2xx status within 10 seconds. Otherwise we try again after 1 and 5
-              minutes, half an hour, then 2, 6, 12 and 24 hours. Delivery logs are kept for 30 days.
-            </p>
+            <p>{t.t("settings.webhooks.docsRetries")}</p>
           </div>
         </details>
       </section>

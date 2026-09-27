@@ -15,6 +15,7 @@ import { requireCapability } from "@/server/access";
 import { createApiKey, revokeApiKey } from "@/server/api-keys";
 import { isAllowedTestHost } from "@/server/brand/safe-fetch";
 import { importCredentials, type ImportOutcome } from "@/server/credentials/import";
+import { getStudioText } from "@/server/studio-text";
 import {
   createWebhook,
   deleteWebhook,
@@ -29,8 +30,9 @@ export type NewKeyState = { key?: string; errors?: string[] };
 
 export async function createApiKeyAction(_: NewKeyState, formData: FormData): Promise<NewKeyState> {
   const { tenant, viewer } = await requireCapability("academy.manage", PAGE);
+  const t = await getStudioText();
   const name = text(formData, "name");
-  if (!name) return { errors: ["Give the key a name, e.g. the tool that uses it."] };
+  if (!name) return { errors: [t.t("settings.keys.nameRequired")] };
   const { key } = await createApiKey(getDb(), tenant.id, {
     name,
     scopes: ["credentials.import"],
@@ -57,20 +59,23 @@ export async function importCredentialsAction(
   formData: FormData,
 ): Promise<ImportState> {
   const { tenant } = await requireCapability("academy.manage", PAGE);
+  const t = await getStudioText();
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { errors: ["Choose a JSON file."] };
+  if (!(file instanceof File) || file.size === 0) {
+    return { errors: [t.t("settings.import.chooseFile")] };
+  }
   let body: unknown;
   try {
     body = JSON.parse(await file.text());
   } catch {
-    return { errors: ["The file is not valid JSON."] };
+    return { errors: [t.t("settings.import.invalidJson")] };
   }
   const parsed = credentialImportSchema.safeParse(body);
   if (!parsed.success) {
     return {
       errors: parsed.error.issues
         .slice(0, 8)
-        .map((issue) => `${issue.path.join(".") || "file"}: ${issue.message}`),
+        .map((issue) => `${issue.path.join(".") || t.t("settings.import.file")}: ${issue.message}`),
     };
   }
   return { results: await importCredentials(getDb(), tenant, parsed.data.credentials) };
@@ -83,6 +88,7 @@ export async function createWebhookAction(
   formData: FormData,
 ): Promise<NewWebhookState> {
   const { tenant, viewer } = await requireCapability("academy.manage", PAGE);
+  const t = await getStudioText();
   const url = text(formData, "url");
   const events = formData
     .getAll("events")
@@ -90,18 +96,16 @@ export async function createWebhookAction(
     .filter((name): name is WebhookEvent => isWebhookEvent(name) && name !== "ping");
   const errors: string[] = [];
   const issue = webhookUrlIssue(url, { allowHttp: isAllowedTestHost(url) });
-  if (issue === "invalid") {
-    errors.push("Enter the full address of your endpoint, e.g. https://hooks.example.com/academy.");
-  }
-  if (issue === "https") errors.push("Use an https address: deliveries carry learner data.");
-  if (events.length === 0) errors.push("Choose at least one event.");
+  if (issue === "invalid") errors.push(t.t("settings.webhooks.invalidUrl"));
+  if (issue === "https") errors.push(t.t("settings.webhooks.httpsOnly"));
+  if (events.length === 0) errors.push(t.t("settings.webhooks.noEvents"));
   if (errors.length > 0) return { errors };
   const created = await createWebhook(getDb(), tenant.id, {
     url,
     events,
     createdBy: viewer.userId,
   });
-  if (!created.ok) return { errors: [`An academy can have up to ${MAX_WEBHOOKS} webhooks.`] };
+  if (!created.ok) return { errors: [t.t("settings.webhooks.limit", { max: MAX_WEBHOOKS })] };
   revalidatePath(PAGE);
   return { secret: created.secret };
 }

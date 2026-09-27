@@ -3,12 +3,18 @@
 import { revalidatePath } from "next/cache";
 
 import type { FormState } from "@/app/studio/actions";
+import { wording } from "@/app/studio/form-data";
+import type { WordingContext } from "@/core/compliance/wording-lint";
 import { isLocale, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import type { StudioKey } from "@/core/i18n/studio/index";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { FEATURE_KEYS } from "@/core/tenant/manifest";
+import { termOverrideEntries } from "@/core/terminology/terms";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { updateAcademySettings, updateAcademyTheme } from "@/server/studio/academy";
+import { getStudioText } from "@/server/studio-text";
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -26,21 +32,34 @@ export async function saveAcademySettingsAction(
   formData: FormData,
 ): Promise<FormState> {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings");
+  const t = await getStudioText();
   const locales = formData.getAll("locales").filter((value): value is Locale => isLocale(value));
   const requestedDefault = text(formData, "defaultLocale");
   const defaultLocale =
     isLocale(requestedDefault) && locales.includes(requestedDefault)
       ? requestedDefault
       : locales[0];
-  if (!defaultLocale) return { errors: ["Offer at least one language."] };
+  if (!defaultLocale) return { errors: [t.t("settings.academy.noLanguage")] };
 
   const ctaLabel: LocalizedText = {};
   for (const locale of locales) {
     const label = text(formData, `cta.${locale}`);
     if (label) ctaLabel[locale] = label;
   }
+  const name = text(formData, "name");
+  // Linted first: the manifest check below would word these findings in English.
+  const lint = wording(t, [
+    [name, "brand_name"],
+    [ctaLabel, "cta_label"],
+    ...termOverrideEntries(tenant.terminology).map((entry): [string, WordingContext] => [
+      entry.text,
+      "terminology",
+    ]),
+  ]);
+  if (lint.blocking) return { errors: lint.errors };
+
   const result = await updateAcademySettings(getDb(), tenant, {
-    name: text(formData, "name"),
+    name,
     locales: [defaultLocale, ...locales.filter((locale) => locale !== defaultLocale)],
     defaultLocale,
     website: httpsUrl(text(formData, "website")) ?? null,
@@ -56,13 +75,14 @@ export async function saveAcademySettingsAction(
       FEATURE_KEYS.map((key) => [key, formData.get(`feature.${key}`) === "on"]),
     ) as Record<(typeof FEATURE_KEYS)[number], boolean>,
   });
-  if (!result.ok) return { errors: result.errors.map(readable) };
+  if (!result.ok) return { errors: result.errors.map((error) => readable(t, error)) };
   revalidatePath("/", "layout");
-  return { ok: true, message: "Settings saved.", warnings: result.warnings };
+  return { ok: true, message: t.t("settings.academy.saved"), warnings: result.warnings };
 }
 
 export async function saveThemeAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings/brand");
+  const t = await getStudioText();
   let theme: ThemeInput | null = null;
   if (formData.get("reset") !== "1") {
     try {
@@ -70,7 +90,7 @@ export async function saveThemeAction(_: FormState, formData: FormData): Promise
       if (!parsed.success) return { errors: parsed.error.issues.map((issue) => issue.message) };
       theme = JSON.parse(text(formData, "theme")) as ThemeInput;
     } catch {
-      return { errors: ["The brand settings could not be read. Reload the page and try again."] };
+      return { errors: [t.t("settings.theme.unreadable")] };
     }
   }
   const result = await updateAcademyTheme(getDb(), tenant, theme);
@@ -78,21 +98,22 @@ export async function saveThemeAction(_: FormState, formData: FormData): Promise
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: theme
-      ? "Brand saved. Your academy looks like this now."
-      : "Back to enaibler's default look.",
+    message: theme ? t.t("settings.theme.saved") : t.t("settings.theme.reset"),
     warnings: result.warnings,
   };
 }
 
 /** Manifest paths ("tenant.legal_links.imprint: …") mean nothing to an academy admin. */
-function readable(error: string): string {
+function readable(t: StudioText, error: string): string {
+  const field = (key: StudioKey) => `${t.t(key)}: `;
   const labels: Array<[RegExp, string]> = [
-    [/^tenant\.author_display_name: /, "Academy name: "],
-    [/^tenant\.legal_links\.(\w+): /, "Legal page ($1): "],
-    [/^tenant\.website: /, "Website: "],
-    [/^tenant\.email_sender\.reply_to: /, "Replies go to: "],
-    [/^tenant\.verification_cta\.label[.\w]*: /, "Certificate button: "],
+    [/^tenant\.author_display_name: /, field("settings.academy.field.name")],
+    [/^tenant\.legal_links\.imprint: /, field("settings.academy.field.imprint")],
+    [/^tenant\.legal_links\.privacy: /, field("settings.academy.field.privacy")],
+    [/^tenant\.legal_links\.terms: /, field("settings.academy.field.terms")],
+    [/^tenant\.website: /, field("settings.academy.website")],
+    [/^tenant\.email_sender\.reply_to: /, field("settings.academy.replyTo")],
+    [/^tenant\.verification_cta\.label[.\w]*: /, field("settings.academy.field.cta")],
     [/^tenant\.[\w.]+: /, ""],
   ];
   for (const [pattern, label] of labels)
