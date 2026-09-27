@@ -1,4 +1,121 @@
 /** Studio strings: team (see ./index.ts). Keys start with "team.". */
-export const en = {} as const;
+export const en = {
+  // Review queue
+  "team.reviews.title": "Reviews",
+  "team.reviews.description":
+    "Results the AI may not release on its own wait here. Every decision is recorded next to the AI review; a changed verdict needs a reason.",
+  "team.reviews.handedIn": "handed in {when}",
+  "team.reviews.noAi": "No AI review",
+  "team.reviews.ai": "AI",
+  "team.reviews.pass": "pass",
+  "team.reviews.revise": "revise",
+  "team.reviews.decide": "Decide",
+  "team.reviews.check": "Check",
+  "team.reviews.savedPass": "Decision saved: passed",
+  "team.reviews.savedRevise": "Decision saved: needs revision",
+  "team.reviews.savedBody": "The learner sees your feedback now.",
+  "team.reviews.waiting": "Waiting for a decision",
+  "team.reviews.waitingEmpty": "Nothing waits for a decision",
+  "team.reviews.waitingEmptyBody":
+    "Learners get AI results right away unless the rubric's policy holds them.",
+  "team.reviews.spotChecks": "Spot checks",
+  "team.reviews.spotChecksBody":
+    "Already released to the learner. Your check trains the agreement rate; a different verdict overrides the AI.",
 
-export const de: Record<keyof typeof en, string> = {};
+  // One submission under review
+  "team.review.title": "Review",
+  "team.review.back": "Review queue",
+  "team.review.attempt": "Attempt {n}",
+  "team.review.handedIn": "Handed in {when}",
+  "team.review.rubricVersion": "Rubric version {version}",
+  "team.review.work": "The work",
+  "team.review.files": "Files",
+  "team.review.filesText": "Text read from the files (what the AI review saw)",
+  "team.review.ai": "AI review",
+  "team.review.needsRevision": "needs revision",
+  "team.review.released": "Released",
+  "team.review.prompt": "prompt {version}",
+  "team.review.tokens.one": "{n} token",
+  "team.review.tokens.other": "{n} tokens",
+  "team.review.humans": "Human decisions",
+  "team.review.reason": "Reason: {reason}",
+  "team.review.heading.decide": "Your decision",
+  "team.review.heading.check": "Your spot check",
+  "team.review.heading.change": "Change the decision",
+
+  // Decision form
+  "team.decision.intro":
+    "Feedback goes to the learner as written: write it in {language}. Pass or fail follows from the scores.",
+  "team.decision.criterionFeedback": "Feedback on this criterion",
+  "team.decision.criterionPlaceholder":
+    "One concrete improvement, quoting their work where you can.",
+  "team.decision.summary": "Summary for the learner",
+  "team.decision.reason": "Why your verdict differs from the AI",
+  "team.decision.reasonPlaceholder":
+    "Kept for the audit trail and the agreement rate; the learner does not see it.",
+  "team.decision.passes": "passes",
+  "team.decision.passAt": "(pass at {threshold} %)",
+  "team.decision.scoreEvery": "Score every criterion.",
+  "team.decision.submit.decide": "Release to learner",
+  "team.decision.submit.check": "Save the check",
+  "team.decision.submit.change": "Change the decision",
+} as const;
+
+export const de: Record<keyof typeof en, string> = {
+  "team.reviews.title": "Bewertungen",
+  "team.reviews.description":
+    "Hier warten Ergebnisse, die die KI nicht selbst freigeben darf. Jede Entscheidung wird neben der KI-Bewertung festgehalten; ein geändertes Urteil braucht eine Begründung.",
+  "team.reviews.handedIn": "abgegeben {when}",
+  "team.reviews.noAi": "Keine KI-Bewertung",
+  "team.reviews.ai": "KI",
+  "team.reviews.pass": "bestanden",
+  "team.reviews.revise": "überarbeiten",
+  "team.reviews.decide": "Entscheiden",
+  "team.reviews.check": "Prüfen",
+  "team.reviews.savedPass": "Entscheidung gespeichert: bestanden",
+  "team.reviews.savedRevise": "Entscheidung gespeichert: muss überarbeitet werden",
+  "team.reviews.savedBody": "Die lernende Person sieht dein Feedback jetzt.",
+  "team.reviews.waiting": "Wartet auf eine Entscheidung",
+  "team.reviews.waitingEmpty": "Nichts wartet auf eine Entscheidung",
+  "team.reviews.waitingEmptyBody":
+    "Lernende bekommen KI-Ergebnisse sofort, außer die Regeln des Bewertungsrasters halten sie zurück.",
+  "team.reviews.spotChecks": "Stichproben",
+  "team.reviews.spotChecksBody":
+    "Schon für die lernende Person freigegeben. Deine Prüfung fließt in die Übereinstimmung mit der KI ein; ein anderes Urteil ändert das Ergebnis der KI.",
+
+  "team.review.title": "Bewertung",
+  "team.review.back": "Offene Bewertungen",
+  "team.review.attempt": "Versuch {n}",
+  "team.review.handedIn": "Abgegeben {when}",
+  "team.review.rubricVersion": "Version {version} des Bewertungsrasters",
+  "team.review.work": "Die Arbeit",
+  "team.review.files": "Dateien",
+  "team.review.filesText": "Aus den Dateien gelesener Text (das hat die KI-Bewertung gesehen)",
+  "team.review.ai": "KI-Bewertung",
+  "team.review.needsRevision": "Überarbeitung nötig",
+  "team.review.released": "Freigegeben",
+  "team.review.prompt": "Prompt {version}",
+  "team.review.tokens.one": "{n} Token",
+  "team.review.tokens.other": "{n} Tokens",
+  "team.review.humans": "Entscheidungen von Menschen",
+  "team.review.reason": "Begründung: {reason}",
+  "team.review.heading.decide": "Deine Entscheidung",
+  "team.review.heading.check": "Deine Stichprobe",
+  "team.review.heading.change": "Entscheidung ändern",
+
+  "team.decision.intro":
+    "Dein Feedback geht genau so an die lernende Person, wie du es schreibst: Schreib es auf {language}. Ob bestanden oder nicht, ergibt sich aus den Punkten.",
+  "team.decision.criterionFeedback": "Feedback zu diesem Kriterium",
+  "team.decision.criterionPlaceholder":
+    "Eine konkrete Verbesserung, wo möglich mit einem Zitat aus der Arbeit.",
+  "team.decision.summary": "Zusammenfassung für die lernende Person",
+  "team.decision.reason": "Warum dein Urteil von der KI abweicht",
+  "team.decision.reasonPlaceholder":
+    "Bleibt für das Protokoll und die Übereinstimmung mit der KI gespeichert; die lernende Person sieht es nicht.",
+  "team.decision.passes": "bestanden",
+  "team.decision.passAt": "(bestanden ab {threshold} %)",
+  "team.decision.scoreEvery": "Bewerte jedes Kriterium.",
+  "team.decision.submit.decide": "Ergebnis freigeben",
+  "team.decision.submit.check": "Stichprobe speichern",
+  "team.decision.submit.change": "Entscheidung ändern",
+};
