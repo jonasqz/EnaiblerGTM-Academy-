@@ -1,6 +1,8 @@
 import { isJobError } from "@/core/authoring/job-errors";
 import type { WordingFinding } from "@/core/compliance/wording-lint";
 import type { PublishIssue } from "@/core/courses/publish-check";
+import type { ManifestWarning } from "@/core/tenant/manifest";
+import { MIN_BUTTON_CONTRAST, MIN_TEXT_CONTRAST, type ContrastIssue } from "@/core/theme/contrast";
 import type { Locale } from "@/core/i18n/locales";
 import type { StudioKey } from "@/core/i18n/studio/index";
 import type { StudioText } from "@/core/i18n/studio/translator";
@@ -112,4 +114,33 @@ export function studioUploadLabels(t: StudioText) {
 export function jobErrorText(t: StudioText, stored: string | null | undefined): string | null {
   if (!stored) return null;
   return isJobError(stored) ? t.t(`common.jobError.${stored}`) : stored;
+}
+
+/** Core words contrast problems in English (for manifests); the Studio words them from the code. */
+export function contrastIssueText(t: StudioText, issue: ContrastIssue): string {
+  const needs =
+    issue.code === "text_on_primary" && issue.severity === "error"
+      ? MIN_BUTTON_CONTRAST
+      : MIN_TEXT_CONTRAST;
+  return t.t(`brand.contrast.${issue.code}`, {
+    ratio: t.number(issue.ratio, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    needs,
+  });
+}
+
+/** What saving the academy's settings or brand found worth a second look. */
+export function manifestWarningText(t: StudioText, warning: ManifestWarning): string {
+  switch (warning.code) {
+    case "contrast":
+      return contrastIssueText(t, warning.issue);
+    case "font_unavailable":
+      return t.t("settings.warning.font_unavailable", { family: warning.family });
+    case "course_not_publishable":
+      return t.t("settings.warning.course_not_publishable", {
+        course: warning.course,
+        reason: t.t(`common.publish.delivery.${warning.issue.code}`, { text: warning.issue.text }),
+      });
+    default:
+      return t.t(`settings.warning.${warning.code}`);
+  }
 }

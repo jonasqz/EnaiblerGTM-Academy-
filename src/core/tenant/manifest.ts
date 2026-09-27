@@ -1,7 +1,11 @@
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
-import { checkDeliveryMode, deliveryModeSchema } from "@/core/compliance/delivery-mode";
+import {
+  checkDeliveryMode,
+  deliveryModeSchema,
+  type DeliveryModeIssue,
+} from "@/core/compliance/delivery-mode";
 import {
   describeFinding,
   lintLocalizedWording,
@@ -22,7 +26,7 @@ import { REVIEW_TONES } from "@/core/review/prompt";
 import { slugSchema, slugify } from "@/core/shared/slug";
 import { termOverrideEntries, termOverrideSchema } from "@/core/terminology/terms";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
-import { themeContrastIssues } from "@/core/theme/contrast";
+import { themeContrastIssues, type ContrastIssue } from "@/core/theme/contrast";
 import { isBundledFont, uploadedFamilies } from "@/core/theme/fonts";
 import { hexColorSchema, themeSchema } from "@/core/theme/schema";
 
@@ -313,61 +317,91 @@ export const tenantManifestSchema = z
 export type TenantManifestInput = z.input<typeof tenantManifestSchema>;
 export type TenantManifest = z.output<typeof tenantManifestSchema>;
 
-/** Non-blocking findings: things that are valid but probably not what the author wants. */
-export function manifestWarnings(manifest: TenantManifest): string[] {
-  const warnings: string[] = [];
+/**
+ * Non-blocking findings: things that are valid but probably not what the
+ * author wants. By code, so the Studio can word them; the command line uses
+ * `describeManifestWarning`.
+ */
+export type ManifestWarning =
+  | { code: "paths_unused" | "paths_off" | "levels_unused" | "levels_off" }
+  | { code: "no_sender" | "legal_placeholders" | "legal_missing" }
+  | { code: "contrast"; issue: ContrastIssue }
+  | { code: "font_unavailable"; family: string }
+  | { code: "course_not_publishable"; course: string; issue: DeliveryModeIssue };
+
+export function manifestWarningList(manifest: TenantManifest): ManifestWarning[] {
+  const warnings: ManifestWarning[] = [];
   const { tenant } = manifest;
   const theme = manifest.theme ?? DEFAULT_THEME;
 
-  if (tenant.features.paths && manifest.paths.length === 0)
-    warnings.push("The paths feature is on, but no paths are defined.");
-  if (!tenant.features.paths && manifest.paths.length > 0)
-    warnings.push("Paths are defined, but the paths feature is off.");
+  if (tenant.features.paths && manifest.paths.length === 0) warnings.push({ code: "paths_unused" });
+  if (!tenant.features.paths && manifest.paths.length > 0) warnings.push({ code: "paths_off" });
   if (tenant.features.levels && manifest.levels.length === 0)
-    warnings.push("The levels feature is on, but no levels are defined.");
-  if (!tenant.features.levels && manifest.levels.length > 0)
-    warnings.push("Levels are defined, but the levels feature is off.");
-  if (!tenant.email_sender?.address)
-    warnings.push("No email_sender address set: mail goes out from the platform address.");
+    warnings.push({ code: "levels_unused" });
+  if (!tenant.features.levels && manifest.levels.length > 0) warnings.push({ code: "levels_off" });
+  if (!tenant.email_sender?.address) warnings.push({ code: "no_sender" });
 
   const legal = Object.values(tenant.legal_links).filter((url): url is string => Boolean(url));
   if (new Set(legal).size < legal.length || legal.some((url) => new URL(url).pathname === "/")) {
-    warnings.push(
-      "Legal links look like placeholders (shared or pointing at a home page): set the exact pages before go-live.",
-    );
+    warnings.push({ code: "legal_placeholders" });
   }
   if (!tenant.legal_links.imprint || !tenant.legal_links.privacy) {
-    warnings.push(
-      "No imprint or privacy page yet: courses cannot be published until both are set.",
-    );
+    warnings.push({ code: "legal_missing" });
   }
 
   for (const issue of themeContrastIssues(theme)) {
-    if (issue.severity === "warning") warnings.push(issue.message);
+    if (issue.severity === "warning") warnings.push({ code: "contrast", issue });
   }
 
   const uploaded = uploadedFamilies(theme.fonts.files);
   for (const family of new Set([theme.fonts.display, theme.fonts.body])) {
     if (!isBundledFont(family) && !uploaded.includes(family) && !theme.fonts.source_urls.length) {
-      warnings.push(
-        `Font "${family}" is neither bundled nor uploaded and no source_urls are given: browsers will fall back.`,
-      );
+      warnings.push({ code: "font_unavailable", family });
     }
   }
 
   for (const course of manifest.courses) {
     for (const issue of checkDeliveryMode({ deliveryMode: course.delivery_mode })) {
-      warnings.push(
-        `Course "${course.slug}": ${issue.message} It can be set up but not published.`,
-      );
+      warnings.push({ code: "course_not_publishable", course: course.slug, issue });
     }
   }
 
   return warnings;
 }
 
+/** The English wording, for `tenant:apply` and logs. */
+export function describeManifestWarning(warning: ManifestWarning): string {
+  switch (warning.code) {
+    case "paths_unused":
+      return "The paths feature is on, but no paths are defined.";
+    case "paths_off":
+      return "Paths are defined, but the paths feature is off.";
+    case "levels_unused":
+      return "The levels feature is on, but no levels are defined.";
+    case "levels_off":
+      return "Levels are defined, but the levels feature is off.";
+    case "no_sender":
+      return "No email_sender address set: mail goes out from the platform address.";
+    case "legal_placeholders":
+      return "Legal links look like placeholders (shared or pointing at a home page): set the exact pages before go-live.";
+    case "legal_missing":
+      return "No imprint or privacy page yet: courses cannot be published until both are set.";
+    case "contrast":
+      return warning.issue.message;
+    case "font_unavailable":
+      return `Font "${warning.family}" is neither bundled nor uploaded and no source_urls are given: browsers will fall back.`;
+    case "course_not_publishable":
+      return `Course "${warning.course}": ${warning.issue.message} It can be set up but not published.`;
+  }
+}
+
+export function manifestWarnings(manifest: TenantManifest): string[] {
+  return manifestWarningList(manifest).map(describeManifestWarning);
+}
+
 export type ManifestValidation =
-  { ok: true; manifest: TenantManifest; warnings: string[] } | { ok: false; errors: string[] };
+  | { ok: true; manifest: TenantManifest; warnings: string[]; findings: ManifestWarning[] }
+  | { ok: false; errors: string[] };
 
 export function validateTenantManifest(input: unknown): ManifestValidation {
   const result = tenantManifestSchema.safeParse(input);
@@ -379,7 +413,13 @@ export function validateTenantManifest(input: unknown): ManifestValidation {
       ),
     };
   }
-  return { ok: true, manifest: result.data, warnings: manifestWarnings(result.data) };
+  const findings = manifestWarningList(result.data);
+  return {
+    ok: true,
+    manifest: result.data,
+    warnings: findings.map(describeManifestWarning),
+    findings,
+  };
 }
 
 export function parseTenantManifestYaml(source: string): ManifestValidation {

@@ -2,8 +2,12 @@ import { eq } from "drizzle-orm";
 
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
-import { validateTenantManifest, type Features } from "@/core/tenant/manifest";
-import { themeContrastIssues } from "@/core/theme/contrast";
+import {
+  validateTenantManifest,
+  type Features,
+  type ManifestWarning,
+} from "@/core/tenant/manifest";
+import { themeContrastIssues, type ContrastIssue } from "@/core/theme/contrast";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 import type { Database } from "@/db/client";
 import { tenants } from "@/db/schema";
@@ -17,7 +21,10 @@ import { clearTenantCache } from "@/server/tenant-resolver";
  * Academies managed by a manifest: the next `tenant:apply` wins.
  */
 
-export type SettingsResult = { ok: true; warnings: string[] } | { ok: false; errors: string[] };
+/** Warnings and contrast problems by code, so the Studio words them in the team member's language. */
+export type SettingsResult =
+  | { ok: true; warnings: ManifestWarning[] }
+  | { ok: false; errors: string[]; contrast?: ContrastIssue[] };
 
 export interface AcademySettingsInput {
   name: string;
@@ -80,7 +87,7 @@ export async function updateAcademySettings(
   }
   await db.update(tenants).set({ config }).where(eq(tenants.id, tenant.id));
   clearTenantCache();
-  return { ok: true, warnings: validation.warnings };
+  return { ok: true, warnings: validation.findings };
 }
 
 /** Saves the academy's theme; null goes back to enaibler's default look. */
@@ -98,13 +105,11 @@ export async function updateAcademyTheme(
       };
     }
     const issues = themeContrastIssues(parsed.data);
-    const errors = issues
-      .filter((issue) => issue.severity === "error")
-      .map((issue) => issue.message);
-    if (errors.length > 0) return { ok: false, errors };
+    const blocking = issues.filter((issue) => issue.severity === "error");
+    if (blocking.length > 0) return { ok: false, errors: [], contrast: blocking };
     await db.update(tenants).set({ theme }).where(eq(tenants.id, tenant.id));
     clearTenantCache();
-    return { ok: true, warnings: issues.map((issue) => issue.message) };
+    return { ok: true, warnings: issues.map((issue) => ({ code: "contrast" as const, issue })) };
   }
   await db.update(tenants).set({ theme: null }).where(eq(tenants.id, tenant.id));
   clearTenantCache();

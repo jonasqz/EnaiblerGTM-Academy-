@@ -249,6 +249,22 @@ export const en = {
   "settings.webhooks.result.paused": "Not sent: the webhook was paused",
   "settings.webhooks.result.delivered": "Delivered ({code})",
   "settings.webhooks.result.answered": "Answered {code}",
+
+  // Warnings after saving (core/tenant/manifest.ts, by code)
+  "settings.warning.paths_unused": "The Paths module is on, but there are no paths yet.",
+  "settings.warning.paths_off": "There are paths, but the Paths module is off.",
+  "settings.warning.levels_unused": "The Levels module is on, but there are no levels yet.",
+  "settings.warning.levels_off": "There are levels, but the Levels module is off.",
+  "settings.warning.no_sender":
+    "No sender address of your own yet: mail goes out from the platform address.",
+  "settings.warning.legal_placeholders":
+    "Your legal links look like placeholders (shared or pointing at a home page): set the exact pages before going live.",
+  "settings.warning.legal_missing":
+    "No imprint or privacy page yet: courses cannot be published until both are set.",
+  "settings.warning.font_unavailable":
+    "The font “{family}” is neither bundled nor uploaded: browsers will fall back to another one.",
+  "settings.warning.course_not_publishable":
+    "Course “{course}”: {reason} It can be set up but not published.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -498,4 +514,19 @@ export const de: Record<keyof typeof en, string> = {
   "settings.webhooks.result.paused": "Nicht gesendet: Der Webhook war pausiert",
   "settings.webhooks.result.delivered": "Zugestellt ({code})",
   "settings.webhooks.result.answered": "Antwortete mit {code}",
+
+  "settings.warning.paths_unused": "Das Modul Lernpfade ist an, aber es gibt noch keine Lernpfade.",
+  "settings.warning.paths_off": "Es gibt Lernpfade, aber das Modul Lernpfade ist aus.",
+  "settings.warning.levels_unused": "Das Modul Level ist an, aber es gibt noch keine Level.",
+  "settings.warning.levels_off": "Es gibt Level, aber das Modul Level ist aus.",
+  "settings.warning.no_sender":
+    "Noch keine eigene Absenderadresse: E-Mails gehen von der Adresse der Plattform raus.",
+  "settings.warning.legal_placeholders":
+    "Deine rechtlichen Links sehen nach Platzhaltern aus (doppelt oder auf eine Startseite): Trag vor dem Start die genauen Seiten ein.",
+  "settings.warning.legal_missing":
+    "Noch kein Impressum oder keine Datenschutzerklärung: Kurse lassen sich erst veröffentlichen, wenn beide eingetragen sind.",
+  "settings.warning.font_unavailable":
+    "Die Schrift „{family}“ ist weder enthalten noch hochgeladen: Browser weichen auf eine andere aus.",
+  "settings.warning.course_not_publishable":
+    "Kurs „{course}“: {reason} Er kann eingerichtet, aber nicht veröffentlicht werden.",
 };

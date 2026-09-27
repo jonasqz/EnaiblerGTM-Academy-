@@ -11,6 +11,7 @@ import type { StudioText } from "@/core/i18n/studio/translator";
 import { FEATURE_KEYS } from "@/core/tenant/manifest";
 import { termOverrideEntries } from "@/core/terminology/terms";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
+import { contrastIssueText, manifestWarningText } from "@/core/i18n/studio/helpers";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { updateAcademySettings, updateAcademyTheme } from "@/server/studio/academy";
@@ -77,7 +78,11 @@ export async function saveAcademySettingsAction(
   });
   if (!result.ok) return { errors: result.errors.map((error) => readable(t, error)) };
   revalidatePath("/", "layout");
-  return { ok: true, message: t.t("settings.academy.saved"), warnings: result.warnings };
+  return {
+    ok: true,
+    message: t.t("settings.academy.saved"),
+    warnings: result.warnings.map((warning) => manifestWarningText(t, warning)),
+  };
 }
 
 export async function saveThemeAction(_: FormState, formData: FormData): Promise<FormState> {
@@ -94,12 +99,19 @@ export async function saveThemeAction(_: FormState, formData: FormData): Promise
     }
   }
   const result = await updateAcademyTheme(getDb(), tenant, theme);
-  if (!result.ok) return { errors: result.errors };
+  if (!result.ok) {
+    return {
+      errors: [
+        ...result.errors,
+        ...(result.contrast ?? []).map((issue) => contrastIssueText(t, issue)),
+      ],
+    };
+  }
   revalidatePath("/", "layout");
   return {
     ok: true,
     message: theme ? t.t("settings.theme.saved") : t.t("settings.theme.reset"),
-    warnings: result.warnings,
+    warnings: result.warnings.map((warning) => manifestWarningText(t, warning)),
   };
 }
 

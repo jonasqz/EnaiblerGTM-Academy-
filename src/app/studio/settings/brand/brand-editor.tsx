@@ -26,15 +26,9 @@ import { uploadFile, type FileUploadLabels } from "@/components/ui/file-upload";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { studioUploadLabels } from "@/core/i18n/studio/helpers";
+import { contrastIssueText, studioUploadLabels } from "@/core/i18n/studio/helpers";
 import type { StudioKey } from "@/core/i18n/studio/index";
-import type { StudioText } from "@/core/i18n/studio/translator";
-import {
-  MIN_BUTTON_CONTRAST,
-  MIN_TEXT_CONTRAST,
-  themeContrastIssues,
-  type ContrastIssue,
-} from "@/core/theme/contrast";
+import { themeContrastIssues } from "@/core/theme/contrast";
 import { fontFaceCss, themeToCssVariables } from "@/core/theme/css";
 import {
   FONT_WEIGHT_NAMES,
@@ -54,18 +48,6 @@ const UPLOAD_ERRORS: Record<string, keyof FileUploadLabels["errors"]> = {
 };
 
 const COLOR_FIELDS = ["primary", "ink", "surface", "card"] as const;
-
-/** Core words contrast problems in English (for manifests); the Studio words them from issue.code. */
-function contrastText(t: StudioText, issue: ContrastIssue): string {
-  const needs =
-    issue.code === "text_on_primary" && issue.severity === "error"
-      ? MIN_BUTTON_CONTRAST
-      : MIN_TEXT_CONTRAST;
-  return t.t(`brand.contrast.${issue.code}`, {
-    ratio: t.number(issue.ratio, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
-    needs,
-  });
-}
 
 function ColorField(props: {
   id: string;
@@ -761,10 +743,10 @@ export function BrandEditor(props: {
         {issues.length > 0 && (
           <FormFeedback
             state={{
-              errors: blocking.map((issue) => contrastText(t, issue)),
+              errors: blocking.map((issue) => contrastIssueText(t, issue)),
               warnings: issues
                 .filter((issue) => issue.severity === "warning")
-                .map((issue) => contrastText(t, issue)),
+                .map((issue) => contrastIssueText(t, issue)),
             }}
           />
         )}

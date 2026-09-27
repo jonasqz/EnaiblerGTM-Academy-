@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import { checkDeliveryMode } from "@/core/compliance/delivery-mode";
 import { lintWording } from "@/core/compliance/wording-lint";
 import { checkCoursePublishable } from "@/core/courses/publish-check";
 import { STUDIO_AREAS, STUDIO_MESSAGES } from "@/core/i18n/studio/index";
-import { cohortDates, publishIssueText, wordingText } from "@/core/i18n/studio/helpers";
+import {
+  cohortDates,
+  manifestWarningText,
+  publishIssueText,
+  wordingText,
+} from "@/core/i18n/studio/helpers";
 import { studioText } from "@/core/i18n/studio/translator";
 
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -97,6 +103,22 @@ describe("Studio translator", () => {
     ).toBe(
       "“accredited” should be avoided in lesson text. Only use accreditation wording for an actual accreditation, confirmed by counsel.",
     );
+  });
+
+  it("words what saving the settings found", () => {
+    const de = studioText("de");
+    const [paid] = checkDeliveryMode({ deliveryMode: "paid_live" });
+    const texts = [
+      manifestWarningText(de, { code: "paths_unused" }),
+      manifestWarningText(de, { code: "font_unavailable", family: "Lobster" }),
+      manifestWarningText(de, { code: "course_not_publishable", course: "live", issue: paid! }),
+    ];
+    expect(texts[0]).toBe("Das Modul Lernpfade ist an, aber es gibt noch keine Lernpfade.");
+    expect(texts[1]).toContain("„Lobster“");
+    expect(texts[2]).toMatch(
+      /^Kurs „live“: .+ Er kann eingerichtet, aber nicht veröffentlicht werden\.$/,
+    );
+    for (const text of texts) expect(text).not.toMatch(/[{}]/);
   });
 
   it("writes cohort dates", () => {
