@@ -14,15 +14,19 @@ export interface Translator {
   locale: Locale;
   terms: ResolvedTerms;
   t(key: MessageKey, vars?: MessageVars): string;
-  /** Tenant term for the current locale. */
+  /** Tenant term for the current locale, as a label or heading ("Lessons"). */
   term(key: TermKey, options?: { plural?: boolean }): string;
 }
 
 /**
  * {term.x} singular, {terms.x} plural, {terms.x:n} plural unless the variable
- * n is 1 ("1 Lesson", "3 Lessons"), {name} a variable.
+ * n is 1 ("1 lesson", "3 lessons"), {name} a variable. A term that starts the
+ * text or a sentence is written as a label; inside a sentence, platform nouns
+ * are lower case in English ("Take this course yourself").
  */
 const PLACEHOLDER = /\{(?:(term|terms)\.([a-z]+)(?::([A-Za-z0-9_]+))?|([A-Za-z0-9_]+))\}/g;
+/** What comes before a term that starts the text or a sentence. */
+const SENTENCE_START = /(^|[.!?]\s*|\n\s*)$/;
 
 export function createTranslator(options: {
   locale: Locale;
@@ -48,10 +52,15 @@ export function createTranslator(options: {
         termKey: string | undefined,
         countVar: string | undefined,
         name: string | undefined,
+        offset: number,
       ) => {
         if (kind && termKey && termKey in terms) {
           const one = countVar !== undefined && Number(vars[countVar]) === 1;
-          return term(termKey as TermKey, { plural: kind === "terms" && !one });
+          const plural = kind === "terms" && !one;
+          const forms = SENTENCE_START.test(template.slice(0, offset))
+            ? terms[termKey as TermKey]
+            : terms[termKey as TermKey].inSentence;
+          return plural ? forms.other : forms.one;
         }
         if (name !== undefined && name in vars) return String(vars[name]);
         return match;

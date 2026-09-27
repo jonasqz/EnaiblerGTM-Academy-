@@ -79,14 +79,41 @@ function toForms(value: string | TermForms): TermForms {
   return typeof value === "string" ? { one: value, other: value } : value;
 }
 
+/**
+ * Platform nouns that are ordinary English words: capitalised as a label
+ * ("Lessons"), lower case inside a sentence ("1 of 3 lessons done"). Named
+ * things (the Certificate of Completion, the Final Test) and a tenant's own
+ * terms keep their spelling everywhere; German capitalises nouns anyway.
+ */
+const COMMON_NOUNS: ReadonlySet<TermKey> = new Set([
+  "path",
+  "course",
+  "lesson",
+  "assignment",
+  "artifact",
+  "level",
+]);
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
+/** A noun's forms as a label, and inside a sentence. */
+export interface ResolvedTerm extends TermForms {
+  inSentence: TermForms;
+}
+
 /** Resolved nouns for one locale, with tenant overrides applied. */
-export type ResolvedTerms = Record<TermKey, TermForms>;
+export type ResolvedTerms = Record<TermKey, ResolvedTerm>;
 
 export function resolveTerms(overrides: TermOverrides | undefined, locale: Locale): ResolvedTerms {
   const resolved = {} as ResolvedTerms;
   for (const key of TERM_KEYS) {
     const override = overrides?.[key]?.[locale];
-    resolved[key] = override ? toForms(override) : DEFAULT_TERMS[key][locale];
+    const forms = override ? toForms(override) : DEFAULT_TERMS[key][locale];
+    const common = !override && locale === "en" && COMMON_NOUNS.has(key);
+    resolved[key] = {
+      ...forms,
+      inSentence: common ? { one: lowerFirst(forms.one), other: lowerFirst(forms.other) } : forms,
+    };
   }
   return resolved;
 }

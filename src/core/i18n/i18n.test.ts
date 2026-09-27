@@ -50,10 +50,25 @@ describe("translator", () => {
 
   it("uses platform terminology by default", () => {
     const en = createTranslator({ locale: "en" });
-    expect(en.t("home.choosePath")).toBe("Choose your Track");
+    expect(en.t("home.choosePath")).toBe("Choose your track");
     expect(en.term("credential")).toBe("Certificate of Completion");
     const de = createTranslator({ locale: "de" });
     expect(de.t("home.choosePath")).toBe("Lernpfad wählen");
+  });
+
+  it("writes platform nouns as labels, and lower case inside an English sentence", () => {
+    const en = createTranslator({ locale: "en" });
+    expect(en.t("home.courses")).toBe("Courses");
+    expect(en.term("lesson", { plural: true })).toBe("Lessons");
+    expect(en.t("share.aboutTitle")).toBe("Take this course yourself");
+    expect(en.t("home.browse")).toBe("See all courses");
+    expect(en.t("verify.artifact", { name: "Brief" })).toBe("Deliverable: Brief");
+    expect(en.t("lesson.allDone")).toBe("All lessons done. Time to build your deliverable.");
+    // Named things keep their capitals mid-sentence.
+    expect(en.t("test.errorNoTest")).toContain("no Final Test");
+    // German nouns are capitalised anyway.
+    const de = createTranslator({ locale: "de" });
+    expect(de.t("share.aboutTitle")).toBe("Mach diesen Kurs selbst");
   });
 
   it("applies tenant terminology, including plurals", () => {
@@ -105,9 +120,9 @@ describe("UI copy", () => {
 describe("counted terms", () => {
   it("use the singular for one", () => {
     const t = createTranslator({ locale: "en" });
-    expect(t.t("home.lessonCount", { n: 1 })).toBe("1 Lesson");
-    expect(t.t("home.lessonCount", { n: 3 })).toBe("3 Lessons");
-    expect(t.t("course.progress", { done: 0, total: 1 })).toBe("0 of 1 Lesson done");
+    expect(t.t("home.lessonCount", { n: 1 })).toBe("1 lesson");
+    expect(t.t("home.lessonCount", { n: 3 })).toBe("3 lessons");
+    expect(t.t("course.progress", { done: 0, total: 1 })).toBe("0 of 1 lesson done");
     const de = createTranslator({ locale: "de" });
     expect(de.t("course.progress", { done: 2, total: 5 })).toBe("2 von 5 Lektionen erledigt");
   });
