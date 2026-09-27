@@ -9,6 +9,7 @@ import type { Locale } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
 import { EMBEDDING_DIMENSIONS, files, lessons, sourceChunks, sources } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { recordingUsage } from "@/server/ai-usage";
 import { embed, embeddingConfig } from "@/server/authoring/speech";
 import { safeFetchText, type FetchText } from "@/server/brand/safe-fetch";
 import { deleteFiles, fileBytes, loadFile } from "@/server/files";
@@ -159,7 +160,10 @@ export async function storeSourceText(
 ): Promise<{ changed: boolean; flagged: number }> {
   const hash = contentHash(text);
   const [before] = await withTenant(db, tenantId, (tx) =>
-    tx.select({ hash: sources.contentHash }).from(sources).where(eq(sources.id, sourceId)),
+    tx
+      .select({ hash: sources.contentHash, courseId: sources.courseId })
+      .from(sources)
+      .where(eq(sources.id, sourceId)),
   );
   if (before?.hash === hash) {
     // Same text as last time: nothing to chunk or embed again.
@@ -178,6 +182,12 @@ export async function storeSourceText(
         config,
         chunks.map((chunk) => chunk.content),
         EMBEDDING_DIMENSIONS,
+        recordingUsage(db, {
+          tenantId,
+          kind: "embedding",
+          courseId: before?.courseId,
+          refId: sourceId,
+        }),
       ).catch((error: unknown) => {
         console.warn("[authoring] embeddings failed; keyword retrieval only", error);
         return null;

@@ -7,7 +7,7 @@ import { isLocale } from "@/core/i18n/locales";
 import type { Rubric } from "@/core/review/rubric";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
-import { authoringModel } from "@/server/authoring/model";
+import { authoringModel, meteredModel } from "@/server/authoring/model";
 import { draftRubric } from "@/server/authoring/rubric";
 import { fileBytes, loadFile } from "@/server/files";
 import { rateLimit } from "@/server/rate-limit";
@@ -54,7 +54,7 @@ export async function draftRubricAction(formData: FormData): Promise<RubricDraft
 
   try {
     const result = await draftRubric(
-      model,
+      meteredModel(getDb(), model, { tenantId: tenant.id, kind: "rubric_draft", courseId }),
       {
         languages,
         artifactName: Object.keys(artifactName).length

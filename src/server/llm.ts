@@ -36,6 +36,13 @@ export interface LlmCallResult {
 
 export type LlmCaller = (options: LlmCallOptions) => Promise<LlmCallResult>;
 
+/** The price LiteLLM put on a response (chat or embeddings); null when it does not know it. */
+export function reportedCost(headers: Headers): number | null {
+  const header = headers.get("x-litellm-response-cost");
+  const cost = header === null ? Number.NaN : Number.parseFloat(header);
+  return Number.isFinite(cost) ? cost : null;
+}
+
 export function createLlmCaller(config: {
   baseUrl: string;
   apiKey?: string;
@@ -72,14 +79,12 @@ export function createLlmCaller(config: {
       choices?: Array<{ message?: { content?: string | null } }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
-    const costHeader = response.headers.get("x-litellm-response-cost");
-    const cost = costHeader === null ? Number.NaN : Number.parseFloat(costHeader);
     return {
       content: body.choices?.[0]?.message?.content ?? "",
       model: body.model ?? options.model,
       tokensIn: body.usage?.prompt_tokens ?? null,
       tokensOut: body.usage?.completion_tokens ?? null,
-      cost: Number.isFinite(cost) ? cost : null,
+      cost: reportedCost(response.headers),
       latencyMs: Math.round(performance.now() - started),
     };
   };
