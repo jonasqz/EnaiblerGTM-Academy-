@@ -46,3 +46,22 @@ export function SubmissionStatusBadge(props: { status: SubmissionStatus }) {
     </Badge>
   );
 }
+
+const SOURCE: Record<
+  "pending" | "processing" | "ready" | "failed",
+  { tone: BadgeTone; icon: LucideIcon; label: string }
+> = {
+  pending: { tone: "info", icon: Clock, label: "Waiting" },
+  processing: { tone: "info", icon: Hourglass, label: "Reading" },
+  ready: { tone: "good", icon: CircleCheck, label: "Ready" },
+  failed: { tone: "critical", icon: RotateCcw, label: "Failed" },
+};
+
+export function SourceStatusBadge(props: { status: keyof typeof SOURCE }) {
+  const { tone, icon, label } = SOURCE[props.status];
+  return (
+    <Badge tone={tone} icon={icon}>
+      {label}
+    </Badge>
+  );
+}

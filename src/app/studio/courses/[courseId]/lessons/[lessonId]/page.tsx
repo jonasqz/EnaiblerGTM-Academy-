@@ -65,6 +65,7 @@ export default async function LessonEditorPage({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_17rem]">
         <LessonEditor
+          courseId={courseId}
           key={typeof v === "string" ? `restored-${v}` : "editor"}
           lessonId={lesson.id}
           locale={locale}

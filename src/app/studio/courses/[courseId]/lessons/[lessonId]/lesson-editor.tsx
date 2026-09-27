@@ -1,11 +1,12 @@
 "use client";
 
-import { Columns2, Eye, PencilLine } from "lucide-react";
+import { Columns2, Eye, ImagePlus, PencilLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { saveLessonAction, type FormState } from "@/app/studio/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { uploadFile } from "@/components/ui/file-upload";
 import { Markdown } from "@/components/ui/markdown";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
@@ -20,7 +21,16 @@ const MODES: Array<{ mode: Mode; label: string; icon: typeof PencilLine }> = [
   { mode: "preview", label: "Preview", icon: Eye },
 ];
 
+const UPLOAD_ERRORS: Record<string, string> = {
+  too_large: "is too large (images up to 10 MB, videos up to 500 MB).",
+  type_not_allowed: "is not an image or MP4/WebM video.",
+  unknown_type: "is not an image or MP4/WebM video.",
+  invalid_content: "could not be read.",
+  rate_limited: "was not uploaded: too many uploads this hour.",
+};
+
 export interface LessonEditorProps {
+  courseId: string;
   lessonId: string;
   locale: Locale;
   title: string;
@@ -43,6 +53,34 @@ export function LessonEditor(props: LessonEditorProps) {
   });
   const [mode, setMode] = useState<Mode>("write");
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaInput = useRef<HTMLInputElement>(null);
+  const [upload, setUpload] = useState<{ name: string; percent: number } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  /** Uploads an image or video and inserts it where the cursor is. */
+  const insertMedia = async (file: File) => {
+    setUploadError(null);
+    setUpload({ name: file.name, percent: 0 });
+    const result = await uploadFile(
+      `/api/uploads?purpose=lesson_media&course=${props.courseId}`,
+      file,
+      (fraction) => setUpload({ name: file.name, percent: Math.round(fraction * 100) }),
+    );
+    setUpload(null);
+    if (!result.ok) {
+      setUploadError(`${file.name} ${UPLOAD_ERRORS[result.error] ?? "could not be uploaded."}`);
+      return;
+    }
+    const extension = result.file.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "bin";
+    const label = file.name.replace(/\.[^.]+$/, "").replace(/[[\]]/g, "");
+    const snippet = `\n\n![${label}](/files/${result.file.id}.${extension})\n\n`;
+    const area = textareaRef.current;
+    const at = area ? area.selectionStart : markdown.length;
+    setMarkdown((current) =>
+      `${current.slice(0, at)}${snippet}${current.slice(at)}`.replace(/^\n+/, ""),
+    );
+  };
   const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
     const result = await saveLessonAction(previous, formData);
     if (result.ok) {
@@ -121,9 +159,32 @@ export function LessonEditor(props: LessonEditorProps) {
               </button>
             ))}
           </div>
-          <p className="text-sm text-muted tabular-nums">
-            {words} words · about {Math.max(1, Math.round(words / 200))} min read
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => mediaInput.current?.click()}
+              disabled={upload !== null}
+            >
+              <ImagePlus aria-hidden size={16} />
+              {upload ? `Uploading ${upload.percent} %` : "Image or video"}
+            </button>
+            <input
+              ref={mediaInput}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm"
+              className="sr-only"
+              aria-label="Upload an image or video"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void insertMedia(file);
+              }}
+            />
+            <p className="text-sm text-muted tabular-nums">
+              {words} words · about {Math.max(1, Math.round(words / 200))} min read
+            </p>
+          </div>
         </div>
 
         <div className={`grid gap-4 ${mode === "split" ? "lg:grid-cols-2" : ""}`}>
@@ -132,6 +193,7 @@ export function LessonEditor(props: LessonEditorProps) {
               Lesson text (Markdown)
             </label>
             <textarea
+              ref={textareaRef}
               id="lesson-markdown"
               name="markdown"
               className="textarea textarea-code min-h-[28rem]"
@@ -143,8 +205,17 @@ export function LessonEditor(props: LessonEditorProps) {
             />
             <p className="hint mt-1">
               Markdown: <code>## Heading</code>, <code>**bold**</code>, <code>- list</code>,{" "}
-              <code>[link](https://…)</code>. Images only from this academy.
+              <code>[link](https://…)</code>. Images and videos: upload them with the button above.
             </p>
+            {uploadError && (
+              <p
+                role="alert"
+                className="hint font-semibold"
+                style={{ color: "var(--status-critical)" }}
+              >
+                {uploadError}
+              </p>
+            )}
           </div>
           {mode !== "write" && (
             <div

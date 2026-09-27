@@ -3,15 +3,19 @@ import {
   ArrowUp,
   BookOpen,
   CircleCheck,
+  Hourglass,
   Plus,
+  Sparkles,
   Trash,
   TriangleAlert,
 } from "lucide-react";
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createLessonAction, deleteLessonAction, moveLessonAction } from "@/app/studio/actions";
+import { draftLessonsAction } from "@/app/studio/courses/[courseId]/sources/actions";
+import { AutoRefresh } from "@/components/studio/auto-refresh";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,7 +23,10 @@ import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
+import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { listLessonDrafts } from "@/server/authoring/lesson-drafting";
+import { listSources } from "@/server/authoring/sources";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor, type CourseEditor } from "@/server/studio/courses";
 import { markdownOf } from "@/server/studio/lessons";
@@ -33,7 +40,7 @@ export default async function LessonsPage({
   searchParams,
 }: PageProps<"/studio/courses/[courseId]/lessons">) {
   const { courseId } = await params;
-  const { error } = await searchParams;
+  const { error, drafting } = await searchParams;
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/lessons`);
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
@@ -44,6 +51,13 @@ export default async function LessonsPage({
     rubric?.criteria.map((criterion) => [criterion.id, localize(criterion.label, primary)]),
   );
   const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
+  const [runs, sourceRows] = await Promise.all([
+    listLessonDrafts(getDb(), tenant.id, courseId),
+    listSources(getDb(), tenant.id, courseId),
+  ]);
+  const readySources = sourceRows.filter((row) => row.status === "ready").length;
+  const drafting_ = runs.some((run) => run.status === "queued" || run.status === "running");
+  const aiAvailable = Boolean(process.env.LLM_BASE_URL?.trim());
 
   // One row per lesson key, in course order; one cell per course language.
   const rows: Array<{ key: string; byLocale: Map<Locale, LessonRow>; criteria: string[] }> = [];
@@ -63,7 +77,89 @@ export default async function LessonsPage({
 
   return (
     <div className="space-y-8">
+      <AutoRefresh active={drafting_} />
       {error === "language" && <Notice tone="critical" title="Pick one of the course languages." />}
+      {error === "draft-limit" && (
+        <Notice tone="critical" title="Too many drafts this hour. Try again later." />
+      )}
+      {drafting === "1" && drafting_ && (
+        <Notice tone="info" title="Drafting lessons">
+          This takes a minute or two. New lessons appear below; nothing is published.
+        </Notice>
+      )}
+
+      {aiAvailable && (
+        <section
+          aria-labelledby="draft-heading"
+          className="card-flat flex flex-wrap items-center gap-4 p-5"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-control bg-primary-soft">
+            <Sparkles aria-hidden size={20} />
+          </span>
+          <div className="min-w-60 flex-1 space-y-1">
+            <h2 id="draft-heading" className="font-semibold">
+              Draft lessons with AI
+            </h2>
+            <p className="text-sm text-muted">
+              Written backwards from the rubric, from{" "}
+              <Link href={`/studio/courses/${courseId}/sources` as Route} className="underline">
+                {readySources === 0
+                  ? "your sources (none yet: add a recording or document first)"
+                  : `${readySources} source${readySources === 1 ? "" : "s"}`}
+              </Link>
+              . Drafts are added as new lessons for you to edit.
+            </p>
+            {runs.slice(0, 3).map((run) => (
+              <p key={run.id} className="flex flex-wrap items-center gap-2 text-sm">
+                {run.status === "done" ? (
+                  <Badge tone="good" icon={CircleCheck}>
+                    Added {run.lessonIds.length} {run.lessonIds.length === 1 ? "lesson" : "lessons"}
+                  </Badge>
+                ) : run.status === "failed" ? (
+                  <Badge tone="critical" icon={TriangleAlert}>
+                    Failed
+                  </Badge>
+                ) : (
+                  <Badge tone="info" icon={Hourglass}>
+                    Drafting…
+                  </Badge>
+                )}
+                <span className="text-muted">
+                  {LANGUAGE_NAMES[run.locale as Locale] ?? run.locale} ·{" "}
+                  {run.createdAt.toLocaleString("en-GB", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                  {run.error ? ` · ${run.error}` : ""}
+                  {run.notes.length > 0 ? ` · ${run.notes.join(" ")}` : ""}
+                </span>
+              </p>
+            ))}
+          </div>
+          <form action={draftLessonsAction} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="courseId" value={courseId} />
+            {languages.length > 1 ? (
+              <select
+                name="locale"
+                aria-label="Language of the drafts"
+                className="select"
+                defaultValue={primary}
+              >
+                {languages.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {LANGUAGE_NAMES[locale]}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input type="hidden" name="locale" value={primary} />
+            )}
+            <SubmitButton className="btn btn-primary" disabled={drafting_} pendingLabel="Starting…">
+              <Sparkles aria-hidden size={18} /> Draft lessons
+            </SubmitButton>
+          </form>
+        </section>
+      )}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_20rem]">
         <section aria-labelledby="lessons-heading" className="space-y-4">

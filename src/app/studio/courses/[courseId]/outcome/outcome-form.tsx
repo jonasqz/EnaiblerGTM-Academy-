@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Sparkles } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
 
 import { saveOutcomeAction, type FormState } from "@/app/studio/actions";
+import { draftRubricAction } from "@/app/studio/courses/[courseId]/outcome/draft-actions";
 import {
   draftFromRubric,
   RubricEditor,
@@ -11,6 +13,7 @@ import {
   type RubricDraft,
 } from "@/app/studio/courses/[courseId]/outcome/rubric-editor";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { FileUpload } from "@/components/ui/file-upload";
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
@@ -40,6 +43,143 @@ export interface OutcomeFormProps {
   formSchema: string | null;
   rubric: Rubric;
   artifactTerm: string;
+  /** Lessons point at criteria; replacing the rubric unlinks them. */
+  lessonCount: number;
+  aiAvailable: boolean;
+}
+
+const EXAMPLE_UPLOAD_LABELS = {
+  choose: "Upload a PDF or .md",
+  drop: "or paste the text above",
+  uploading: "Uploading… {percent} %",
+  remove: "Remove",
+  errors: {
+    too_large: "{name} is too large (up to 20 MB).",
+    type_not_allowed: "{name}: use a PDF, Markdown or text file.",
+    invalid_content: "{name} could not be read.",
+    too_many: "One example is enough.",
+    rate_limited: "Too many uploads this hour.",
+    failed: "{name} could not be uploaded.",
+  },
+};
+
+/** "Draft with AI" (brief §7, step 1): a rubric from the outcome and one example of good work. */
+function RubricDraftPanel(props: {
+  courseId: string;
+  form: React.RefObject<HTMLFormElement | null>;
+  lessonCount: number;
+  onDraft: (rubric: Rubric, example: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ tone: "good" | "error"; text: string } | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [example, setExample] = useState("");
+  const [exampleFile, setExampleFile] = useState<string | null>(null);
+  const [keep, setKeep] = useState(true);
+
+  const run = () => {
+    if (
+      props.lessonCount > 0 &&
+      !window.confirm(
+        "Lessons point at the current criteria. A new rubric replaces them, and those lessons lose their link in the coverage map until you pick criteria again. Draft anyway?",
+      )
+    ) {
+      return;
+    }
+    const data = new FormData(props.form.current ?? undefined);
+    data.set("courseId", props.courseId);
+    data.set("example", example);
+    if (exampleFile) data.set("exampleFile", exampleFile);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await draftRubricAction(data);
+      if (result.status === "error") {
+        setMessage({ tone: "error", text: result.message });
+        return;
+      }
+      props.onDraft(result.rubric, keep && result.example ? result.example : null);
+      setNotes(result.notes);
+      setMessage({
+        tone: "good",
+        text: "Draft ready below. Read every criterion, change what does not fit, then save.",
+      });
+    });
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+        <Sparkles aria-hidden size={16} /> Draft the rubric with AI
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-4 rounded-card border border-line bg-subtle p-4">
+      <div>
+        <p className="font-semibold">Draft the rubric with AI</p>
+        <p className="text-sm text-muted">
+          Uses the outcome above and, ideally, one example of good work. You review the draft before
+          anything is saved.
+        </p>
+      </div>
+      <div className="field">
+        <label htmlFor="rubric-example" className="label">
+          Example of good work (optional)
+        </label>
+        <textarea
+          id="rubric-example"
+          className="textarea min-h-32"
+          value={example}
+          onChange={(event) => setExample(event.target.value)}
+          placeholder="Paste a finished piece of work you would pass without hesitation."
+          maxLength={40_000}
+        />
+      </div>
+      <FileUpload
+        endpoint={`/api/uploads?purpose=exemplar&course=${props.courseId}`}
+        name="exampleFileId"
+        accept=".pdf,.md,.txt,application/pdf,text/markdown,text/plain"
+        maxFiles={1}
+        maxBytes={20 * 1024 * 1024}
+        labels={EXAMPLE_UPLOAD_LABELS}
+        onChange={(files) => setExampleFile(files[0]?.id ?? null)}
+      />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={keep}
+          onChange={(event) => setKeep(event.target.checked)}
+          className="size-4 accent-(--tenant-primary)"
+        />
+        Keep the example as a passing calibration example
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="btn btn-primary btn-sm" onClick={run} disabled={pending}>
+          <Sparkles aria-hidden size={16} /> {pending ? "Drafting…" : "Draft rubric"}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
+          Close
+        </button>
+      </div>
+      {message && (
+        <p
+          role={message.tone === "error" ? "alert" : "status"}
+          className="text-sm font-semibold"
+          style={message.tone === "error" ? { color: "var(--status-critical)" } : undefined}
+        >
+          {message.text}
+        </p>
+      )}
+      {notes.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
+          {notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function OutcomeForm(props: OutcomeFormProps) {
@@ -53,11 +193,12 @@ export function OutcomeForm(props: OutcomeFormProps) {
   }, {});
   const [artifactName, setArtifactName] = useState<LocalizedText>(props.artifactName);
   const [useForm, setUseForm] = useState(props.formSchema !== null);
+  const formRef = useRef<HTMLFormElement>(null);
   const twoColumns = props.languages.length > 1 ? "lg:grid-cols-2" : "";
   const nameFindings = lintLocalizedWording(artifactName, "artifact_name");
 
   return (
-    <form onSubmit={onSubmit} className="space-y-8">
+    <form ref={formRef} onSubmit={onSubmit} className="space-y-8">
       <input type="hidden" name="courseId" value={props.courseId} />
       <input type="hidden" name="rubric" value={JSON.stringify(serializeRubric(draft, primary))} />
 
@@ -244,6 +385,34 @@ export function OutcomeForm(props: OutcomeFormProps) {
             AI. Changing the rubric creates a new version; earlier reviews keep theirs.
           </p>
         </div>
+        {props.aiAvailable && (
+          <RubricDraftPanel
+            courseId={props.courseId}
+            form={formRef}
+            lessonCount={props.lessonCount}
+            onDraft={(rubric, example) =>
+              setDraft((current) => {
+                const drafted = draftFromRubric(rubric);
+                return {
+                  ...drafted,
+                  // New criteria: ids are given on save, from the labels.
+                  criteria: drafted.criteria.map((criterion, index) => ({
+                    ...criterion,
+                    key: `ai-${Date.now()}-${index}`,
+                    id: "",
+                  })),
+                  policy: current.policy,
+                  exemplars: example
+                    ? [
+                        ...current.exemplars.filter((exemplar) => exemplar.id !== "ai-example"),
+                        { id: "ai-example", expected_pass: true, content: example },
+                      ].slice(-10)
+                    : current.exemplars,
+                };
+              })
+            }
+          />
+        )}
         <RubricEditor draft={draft} onChange={setDraft} languages={props.languages} />
       </section>
 

@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
-import { extractText, getDocumentProxy } from "unpdf";
 
 import type { Database } from "@/db/client";
 import { submissions } from "@/db/schema";
 import type { SubmittedFile } from "@/db/schema/learning";
 import { withTenant } from "@/db/tenant-scope";
 import { fileBytes, loadFile } from "@/server/files";
+import { pdfText } from "@/server/text-extract";
 
 /*
  * What the review reads from uploaded files (brief §8): text from PDFs and
@@ -18,12 +18,6 @@ import { fileBytes, loadFile } from "@/server/files";
 const FILE_TEXT_LIMIT = 120_000;
 /** Enough detail for a rubric review, far fewer tokens than a full-size photo. */
 const VISION_SIDE = 1600;
-
-export async function pdfText(bytes: Uint8Array): Promise<string> {
-  const pdf = await getDocumentProxy(new Uint8Array(bytes));
-  const { text } = await extractText(pdf, { mergePages: true });
-  return (Array.isArray(text) ? text.join("\n\n") : text).trim();
-}
 
 async function visionImage(bytes: Uint8Array): Promise<string> {
   const jpeg = await sharp(bytes)

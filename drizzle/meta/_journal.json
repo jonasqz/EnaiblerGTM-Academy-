@@ -64,6 +64,27 @@
       "when": 1790489047362,
       "tag": "0008_submission_files_text",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790489538782,
+      "tag": "0009_authoring_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790489539767,
+      "tag": "0010_drop_source_storage_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790489544234,
+      "tag": "0011_force_rls_lesson_drafts",
+      "breakpoints": true
     }
   ]
 }

@@ -44,7 +44,8 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function send(
+/** POSTs one file to the upload route, reporting progress; used by FileUpload and editors. */
+export function uploadFile(
   endpoint: string,
   file: File,
   onProgress: (fraction: number) => void,
@@ -128,7 +129,7 @@ export function FileUpload(props: {
     for (const file of accepted) {
       const key = `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`;
       setItems((current) => [...current, { key, name: file.name, progress: 0 }]);
-      void send(props.endpoint, file, (fraction) =>
+      void uploadFile(props.endpoint, file, (fraction) =>
         setItems((current) =>
           current.map((item) => (item.key === key ? { ...item, progress: fraction } : item)),
         ),

@@ -46,6 +46,8 @@ export default async function OutcomePage({
         formSchema={form?.type === "template_form" ? JSON.stringify(form.schema, null, 2) : null}
         rubric={rubricSchema.parse(editor.rubric.definition)}
         artifactTerm={t.term("artifact")}
+        lessonCount={editor.lessons.length}
+        aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
       />
     </div>
   );

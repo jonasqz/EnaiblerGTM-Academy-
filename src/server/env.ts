@@ -31,6 +31,16 @@ const envSchema = z.object({
   LLM_REVIEW_MODEL: z.string().default("review-default"),
   /** Model for "import brand from website"; falls back to the review model. */
   LLM_BRAND_MODEL: optional,
+  /** Model for authoring help (rubric, interview, lesson drafts); falls back to the review model. */
+  LLM_AUTHORING_MODEL: optional,
+  /** Embedding model behind LiteLLM for source retrieval (its vectors must have 1024 dimensions). */
+  LLM_EMBEDDING_MODEL: optional,
+  /** Self-hosted Whisper, OpenAI-compatible (e.g. speaches with faster-whisper), for recordings. */
+  WHISPER_BASE_URL: optional,
+  WHISPER_API_KEY: optional,
+  WHISPER_MODEL: optional,
+  /** ffmpeg binary for recordings (the worker image has it on PATH). */
+  FFMPEG_PATH: optional,
   /**
    * Self-serve: the platform site where customers create academies, e.g.
    * enaibler.app. Development defaults to plain localhost. Unset in

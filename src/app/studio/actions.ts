@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { localized, text } from "@/app/studio/form-data";
 import {
   FILE_KINDS,
   formFieldsFromSchema,
@@ -55,20 +56,6 @@ export interface FormState {
 }
 
 const courseIdSchema = z.uuid();
-
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function localized(formData: FormData, name: string, locales: readonly Locale[]): LocalizedText {
-  const out: LocalizedText = {};
-  for (const locale of locales) {
-    const value = text(formData, `${name}.${locale}`);
-    if (value) out[locale] = value;
-  }
-  return out;
-}
 
 /** Wording findings split into blocking errors and warnings (brief §9). */
 function wording(checks: Array<[LocalizedText | string, WordingContext]>) {

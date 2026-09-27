@@ -180,6 +180,11 @@ export const lessons = pgTable(
     blocks: jsonb("blocks").$type<LessonBlock[]>().notNull().default([]),
     /** Rubric criteria this lesson teaches (coverage map, brief §7). */
     criterionIds: text("criterion_ids").array().notNull().default([]),
+    /** Sources the AI drafted this lesson from; a changed source flags the lesson. */
+    sourceIds: uuid("source_ids").array().notNull().default([]),
+    /** Set when a source changed after the lesson was written (auto-update, brief §7). */
+    flaggedAt: timestamp("flagged_at", { withTimezone: true }),
+    flagReason: text("flag_reason"),
     version: integer("version").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

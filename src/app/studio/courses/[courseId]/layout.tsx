@@ -28,6 +28,7 @@ export default async function StudioCourseLayout({
     ...(canEdit
       ? [
           { href: `${base}/outcome` as Route, label: "Outcome & rubric" },
+          { href: `${base}/sources` as Route, label: "Sources" },
           { href: `${base}/lessons` as Route, label: "Lessons", count: lessonCount },
           { href: `${base}/details` as Route, label: "Details" },
           { href: `${base}/publish` as Route, label: "Publish" },

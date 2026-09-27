@@ -34,6 +34,10 @@ CMD ["node", "server.js"]
 FROM node:22-bookworm-slim AS worker
 WORKDIR /app
 ENV NODE_ENV=production
+# ffmpeg: audio for transcription and keyframes from screen recordings (brief §7).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json tsconfig.json ./
 COPY --chown=node:node src ./src

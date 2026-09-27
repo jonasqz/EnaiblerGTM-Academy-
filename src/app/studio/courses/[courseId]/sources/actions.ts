@@ -1,0 +1,184 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+
+import type { FormState } from "@/app/studio/actions";
+import { text } from "@/app/studio/form-data";
+import { defaultQuestions, interviewText } from "@/core/authoring/interview";
+import { isLocale, localize, type Locale } from "@/core/i18n/locales";
+import { rubricSchema } from "@/core/review/rubric";
+import { getDb } from "@/db/client";
+import { requireCapability } from "@/server/access";
+import { suggestInterviewQuestions } from "@/server/authoring/interview";
+import { requestLessonDraft } from "@/server/authoring/lesson-drafting";
+import { authoringModel } from "@/server/authoring/model";
+import { createSource, deleteSource, loadSource } from "@/server/authoring/sources";
+import { normalizeWebsite } from "@/server/brand/import";
+import { loadFile } from "@/server/files";
+import { enqueue } from "@/server/jobs/producer";
+import { rateLimit } from "@/server/rate-limit";
+import { getCourseEditor } from "@/server/studio/course-context";
+
+const HOUR = 60 * 60_000;
+
+async function courseFor(formData: FormData) {
+  const courseId = z.uuid().parse(text(formData, "courseId"));
+  const session = await requireCapability("courses.edit", `/studio/courses/${courseId}/sources`);
+  const editor = await getCourseEditor(session.tenant.id, courseId);
+  if (!editor) throw new Error("Course not found");
+  const languages = editor.course.languages.filter(isLocale);
+  return { ...session, editor, courseId, languages };
+}
+
+/** Adds a recording, document or web page; reading it happens in the background. */
+export async function addSourceAction(_: FormState, formData: FormData): Promise<FormState> {
+  const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const kind = text(formData, "kind");
+  const locale = text(formData, "locale");
+  const sourceLocale: Locale | null = isLocale(locale) ? locale : (languages[0] ?? null);
+
+  if (kind === "recording" || kind === "document") {
+    const fileId = text(formData, "fileId");
+    const record = fileId ? await loadFile(getDb(), tenant.id, fileId) : null;
+    if (!record || record.purpose !== "source") return { errors: ["Upload the file first."] };
+    const family = record.contentType.split("/")[0];
+    const isMedia = family === "video" || family === "audio";
+    if ((kind === "recording") !== isMedia) {
+      return {
+        errors: [
+          kind === "recording"
+            ? "That is not a video or audio file."
+            : "Upload recordings as recordings, not as documents.",
+        ],
+      };
+    }
+    await createSource(
+      getDb(),
+      tenant.id,
+      {
+        courseId,
+        kind,
+        title: text(formData, "title") || record.name.replace(/\.[^.]+$/, ""),
+        locale: sourceLocale,
+        fileId: record.id,
+        createdBy: viewer.userId,
+      },
+      enqueue,
+    );
+  } else if (kind === "url") {
+    const url = normalizeWebsite(text(formData, "url"));
+    if (!url) return { errors: ["Enter the page's address, e.g. https://example.com/article."] };
+    await createSource(
+      getDb(),
+      tenant.id,
+      {
+        courseId,
+        kind: "url",
+        title: text(formData, "title") || url.toString(),
+        locale: sourceLocale,
+        url: url.toString(),
+        createdBy: viewer.userId,
+      },
+      enqueue,
+    );
+  } else {
+    return { errors: ["Choose what to add."] };
+  }
+  revalidatePath(`/studio/courses/${courseId}/sources`);
+  return {
+    ok: true,
+    message:
+      kind === "recording"
+        ? "Recording added. Transcription runs in the background."
+        : "Source added. Reading it takes a moment.",
+  };
+}
+
+export async function deleteSourceAction(formData: FormData): Promise<void> {
+  const { tenant, courseId } = await courseFor(formData);
+  const sourceId = z.uuid().parse(text(formData, "sourceId"));
+  const source = await loadSource(getDb(), tenant.id, sourceId);
+  if (source?.courseId === courseId) await deleteSource(getDb(), tenant.id, sourceId);
+  revalidatePath(`/studio/courses/${courseId}/sources`);
+  redirect(`/studio/courses/${courseId}/sources`);
+}
+
+export type QuestionsState = { questions: string[]; message?: string };
+
+/** Questions tailored to this course's artifact and criteria (defaults without a model). */
+export async function suggestQuestionsAction(formData: FormData): Promise<QuestionsState> {
+  const { tenant, editor, languages } = await courseFor(formData);
+  const locale = isLocale(text(formData, "locale"))
+    ? (text(formData, "locale") as Locale)
+    : languages[0]!;
+  const artifact = localize(editor.assignment?.artifactName, locale, languages);
+  const model = authoringModel();
+  if (!model || !editor.assignment || !editor.rubric) {
+    return { questions: defaultQuestions(locale, artifact) };
+  }
+  if (!rateLimit(`interview:${tenant.id}`, 20, HOUR)) {
+    return {
+      questions: defaultQuestions(locale, artifact),
+      message: "Too many requests this hour.",
+    };
+  }
+  const rubric = rubricSchema.parse(editor.rubric.definition);
+  const questions = await suggestInterviewQuestions(model, {
+    locale,
+    artifactName: artifact,
+    assignmentPrompt: localize(editor.assignment.prompt, locale, languages),
+    criteria: rubric.criteria.map((criterion) => ({
+      label: localize(criterion.label, locale, languages),
+      description: localize(criterion.description, locale, languages),
+    })),
+  });
+  return questions
+    ? { questions }
+    : { questions: defaultQuestions(locale, artifact), message: "Using the standard questions." };
+}
+
+export async function saveInterviewAction(_: FormState, formData: FormData): Promise<FormState> {
+  const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const questions = formData.getAll("question").map(String);
+  const answers = formData.getAll("answer").map(String);
+  const content = interviewText(
+    questions.map((question, index) => ({ question, answer: answers[index] ?? "" })),
+  );
+  if (content.length < 40) return { errors: ["Answer at least one question."] };
+  const locale = text(formData, "locale");
+  await createSource(
+    getDb(),
+    tenant.id,
+    {
+      courseId,
+      kind: "interview",
+      title: text(formData, "title") || "Expert interview",
+      locale: isLocale(locale) ? locale : (languages[0] ?? null),
+      content: content.slice(0, 100_000),
+      createdBy: viewer.userId,
+    },
+    enqueue,
+  );
+  revalidatePath(`/studio/courses/${courseId}/sources`);
+  redirect(`/studio/courses/${courseId}/sources?interview=1`);
+}
+
+/** Starts "Draft lessons with AI"; the Lessons page shows the run. */
+export async function draftLessonsAction(formData: FormData): Promise<void> {
+  const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const locale = text(formData, "locale");
+  if (!isLocale(locale) || !languages.includes(locale)) throw new Error("Unknown course language");
+  if (!rateLimit(`lesson-draft:${tenant.id}`, 10, HOUR)) {
+    redirect(`/studio/courses/${courseId}/lessons?error=draft-limit`);
+  }
+  await requestLessonDraft(
+    getDb(),
+    tenant.id,
+    { courseId, locale, requestedBy: viewer.userId },
+    enqueue,
+  );
+  revalidatePath(`/studio/courses/${courseId}/lessons`);
+  redirect(`/studio/courses/${courseId}/lessons?drafting=1`);
+}

@@ -6,6 +6,7 @@ import {
   pgEnum,
   pgTable,
   text,
+  timestamp,
   unique,
   uuid,
   vector,
@@ -14,6 +15,7 @@ import {
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { courses } from "@/db/schema/catalog";
+import { files } from "@/db/schema/files";
 import { tenants } from "@/db/schema/tenancy";
 
 /**
@@ -25,12 +27,14 @@ export const EMBEDDING_DIMENSIONS = 1024;
 export const sourceKind = pgEnum("source_kind", ["recording", "document", "url", "interview"]);
 export const sourceStatus = pgEnum("source_status", ["pending", "processing", "ready", "failed"]);
 
+/** One topic of a recording: its time span, what was said, and a screenshot of that step. */
 export interface TranscriptSegment {
   startSec: number;
   endSec: number;
+  title?: string;
   text: string;
-  /** Storage key of the keyframe captured at this step change, if any. */
-  keyframeKey?: string;
+  /** Keyframe captured at the step change of this topic (a `files` row), if any. */
+  keyframeFileId?: string;
 }
 
 /** Authoring sources (brief §7): recordings, documents, URLs and expert interviews. */
@@ -45,9 +49,18 @@ export const sources = pgTable(
     kind: sourceKind("kind").notNull(),
     status: sourceStatus("status").notNull().default("pending"),
     title: text("title").notNull(),
-    storageKey: text("storage_key"),
+    /** Language the source speaks (hint for transcription). */
+    locale: text("locale"),
+    /** Recordings and documents: the uploaded file. */
+    fileId: uuid("file_id"),
     url: text("url"),
     transcript: jsonb("transcript").$type<TranscriptSegment[]>(),
+    /** Plain text of documents, web pages and interviews (recordings: the transcript). */
+    content: text("content"),
+    /** Watching sources for changes (brief §7, auto-update): hash of the last content read. */
+    contentHash: text("content_hash"),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
+    changedAt: timestamp("changed_at", { withTimezone: true }),
     error: text("error"),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: createdAt(),
@@ -60,6 +73,11 @@ export const sources = pgTable(
       columns: [table.tenantId, table.courseId],
       foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "sources_file_fk",
+      columns: [table.tenantId, table.fileId],
+      foreignColumns: [files.tenantId, files.id],
+    }),
     tenantIsolation(),
   ],
 ).enableRLS();
@@ -83,6 +101,43 @@ export const sourceChunks = pgTable(
       name: "source_chunks_source_fk",
       columns: [table.tenantId, table.sourceId],
       foreignColumns: [sources.tenantId, sources.id],
+    }).onDelete("cascade"),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+export const draftStatus = pgEnum("draft_status", ["queued", "running", "done", "failed"]);
+
+/** "Draft lessons with AI" runs (brief §7, step 3): what was asked, what came back, what it cost. */
+export const lessonDrafts = pgTable(
+  "lesson_drafts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    courseId: uuid("course_id").notNull(),
+    locale: text("locale").notNull(),
+    status: draftStatus("status").notNull().default("queued"),
+    requestedBy: text("requested_by").references(() => user.id, { onDelete: "set null" }),
+    /** Lessons created by this run. */
+    lessonIds: uuid("lesson_ids").array().notNull().default([]),
+    notes: text("notes").array().notNull().default([]),
+    error: text("error"),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    costMicroUsd: integer("cost_micro_usd"),
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("lesson_drafts_tenant_id").on(table.tenantId, table.id),
+    foreignKey({
+      name: "lesson_drafts_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),
     tenantIsolation(),
   ],

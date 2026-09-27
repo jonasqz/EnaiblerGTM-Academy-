@@ -6,6 +6,11 @@ import { PgBoss, type Job } from "pg-boss";
 
 import { createDatabase, assertRlsEnforced } from "@/db/client";
 import { tenants } from "@/db/schema";
+import { runLessonDraft } from "@/server/authoring/lesson-drafting";
+import { authoringModel } from "@/server/authoring/model";
+import { extractKeyframes, transcribeRecording } from "@/server/authoring/recordings";
+import { extractSource } from "@/server/authoring/sources";
+import { embeddingConfig, whisperConfig } from "@/server/authoring/speech";
 import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
@@ -72,8 +77,62 @@ await boss.work(QUEUES.filesCleanup, async () => {
 });
 await boss.schedule(QUEUES.filesCleanup, "17 3 * * *");
 
-// Handlers for transcription, keyframes, lesson drafting and image rendering
-// land with their features; their jobs wait in the queue until then.
+// Authoring (brief §7): sources become text, recordings become topics with
+// screenshots, and lessons are drafted backwards from the rubric.
+const finalTry = (job: Job<unknown>, queue: QueueName) =>
+  job.retryCount >= (QUEUE_OPTIONS[queue].retryLimit ?? 0);
+
+await boss.work(
+  QUEUES.sourcesExtract,
+  { batchSize: 1 },
+  async (jobs: Job<JobPayloads["sources.extract"]>[]) => {
+    for (const job of jobs) {
+      await extractSource(db, job.data.tenantId, job.data.sourceId, {
+        finalAttempt: finalTry(job, QUEUES.sourcesExtract),
+      });
+    }
+  },
+);
+await boss.work(
+  QUEUES.transcription,
+  { batchSize: 1 },
+  async (jobs: Job<JobPayloads["transcription.run"]>[]) => {
+    for (const job of jobs) {
+      await transcribeRecording(db, job.data.tenantId, job.data.sourceId, {
+        whisper: whisperConfig(),
+        model: authoringModel(),
+        next: async (name, data) => {
+          await boss.send(name, data);
+        },
+        finalAttempt: finalTry(job, QUEUES.transcription),
+      });
+    }
+  },
+);
+await boss.work(
+  QUEUES.keyframes,
+  { batchSize: 1 },
+  async (jobs: Job<JobPayloads["keyframes.extract"]>[]) => {
+    for (const job of jobs) await extractKeyframes(db, job.data.tenantId, job.data.sourceId);
+  },
+);
+await boss.work(
+  QUEUES.lessonDraft,
+  { batchSize: 1 },
+  async (jobs: Job<JobPayloads["lessons.draft"]>[]) => {
+    for (const job of jobs) {
+      await runLessonDraft(db, job.data.tenantId, job.data.draftId, {
+        model: authoringModel(),
+        embeddings: embeddingConfig(),
+        finalAttempt: finalTry(job, QUEUES.lessonDraft),
+      });
+    }
+  },
+);
+if (!whisperConfig())
+  console.warn("[worker] WHISPER_BASE_URL is not set: recordings are not transcribed");
+
+// Image rendering happens on request (next/og); its queue stays for pre-rendering later.
 console.log(`[worker] ready: ${Object.keys(QUEUE_OPTIONS).join(", ")}`);
 
 let stopping = false;

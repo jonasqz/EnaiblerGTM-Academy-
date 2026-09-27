@@ -4,6 +4,7 @@ import { Minus, Plus, Trash } from "lucide-react";
 import { useId } from "react";
 
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { criterionIdFrom } from "@/core/authoring/rubric-draft";
 import { SUPPORTED_LOCALES, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import type { Exemplar, ReviewMode, ReviewPolicy, Rubric } from "@/core/review/rubric";
 
@@ -61,20 +62,6 @@ function clean(text: LocalizedDraft): LocalizedText {
   return out;
 }
 
-function idFrom(label: string, taken: Set<string>): string {
-  const base =
-    label
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 32) || "criterion";
-  const start = /^[a-z0-9]/.test(base) ? base : `c_${base}`;
-  if (!taken.has(start)) return start;
-  for (let n = 2; ; n++) if (!taken.has(`${start}_${n}`)) return `${start}_${n}`;
-}
-
 /** The JSON the server validates (rubricSchema input). */
 export function serializeRubric(draft: RubricDraft, primary: Locale) {
   const taken = new Set(
@@ -84,7 +71,7 @@ export function serializeRubric(draft: RubricDraft, primary: Locale) {
     criteria: draft.criteria.map((criterion) => {
       let id = criterion.id;
       if (!id) {
-        id = idFrom(
+        id = criterionIdFrom(
           criterion.label[primary] ?? Object.values(criterion.label).find(Boolean) ?? "",
           taken,
         );

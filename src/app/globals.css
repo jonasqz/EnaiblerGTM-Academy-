@@ -392,9 +392,14 @@
     border: 1px solid var(--tenant-border-color);
     text-align: left;
   }
-  .prose-lesson img {
+  .prose-lesson img,
+  .prose-lesson video {
     max-width: 100%;
     border-radius: var(--ui-control-radius);
+  }
+  .prose-lesson video {
+    width: 100%;
+    background: var(--tenant-ink);
   }
   .prose-lesson hr {
     border: 0;

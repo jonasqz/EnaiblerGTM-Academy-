@@ -26,7 +26,8 @@ export async function GET(
 ): Promise<Response> {
   const { id } = await context.params;
   const tenant = await getTenant();
-  const record = await loadFile(getDb(), tenant.id, id);
+  // Lessons link media as /files/<id>.<ext>: the extension tells the renderer what it is.
+  const record = await loadFile(getDb(), tenant.id, id.replace(/\.[a-z0-9]{1,5}$/i, ""));
   const isPublic =
     record !== null &&
     record.status === "attached" &&

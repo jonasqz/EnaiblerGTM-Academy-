@@ -61,6 +61,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: ffmpeg for the recording tests
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Roles and database (same script as production)
         run: ./deploy/postgres/init.sh
         env:
