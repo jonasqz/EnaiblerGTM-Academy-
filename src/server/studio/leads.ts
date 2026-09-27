@@ -204,7 +204,8 @@ export async function listLeads(
       .where(where);
     const total = counted?.n ?? 0;
     const pages = Math.max(1, Math.ceil(total / LEADS_PER_PAGE));
-    const page = Math.min(Math.max(1, Math.trunc(options.page ?? 1)), pages);
+    const requested = Number.isFinite(options.page) ? Math.trunc(options.page!) : 1;
+    const page = Math.min(Math.max(1, requested), pages);
     const rows = await leadRows(tx, where, "newest")
       .limit(LEADS_PER_PAGE)
       .offset((page - 1) * LEADS_PER_PAGE);

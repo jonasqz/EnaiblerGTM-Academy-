@@ -312,8 +312,8 @@ export const en = {
   "overview.sharing.intro":
     "Certificates your learners share bring visitors, new learners and leads.",
   "overview.sharing.issued": "Certificates issued",
-  "overview.sharing.public": "Made public by learners",
-  "overview.sharing.shareRate": "{rate} % of the certificates issued",
+  "overview.sharing.public": "Of these, made public by learners",
+  "overview.sharing.shareRate": "Share rate {rate} %",
   "overview.sharing.shared": "Shared on LinkedIn",
   "overview.sharing.sharedSplit": "{posts} as a post · {profiles} on a profile",
   "overview.sharing.views": "Certificate page views",
@@ -637,8 +637,8 @@ export const de: Record<keyof typeof en, string> = {
   "overview.sharing.intro":
     "Abschlussbescheinigungen, die deine Lernenden teilen, bringen Besucher:innen, neue Lernende und Leads.",
   "overview.sharing.issued": "Ausgestellte Abschlussbescheinigungen",
-  "overview.sharing.public": "Von Lernenden veröffentlicht",
-  "overview.sharing.shareRate": "{rate} % der ausgestellten",
+  "overview.sharing.public": "Davon von Lernenden veröffentlicht",
+  "overview.sharing.shareRate": "Anteil {rate} %",
   "overview.sharing.shared": "Auf LinkedIn geteilt",
   "overview.sharing.sharedSplit": "{posts} als Beitrag · {profiles} im Profil",
   "overview.sharing.views": "Aufrufe der Nachweisseite",

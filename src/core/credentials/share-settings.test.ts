@@ -15,6 +15,8 @@ import {
   type SharingInput,
 } from "@/core/credentials/share-settings";
 import { suggestedPost } from "@/core/credentials/share";
+import { postWithoutUrlText, sharingIssueText } from "@/core/i18n/studio/helpers";
+import { studioText } from "@/core/i18n/studio/translator";
 import { createTranslator } from "@/core/i18n/translator";
 import { CTA_URL_PLACEHOLDERS, tenantManifestSchema } from "@/core/tenant/manifest";
 
@@ -155,5 +157,21 @@ describe("sharing settings in the Studio", () => {
     expect(
       sharingIssues([{ path: ["theme", "colors"], message: "Too little contrast" }], input()),
     ).toEqual([{ code: "other", message: "theme.colors: Too little contrast" }]);
+  });
+
+  it("is worded in the team member's language, placeholders as typed", () => {
+    const en = studioText("en");
+    expect(
+      sharingIssueText(en, { code: "placeholder", locale: "de", placeholders: ["{name}", "{x}"] }),
+    ).toBe(
+      "The post in German contains {name} and {x}, which cannot be filled in. Use {course}, {academy}, {proof}, {artifact} and {url}.",
+    );
+    expect(sharingIssueText(en, { code: "cta_url" })).toContain("only {course} and {path}");
+    expect(sharingIssueText(en, { code: "hashtag_count", max: MAX_HASHTAGS })).toBe(
+      "Use up to 5 hashtags.",
+    );
+    expect(postWithoutUrlText(studioText("de"), "en")).toMatch(
+      /^Der Beitrag auf Englisch enthält kein \{url\}:/,
+    );
   });
 });
