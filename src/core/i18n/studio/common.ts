@@ -229,7 +229,7 @@ export const en = {
   // Overview
   "overview.title": "Overview",
   "overview.description":
-    "How {academy} is doing. Totals are all-time; the funnel covers the last 30 days.",
+    "How {academy} is doing. Totals are all-time; the funnel and sharing cover the period you choose.",
   "overview.newCourse": "New course",
   "overview.setup.title": "Get your academy ready",
   "overview.setup.progress": "{done} of {total} done.",
@@ -264,8 +264,8 @@ export const en = {
   "overview.attention.drafts.other": "{n} draft courses",
   "overview.attention.draftsBody": "Not visible to learners until published.",
   "overview.funnel": "Funnel",
-  "overview.funnelIntro": "Events in the last 30 days, with the share of the step before.",
-  "overview.funnelCaption": "Funnel, last 30 days",
+  "overview.funnelIntro": "Events in this period, with the share of the step before.",
+  "overview.funnelCaption": "Funnel, last {days} days",
   "overview.funnelRate": "{rate} % of the step before",
   "overview.funnel.entry": "Sign-ups started",
   "overview.funnel.start": "Courses started",
@@ -301,6 +301,35 @@ export const en = {
   "overview.mentor.openQueue": "Open the review queue",
   "overview.mentor.empty": "No cohorts yet",
   "overview.mentor.emptyBody": "Once you mentor a cohort, it shows here.",
+
+  // Overview: the period the funnel and the sharing numbers cover
+  "overview.period.label": "Period",
+  "overview.period.heading": "Last {days} days",
+  "overview.period.days.one": "{n} day",
+  "overview.period.days.other": "{n} days",
+  // What shared certificates bring (brief §14); also on a course's page
+  "overview.sharing.heading": "Sharing",
+  "overview.sharing.intro":
+    "Certificates your learners share bring visitors, new learners and leads.",
+  "overview.sharing.issued": "Certificates issued",
+  "overview.sharing.public": "Of these, made public by learners",
+  "overview.sharing.shareRate": "Share rate {rate} %",
+  "overview.sharing.shared": "Shared on LinkedIn",
+  "overview.sharing.sharedSplit": "{posts} as a post · {profiles} on a profile",
+  "overview.sharing.views": "Certificate page views",
+  "overview.sharing.viewsSplit": "{post} from posts · {profile} from profiles · {other} other",
+  "overview.sharing.clicks": "Clicks on the button",
+  "overview.sharing.clickRate": "{rate} % of the page views",
+  "overview.sharing.newLearners": "New learners via certificates",
+  "overview.sharing.newLearnersHint": "Signed up through the button on a shared certificate",
+  "overview.sharing.newLeads": "New leads",
+  "overview.sharing.newLeadsHint": "Agreed that you may contact them",
+  "overview.sharing.seeLeads": "See leads",
+  "overview.sharing.settings": "Sharing settings",
+  "overview.sharing.course.heading": "Shared certificates",
+  "overview.sharing.course.intro": "Last {days} days.",
+  "overview.sharing.course.starts": "Started via shared certificates",
+  "overview.sharing.course.startsHint": "Came through the button on a shared certificate",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -525,7 +554,7 @@ export const de: Record<keyof typeof en, string> = {
 
   "overview.title": "Übersicht",
   "overview.description":
-    "So läuft es bei {academy}. Die Summen gelten seit dem Start, der Trichter zeigt die letzten 30 Tage.",
+    "So läuft es bei {academy}. Die Summen gelten seit dem Start, Trichter und Teilen zeigen den gewählten Zeitraum.",
   "overview.newCourse": "Neuer Kurs",
   "overview.setup.title": "Mach deine Akademie startklar",
   "overview.setup.progress": "{done} von {total} erledigt.",
@@ -563,8 +592,8 @@ export const de: Record<keyof typeof en, string> = {
   "overview.attention.drafts.other": "{n} Kursentwürfe",
   "overview.attention.draftsBody": "Für Lernende erst nach dem Veröffentlichen sichtbar.",
   "overview.funnel": "Trichter",
-  "overview.funnelIntro": "Ereignisse der letzten 30 Tage, mit dem Anteil am Schritt davor.",
-  "overview.funnelCaption": "Trichter, letzte 30 Tage",
+  "overview.funnelIntro": "Ereignisse in diesem Zeitraum, mit dem Anteil am Schritt davor.",
+  "overview.funnelCaption": "Trichter, letzte {days} Tage",
   "overview.funnelRate": "{rate} % des Schritts davor",
   "overview.funnel.entry": "Anmeldungen begonnen",
   "overview.funnel.start": "Kurse begonnen",
@@ -599,4 +628,33 @@ export const de: Record<keyof typeof en, string> = {
   "overview.mentor.openQueue": "Offene Bewertungen öffnen",
   "overview.mentor.empty": "Noch keine Gruppen",
   "overview.mentor.emptyBody": "Sobald du eine Gruppe begleitest, erscheint sie hier.",
+
+  "overview.period.label": "Zeitraum",
+  "overview.period.heading": "Letzte {days} Tage",
+  "overview.period.days.one": "{n} Tag",
+  "overview.period.days.other": "{n} Tage",
+  "overview.sharing.heading": "Teilen",
+  "overview.sharing.intro":
+    "Abschlussbescheinigungen, die deine Lernenden teilen, bringen Besucher:innen, neue Lernende und Leads.",
+  "overview.sharing.issued": "Ausgestellte Abschlussbescheinigungen",
+  "overview.sharing.public": "Davon von Lernenden veröffentlicht",
+  "overview.sharing.shareRate": "Anteil {rate} %",
+  "overview.sharing.shared": "Auf LinkedIn geteilt",
+  "overview.sharing.sharedSplit": "{posts} als Beitrag · {profiles} im Profil",
+  "overview.sharing.views": "Aufrufe der Nachweisseite",
+  "overview.sharing.viewsSplit": "{post} aus Beiträgen · {profile} aus Profilen · {other} andere",
+  "overview.sharing.clicks": "Klicks auf den Button",
+  "overview.sharing.clickRate": "{rate} % der Aufrufe",
+  "overview.sharing.newLearners": "Neue Lernende über Abschlussbescheinigungen",
+  "overview.sharing.newLearnersHint":
+    "Über den Button einer geteilten Abschlussbescheinigung angemeldet",
+  "overview.sharing.newLeads": "Neue Leads",
+  "overview.sharing.newLeadsHint": "Haben zugestimmt, dass du sie kontaktierst",
+  "overview.sharing.seeLeads": "Leads ansehen",
+  "overview.sharing.settings": "Einstellungen zum Teilen",
+  "overview.sharing.course.heading": "Geteilte Abschlussbescheinigungen",
+  "overview.sharing.course.intro": "Letzte {days} Tage.",
+  "overview.sharing.course.starts": "Über geteilte Abschlussbescheinigungen begonnen",
+  "overview.sharing.course.startsHint":
+    "Über den Button einer geteilten Abschlussbescheinigung gekommen",
 };

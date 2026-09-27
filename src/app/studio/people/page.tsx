@@ -1,5 +1,6 @@
-import { Award, Download, Users, X } from "lucide-react";
+import { Award, Download, Handshake, Users, X } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { grantLevelAction, revokeGrantAction } from "@/app/studio/paths/actions";
 import { LearnerName } from "@/components/studio/learner-name";
@@ -50,7 +51,15 @@ export default async function PeoplePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title={t.t("team.people.title")} description={t.t("team.people.description")} />
+      <PageHeader
+        title={t.t("team.people.title")}
+        description={t.t("team.people.description")}
+        actions={
+          <Link href="/studio/people/leads" className="btn btn-secondary">
+            <Handshake aria-hidden size={18} /> {t.t("team.leads.title")}
+          </Link>
+        }
+      />
       <section
         aria-label={t.t("overview.totals")}
         className="grid grid-cols-2 gap-3 lg:grid-cols-3"
@@ -225,6 +234,11 @@ export default async function PeoplePage() {
                   </p>
                   <p className="text-sm text-muted">{row.hint}</p>
                 </div>
+                {row.n > 0 && row.list === "contact" && (
+                  <Link href="/studio/people/leads" className="btn btn-ghost btn-sm">
+                    {t.t("team.leads.open")}
+                  </Link>
+                )}
                 {row.n > 0 && (
                   <a
                     href={`/studio/people/contacts?list=${row.list}`}

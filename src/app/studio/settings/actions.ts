@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { FormState } from "@/app/studio/actions";
 import { wording } from "@/app/studio/form-data";
 import type { WordingContext } from "@/core/compliance/wording-lint";
-import { isLocale, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import { isLocale, type Locale } from "@/core/i18n/locales";
 import type { StudioKey } from "@/core/i18n/studio/index";
 import type { StudioText } from "@/core/i18n/studio/translator";
 import { FEATURE_KEYS } from "@/core/tenant/manifest";
@@ -42,16 +42,10 @@ export async function saveAcademySettingsAction(
       : locales[0];
   if (!defaultLocale) return { errors: [t.t("settings.academy.noLanguage")] };
 
-  const ctaLabel: LocalizedText = {};
-  for (const locale of locales) {
-    const label = text(formData, `cta.${locale}`);
-    if (label) ctaLabel[locale] = label;
-  }
   const name = text(formData, "name");
   // Linted first: the manifest check below would word these findings in English.
   const lint = wording(t, [
     [name, "brand_name"],
-    [ctaLabel, "cta_label"],
     ...termOverrideEntries(tenant.terminology).map((entry): [string, WordingContext] => [
       entry.text,
       "terminology",
@@ -70,8 +64,6 @@ export async function saveAcademySettingsAction(
       privacy: httpsUrl(text(formData, "privacy")),
       terms: httpsUrl(text(formData, "terms")),
     },
-    ctaLabel:
-      Object.keys(ctaLabel).length > 0 ? ctaLabel : { en: "Start this course", de: "Kurs starten" },
     features: Object.fromEntries(
       FEATURE_KEYS.map((key) => [key, formData.get(`feature.${key}`) === "on"]),
     ) as Record<(typeof FEATURE_KEYS)[number], boolean>,

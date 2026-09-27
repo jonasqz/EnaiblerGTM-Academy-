@@ -8,7 +8,7 @@ import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import type { Locale } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 import type { Features } from "@/core/tenant/manifest";
 
@@ -25,7 +25,6 @@ export function AcademyForm(props: {
   sender: string;
   replyTo: string;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
-  ctaLabel: LocalizedText;
   features: Features;
 }) {
   const t = useStudioText();
@@ -164,32 +163,6 @@ export function AcademyForm(props: {
               inputMode="url"
               placeholder={t.t(`settings.legal.${key}Placeholder`)}
               defaultValue={props.legalLinks[key] ?? ""}
-            />
-          </div>
-        ))}
-      </section>
-
-      <section
-        aria-labelledby="cta-heading"
-        className="card-flat grid gap-5 p-5 sm:grid-cols-2 sm:p-6"
-      >
-        <div className="sm:col-span-2">
-          <h2 id="cta-heading" className="text-lg font-semibold">
-            {t.t("settings.cta.heading")}
-          </h2>
-          <p className="text-sm text-muted">{t.t("settings.cta.intro")}</p>
-        </div>
-        {locales.map((locale) => (
-          <div key={locale} className="field">
-            <label htmlFor={`cta-${locale}`} className="label">
-              {languageName(t, locale)}
-            </label>
-            <input
-              id={`cta-${locale}`}
-              name={`cta.${locale}`}
-              className="input"
-              maxLength={40}
-              defaultValue={props.ctaLabel[locale] ?? ""}
             />
           </div>
         ))}

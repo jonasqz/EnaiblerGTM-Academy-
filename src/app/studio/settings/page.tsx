@@ -18,7 +18,6 @@ export default async function AcademySettingsPage() {
       sender={`${senderFor(tenant).name} <${senderFor(tenant).address}>`}
       replyTo={settings.email_sender?.reply_to ?? ""}
       legalLinks={settings.legal_links}
-      ctaLabel={settings.verification_cta.label}
       features={settings.features}
     />
   );

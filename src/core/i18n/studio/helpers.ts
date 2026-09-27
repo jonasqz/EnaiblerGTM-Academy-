@@ -1,6 +1,11 @@
 import { isJobError } from "@/core/authoring/job-errors";
 import type { WordingFinding } from "@/core/compliance/wording-lint";
 import type { PublishIssue } from "@/core/courses/publish-check";
+import {
+  CTA_PLACEHOLDERS,
+  POST_PLACEHOLDERS,
+  type SharingIssue,
+} from "@/core/credentials/share-settings";
 import type { CheckIssue, CheckIssueCode } from "@/core/questions/knowledge-check";
 import type { ManifestWarning } from "@/core/tenant/manifest";
 import { MIN_BUTTON_CONTRAST, MIN_TEXT_CONTRAST, type ContrastIssue } from "@/core/theme/contrast";
@@ -173,4 +178,45 @@ export function manifestWarningText(t: StudioText, warning: ManifestWarning): st
     default:
       return t.t(`settings.warning.${warning.code}`);
   }
+}
+
+const braced = (names: readonly string[]) => names.map((name) => `{${name}}`);
+
+/** Why the sharing settings were not saved. */
+export function sharingIssueText(t: StudioText, issue: SharingIssue): string {
+  switch (issue.code) {
+    case "wording":
+      return wordingText(t, issue.finding);
+    case "placeholder":
+      return t.t("settings.sharing.error.placeholder", {
+        language: languageName(t, issue.locale),
+        unknown: t.list(issue.placeholders),
+        allowed: t.list(braced(POST_PLACEHOLDERS)),
+      });
+    case "post_too_long":
+      return t.t("settings.sharing.error.postTooLong", {
+        language: languageName(t, issue.locale),
+        max: issue.max,
+      });
+    case "hashtag":
+      return t.t("settings.sharing.error.hashtag", { tag: issue.tag });
+    case "hashtag_count":
+      return t.t("settings.sharing.error.hashtagCount", { max: issue.max });
+    case "linkedin_id":
+      return t.t("settings.sharing.error.linkedinId");
+    case "cta_url":
+      return t.t("settings.sharing.error.ctaUrl", { allowed: t.list(braced(CTA_PLACEHOLDERS)) });
+    case "cta_label":
+      return t.t("settings.sharing.error.ctaLabel");
+    case "other":
+      return issue.message;
+  }
+}
+
+/** A saved post that leaves out the link to the certificate. */
+export function postWithoutUrlText(t: StudioText, locale: Locale): string {
+  return t.t("settings.sharing.warning.noUrl", {
+    language: languageName(t, locale),
+    placeholder: "{url}",
+  });
 }
