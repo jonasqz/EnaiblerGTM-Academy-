@@ -105,5 +105,6 @@ npm run test:db        # when you touched src/db, migrations or anything tenant-
 - `src/core/theme/enaibler-tokens.ts` holds placeholder brand values until the real `enaibler-tokens.ts` is added.
 - The German credential term, the "du" copy and the Studio's German are proposals pending review.
 - Tenant 0 legal links in its manifest are placeholders; validation warns about them.
+- enaibler's own legal texts (`content/legal`) are drafts for counsel; in production, signup stays closed until the terms and the DPA are final.
 - Payments, team licences and expert academies (brief phase 3) are not built; paid courses stay blocked.
 - Open decisions are in brief §15. The 1024 embedding size in `src/db/schema/authoring.ts` follows decision #1. Object storage is SeaweedFS (`deploy/storage`).
