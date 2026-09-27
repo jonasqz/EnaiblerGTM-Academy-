@@ -4,21 +4,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { publishCourseAction, unpublishCourseAction } from "@/app/studio/actions";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { can } from "@/core/access/roles";
 import type { PublishIssue } from "@/core/courses/publish-check";
 import { isLocale } from "@/core/i18n/locales";
+import { languageName, publishIssueText } from "@/core/i18n/studio/helpers";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor } from "@/server/studio/courses";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Publish" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("courses.step.publish") };
+}
 
-const dates = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
-
-/** Where each finding is fixed. Wording findings name their context in the message. */
+/** Where each finding is fixed. Wording findings carry the context the word was found in. */
 function fixHref(issue: PublishIssue, base: string): string {
   if (issue.code === "legal_pages_missing") return "/studio/settings";
   return `${base}/${fixTab(issue)}`;
@@ -26,9 +28,9 @@ function fixHref(issue: PublishIssue, base: string): string {
 
 function fixTab(issue: PublishIssue): string {
   if (issue.code !== "wording") return FIX_TAB[issue.code];
-  if (issue.message.includes("lesson text")) return "lessons";
-  if (issue.message.includes("artifact name") || issue.message.includes("assignment prompt"))
-    return "outcome";
+  const context = issue.finding?.context;
+  if (context === "lesson_text") return "lessons";
+  if (context === "artifact_name" || context === "assignment_prompt") return "outcome";
   return "details";
 }
 
@@ -60,6 +62,7 @@ export default async function PublishPage({
     "courses.edit",
     `/studio/courses/${courseId}/publish`,
   );
+  const t = await getStudioText();
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const check = publishCheckFor(editor, {
@@ -78,7 +81,7 @@ export default async function PublishPage({
           {tone === "critical" ? (
             <CircleX
               role="img"
-              aria-label="Blocks publishing"
+              aria-label={t.t("courses.publish.blocks")}
               size={20}
               className="mt-0.5 shrink-0"
               style={{ color: "var(--status-critical)" }}
@@ -86,23 +89,23 @@ export default async function PublishPage({
           ) : (
             <TriangleAlert
               role="img"
-              aria-label="Warning"
+              aria-label={t.t("courses.publish.warning")}
               size={20}
               className="mt-0.5 shrink-0"
               style={{ color: "var(--status-warning)" }}
             />
           )}
           <span className="min-w-0 flex-1 text-sm">
-            {issue.message}
+            {publishIssueText(t, issue)}
             {issue.locale && isLocale(issue.locale) && (
-              <span className="text-muted"> · {LANGUAGE_NAMES[issue.locale]}</span>
+              <span className="text-muted"> · {languageName(t, issue.locale)}</span>
             )}
           </span>
           <Link
             href={fixHref(issue, base) as Route}
             className="shrink-0 text-sm font-semibold hover:underline"
           >
-            Fix
+            {t.t("courses.publish.fix")}
           </Link>
         </li>
       ))}
@@ -112,16 +115,14 @@ export default async function PublishPage({
   return (
     <div className="space-y-6">
       {published === "1" && (
-        <Notice tone="good" title="Published">
-          The course is live in the catalogue. Changes you make now reach learners right away.
+        <Notice tone="good" title={t.t("courses.publish.publishedTitle")}>
+          {t.t("courses.publish.publishedBody")}
         </Notice>
       )}
-      {blocked === "1" && (
-        <Notice tone="critical" title="Not published: fix the blocking issues first." />
-      )}
+      {blocked === "1" && <Notice tone="critical" title={t.t("courses.publish.blockedNotice")} />}
       {unpublished === "1" && (
-        <Notice tone="info" title="Unpublished">
-          New learners cannot start it. Learners who started keep their progress and certificates.
+        <Notice tone="info" title={t.t("courses.publish.unpublishedTitle")}>
+          {t.t("courses.publish.unpublishedBody")}
         </Notice>
       )}
 
@@ -133,69 +134,72 @@ export default async function PublishPage({
           <div>
             <h2 className="text-lg font-semibold">
               {live
-                ? "Live"
+                ? t.t("courses.publish.live")
                 : check.ok
-                  ? "Ready to publish"
-                  : `${check.errors.length} ${check.errors.length === 1 ? "issue blocks" : "issues block"} publishing`}
+                  ? t.t("courses.publish.ready")
+                  : t.n("courses.publish.blocked", check.errors.length)}
             </h2>
             <p className="text-sm text-muted">
               {live && course.publishedAt
-                ? `Published ${dates.format(course.publishedAt)} · version ${course.version}`
-                : "Preview it as a learner first. You can unpublish at any time."}
+                ? t.t("courses.publish.publishedOn", {
+                    date: t.date(course.publishedAt, "dateTime"),
+                    version: course.version,
+                  })
+                : t.t("courses.publish.previewFirst")}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`${base}/preview` as Route} className="btn btn-secondary">
-            <Eye aria-hidden size={18} /> Preview as learner
+            <Eye aria-hidden size={18} /> {t.t("courses.previewAsLearner")}
           </Link>
           {canPublish && live && (
             <form action={unpublishCourseAction}>
               <input type="hidden" name="courseId" value={course.id} />
               <SubmitButton
                 className="btn btn-danger"
-                pendingLabel="Unpublishing…"
-                confirm="Unpublish? New learners can no longer start this course."
+                pendingLabel={t.t("courses.publish.unpublishing")}
+                confirm={t.t("courses.publish.unpublishConfirm")}
               >
-                Unpublish
+                {t.t("courses.publish.unpublish")}
               </SubmitButton>
             </form>
           )}
           {canPublish && !live && (
             <form action={publishCourseAction}>
               <input type="hidden" name="courseId" value={course.id} />
-              <SubmitButton pendingLabel="Publishing…" disabled={!check.ok}>
-                Publish
+              <SubmitButton pendingLabel={t.t("courses.publish.publishing")} disabled={!check.ok}>
+                {t.t("courses.publish.publish")}
               </SubmitButton>
             </form>
           )}
         </div>
         {!canPublish && (
-          <p className="w-full text-sm text-muted">Only authors and admins publish.</p>
+          <p className="w-full text-sm text-muted">{t.t("courses.publish.onlyPublishers")}</p>
         )}
       </section>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <section aria-labelledby="checks-heading" className="card-flat p-5">
           <h2 id="checks-heading" className="text-lg font-semibold">
-            Checklist
+            {t.t("courses.publish.checklist")}
           </h2>
           {check.errors.length === 0 && check.warnings.length === 0 ? (
             <p className="mt-3 flex items-center gap-2 text-sm">
-              <CircleCheck aria-hidden size={20} style={{ color: "var(--status-good)" }} /> Every
-              check passes.
+              <CircleCheck aria-hidden size={20} style={{ color: "var(--status-good)" }} />{" "}
+              {t.t("courses.publish.allPass")}
             </p>
           ) : (
             <>
               {check.errors.length > 0 && (
                 <div className="mt-3">
-                  <p className="eyebrow">Blocks publishing</p>
+                  <p className="eyebrow">{t.t("courses.publish.blocks")}</p>
                   {issueList(check.errors, "critical")}
                 </div>
               )}
               {check.warnings.length > 0 && (
                 <div className="mt-3">
-                  <p className="eyebrow">Worth a look</p>
+                  <p className="eyebrow">{t.t("courses.publish.worthALook")}</p>
                   {issueList(check.warnings, "warning")}
                 </div>
               )}
@@ -205,11 +209,9 @@ export default async function PublishPage({
 
         <section aria-labelledby="coverage-heading" className="card-flat p-5">
           <h2 id="coverage-heading" className="text-lg font-semibold">
-            Coverage map
+            {t.t("courses.publish.coverage")}
           </h2>
-          <p className="text-sm text-muted">
-            Every criterion the review scores should be taught somewhere.
-          </p>
+          <p className="text-sm text-muted">{t.t("courses.publish.coverageIntro")}</p>
           <ul className="mt-3 divide-y divide-line">
             {check.coverage.map((row) => (
               <li
@@ -220,7 +222,7 @@ export default async function PublishPage({
                 <span className="text-right text-muted">
                   {row.lessonKeys.length === 0 ? (
                     <span className="font-semibold" style={{ color: "var(--status-serious)" }}>
-                      Not taught
+                      {t.t("courses.publish.notTaught")}
                     </span>
                   ) : (
                     row.lessonKeys
