@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { credentialImportSchema } from "@/core/credentials/import";
 import { earnedText, proofLine } from "@/core/credentials/proof";
+import {
+  fromSharedCredential,
+  shareAttribution,
+  shareChannelOf,
+  sharedUrl,
+  suggestedPost,
+} from "@/core/credentials/share";
 import { createTranslator } from "@/core/i18n/translator";
 import { linkedInAddToProfileUrl, linkedInShareUrl } from "@/core/credentials/linkedin";
 import {
@@ -175,5 +182,59 @@ describe("how a credential was earned", () => {
     );
     expect(earnedText(en, "test")).toBe("Earned by passing the Final Test.");
     expect(earnedText(en, "work")).toBe("Earned with real work that passed a rubric-based review.");
+  });
+});
+
+describe("sharing a credential on LinkedIn", () => {
+  const en = createTranslator({ locale: "en" });
+  const de = createTranslator({ locale: "de" });
+  const facts = {
+    basis: "work" as const,
+    course: "Get paid on time",
+    academy: "Scaling Product Academy",
+    artifact: "Reminder playbook",
+    proof: "Deliverable: Reminder playbook",
+    url: "https://academy.example/verify/ABCD?via=post",
+  };
+
+  it("tags the shared link with its channel and carries it into the academy", () => {
+    expect(sharedUrl("https://academy.example/verify/ABCD", "profile")).toBe(
+      "https://academy.example/verify/ABCD?via=profile",
+    );
+    expect(shareChannelOf("post")).toBe("post");
+    expect(shareChannelOf("x")).toBeNull();
+    expect(shareAttribution("ABCD", "post")).toEqual({
+      utm_source: "linkedin",
+      utm_medium: "post",
+      utm_content: "ABCD",
+    });
+    expect(shareAttribution("ABCD", null).utm_source).toBe("verification");
+    expect(fromSharedCredential({ source: "linkedin", medium: "profile" })).toBe(true);
+    expect(fromSharedCredential({ source: "verification", medium: "credential" })).toBe(true);
+    expect(fromSharedCredential({ source: "newsletter" })).toBe(false);
+  });
+
+  it("suggests a post that says what the learner did, in their language", () => {
+    expect(suggestedPost(en, facts, { template: null, hashtags: [] })).toBe(
+      "I just completed “Get paid on time” at Scaling Product Academy. What I built: Reminder playbook, reviewed against every criterion.\n\nhttps://academy.example/verify/ABCD?via=post",
+    );
+    const test = suggestedPost(
+      de,
+      { ...facts, basis: "test", artifact: null, proof: "Abschlusstest bestanden" },
+      { template: null, hashtags: ["Mahnwesen", "Freelancing"] },
+    );
+    expect(test).toContain("den Abschlusstest bestanden");
+    expect(test.endsWith("\n\n#Mahnwesen #Freelancing")).toBe(true);
+  });
+
+  it("uses the academy's own text when it has one", () => {
+    expect(
+      suggestedPost(en, facts, {
+        template: "Done: {course} ({proof}) with {academy}. {url} {unknown}",
+        hashtags: ["scaling"],
+      }),
+    ).toBe(
+      "Done: Get paid on time (Deliverable: Reminder playbook) with Scaling Product Academy. https://academy.example/verify/ABCD?via=post {unknown}\n\n#scaling",
+    );
   });
 });

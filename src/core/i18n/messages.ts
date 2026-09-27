@@ -241,6 +241,13 @@ const en = {
   "verify.openBadge": "Download as Open Badge",
   "verify.openBadgeHint":
     "Open Badges 3.0, signed by {academy}: for digital wallets and other platforms.",
+  // Suggested LinkedIn post (core/credentials/share): {course}, {academy}, {artifact}, {url}.
+  "share.post.work":
+    "I just completed “{course}” at {academy}. What I built: {artifact}, reviewed against every criterion.\n\n{url}",
+  "share.post.test":
+    "I just completed “{course}” at {academy} and passed the {term.test}.\n\n{url}",
+  "share.post.work_and_test":
+    "I just completed “{course}” at {academy}. What I built: {artifact}, reviewed against every criterion, and I passed the {term.test}.\n\n{url}",
 
   "showcase.title": "The work behind it",
   "showcase.edit": "Show your work",
@@ -578,6 +585,12 @@ const de: Record<MessageKey, string> = {
   "verify.openBadge": "Als Open Badge herunterladen",
   "verify.openBadgeHint":
     "Open Badges 3.0, signiert von {academy}: für digitale Wallets und andere Plattformen.",
+  "share.post.work":
+    "Ich habe „{course}“ bei {academy} abgeschlossen. Mein Ergebnis: {artifact}, bewertet in jedem Kriterium.\n\n{url}",
+  "share.post.test":
+    "Ich habe „{course}“ bei {academy} abgeschlossen und den {term.test} bestanden.\n\n{url}",
+  "share.post.work_and_test":
+    "Ich habe „{course}“ bei {academy} abgeschlossen. Mein Ergebnis: {artifact}, bewertet in jedem Kriterium, dazu den bestandenen {term.test}.\n\n{url}",
 
   "showcase.title": "Die Arbeit dahinter",
   "showcase.edit": "Zeig deine Arbeit",

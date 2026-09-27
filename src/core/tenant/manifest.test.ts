@@ -273,16 +273,48 @@ describe("verification call to action", () => {
     });
   });
 
-  it("fills {course} and {path} placeholders in configured URLs", () => {
+  it("fills {course} and {path} placeholders in configured URLs and tags them too", () => {
     expect(
       buildVerificationCtaUrl(
-        { label: { en: "Go" }, url: "https://scaling-product.com/c/{course}" },
+        { label: { en: "Go" }, url: "https://scaling-product.com/c/{course}?utm_source=academy" },
         context,
       ),
-    ).toBe("https://scaling-product.com/c/validation-lab");
-    expect(buildVerificationCtaUrl({ label: { en: "Go" }, url: "/paths/{path}" }, context)).toBe(
-      "https://academy.scaling-product.com/paths/validator",
+    ).toBe(
+      "https://scaling-product.com/c/validation-lab?utm_source=academy&utm_medium=credential&utm_content=ABCD2345EFGH6789",
     );
+    expect(buildVerificationCtaUrl({ label: { en: "Go" }, url: "/paths/{path}" }, context)).toBe(
+      "https://academy.scaling-product.com/paths/validator?utm_source=verification&utm_medium=credential&utm_content=ABCD2345EFGH6789",
+    );
+  });
+
+  it("says which LinkedIn channel a visitor came from", () => {
+    const url = new URL(
+      buildVerificationCtaUrl({ label: { en: "Start" } }, { ...context, via: "post" }),
+    );
+    expect(url.searchParams.get("utm_source")).toBe("linkedin");
+    expect(url.searchParams.get("utm_medium")).toBe("post");
+    expect(url.searchParams.get("utm_content")).toBe("ABCD2345EFGH6789");
+  });
+
+  it("takes a suggested post and hashtags, held to the credential's wording", () => {
+    const valid = validateTenantManifest(
+      baseManifest({
+        sharing: {
+          post_text: { en: "Finished {course} at {academy}: {url}" },
+          hashtags: ["#Freelancing", "invoices"],
+        },
+      }),
+    );
+    if (!valid.ok) throw new Error(valid.errors.join("\n"));
+    expect(valid.manifest.tenant.sharing.hashtags).toEqual(["Freelancing", "invoices"]);
+    expect(
+      errorsOf(baseManifest({ sharing: { post_text: { en: "Now certified! {url}" } } })).length,
+    ).toBeGreaterThan(0);
+    expect(errorsOf(baseManifest({ sharing: { hashtags: ["certified"] } })).length).toBeGreaterThan(
+      0,
+    );
+    expect(errorsOf(baseManifest({ sharing: { post_text: { en: "Hi {name}" } } })).length).toBe(1);
+    expect(errorsOf(baseManifest({ sharing: { hashtags: ["two words"] } })).length).toBe(1);
   });
 
   it("rejects CTA URLs with unknown placeholders or other schemes", () => {

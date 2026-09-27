@@ -14,6 +14,7 @@ import {
   type WordingFinding,
 } from "@/core/compliance/wording-lint";
 import { COMPLETION_MODES } from "@/core/courses/completion";
+import { shareAttribution, type ShareChannel } from "@/core/credentials/share";
 import {
   localeSchema,
   localizedTextInputSchema,
@@ -72,6 +73,33 @@ const ctaUrlSchema = z
     }
   }, "Use an https:// URL or a path starting with /; only {course} and {path} placeholders are allowed");
 
+/** A LinkedIn hashtag, stored without "#": letters, digits and underscores. */
+const hashtagSchema = z
+  .string()
+  .trim()
+  .regex(/^#?[\p{L}\p{N}_]{1,40}$/u, "A hashtag is one word: letters, digits and _")
+  .transform((tag) => tag.replace(/^#/, ""));
+
+/**
+ * What learners are offered to post about their credential (brief §6). The
+ * text is a suggestion they can change; {course}, {academy}, {proof},
+ * {artifact} and {url} are filled in. Without it, a text per completion mode.
+ */
+const sharingSchema = z.strictObject({
+  post_text: z
+    .partialRecord(localeSchema, z.string().trim().min(1).max(1200))
+    .refine((value) => Object.keys(value).length > 0, "Write it in at least one language")
+    .refine(
+      (value) =>
+        Object.values(value).every(
+          (text) => !/\{(?!(course|academy|proof|artifact|url)\})[^}]*\}/.test(text ?? ""),
+        ),
+      "Only {course}, {academy}, {proof}, {artifact} and {url} are filled in",
+    )
+    .optional(),
+  hashtags: z.array(hashtagSchema).max(5).default([]),
+});
+
 export const FEATURE_KEYS = ["paths", "levels", "cohorts", "ai_review", "showcase"] as const;
 
 export const featuresSchema = z.strictObject({
@@ -125,6 +153,7 @@ export const tenantSettingsSchema = z.strictObject({
   anonymity_mode: z.boolean().default(true),
   /** Numeric LinkedIn page id; without it "Add to profile" uses the academy name. */
   linkedin_organization_id: z.string().regex(/^\d+$/).optional(),
+  sharing: sharingSchema.prefault({}),
   review_tone: z.enum(REVIEW_TONES).default("warm"),
 });
 export type TenantSettings = z.output<typeof tenantSettingsSchema>;
@@ -206,6 +235,17 @@ function wordingChecks(manifest: {
   add(
     ["tenant", "verification_cta", "label"],
     lintLocalizedWording(manifest.tenant.verification_cta.label, "cta_label"),
+  );
+  // What learners post about their credential is held to the credential's own wording.
+  if (manifest.tenant.sharing.post_text) {
+    add(
+      ["tenant", "sharing", "post_text"],
+      lintLocalizedWording(manifest.tenant.sharing.post_text, "credential_template"),
+    );
+  }
+  add(
+    ["tenant", "sharing", "hashtags"],
+    text(manifest.tenant.sharing.hashtags.join(" "), "credential_template"),
   );
   for (const entry of termOverrideEntries(manifest.terminology)) {
     add(["terminology", entry.key, entry.locale], text(entry.text, "terminology"));
@@ -452,8 +492,9 @@ export function tenantLocales(tenant: Pick<TenantSettings, "locales">): Locale[]
 
 /**
  * Target of the verification page's call to action. Without a configured URL
- * it is the academy's own entry link for the same course, tagged so the
- * funnel can attribute sign-ups to shared credentials.
+ * it is the academy's own entry link for the same course. Either way it is
+ * tagged with the credential and the LinkedIn channel it was shared on, so
+ * the funnel (or the academy's own analytics) can attribute new learners.
  */
 export function buildVerificationCtaUrl(
   cta: TenantSettings["verification_cta"],
@@ -462,18 +503,23 @@ export function buildVerificationCtaUrl(
     courseSlug: string;
     pathSlug?: string | null;
     publicId: string;
+    via?: ShareChannel | null;
   },
 ): string {
+  const attribution = shareAttribution(context.publicId, context.via ?? null);
   if (!cta.url) {
     const params = new URLSearchParams({ course: context.courseSlug });
     if (context.pathSlug) params.set("path", context.pathSlug);
-    params.set("utm_source", "verification");
-    params.set("utm_medium", "credential");
-    params.set("utm_content", context.publicId);
+    for (const [key, value] of Object.entries(attribution)) params.set(key, value);
     return `${context.academyOrigin}/start?${params.toString()}`;
   }
   const filled = cta.url
     .replaceAll("{course}", encodeURIComponent(context.courseSlug))
     .replaceAll("{path}", encodeURIComponent(context.pathSlug ?? ""));
-  return filled.startsWith("/") ? `${context.academyOrigin}${filled}` : filled;
+  const target = new URL(filled, context.academyOrigin);
+  // The academy's own tags stay; ours fill in what it left out.
+  for (const [key, value] of Object.entries(attribution)) {
+    if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+  }
+  return target.toString();
 }
