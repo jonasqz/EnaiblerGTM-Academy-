@@ -13,7 +13,16 @@ import {
   type WordingContext,
   type WordingFinding,
 } from "@/core/compliance/wording-lint";
+import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
 import { localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import {
+  MIN_USEFUL_TEST_QUESTIONS,
+  questionTexts,
+  testQuestionTexts,
+  untranslatedQuestions,
+  type CheckQuestion,
+  type TestQuestion,
+} from "@/core/questions/questions";
 import { GOOD_AGREEMENT } from "@/core/review/calibration";
 import type { Rubric } from "@/core/review/rubric";
 
@@ -21,6 +30,8 @@ import type { Rubric } from "@/core/review/rubric";
  * Pre-publish checks (brief §7 step 6, §9). Errors block publishing; warnings
  * are shown to the author. The coverage map answers "which lesson teaches
  * which rubric criterion" and flags gaps ("No lesson teaches criterion 3").
+ * What a course must have follows how learners finish it: the work with its
+ * rubric, the final test, or both (core/courses/completion).
  */
 export interface PublishCheckInput {
   course: {
@@ -31,6 +42,7 @@ export interface PublishCheckInput {
     offersRecordings?: boolean;
     zfuApproval?: ZfuApproval | null;
     estMinutes?: number | null;
+    completionMode: CompletionMode;
   };
   lessons: ReadonlyArray<{
     key: string;
@@ -38,6 +50,8 @@ export interface PublishCheckInput {
     title: string;
     markdown: string;
     criterionIds: readonly string[];
+    /** The lesson's knowledge check, if it has one. */
+    questions?: readonly CheckQuestion[];
   }>;
   assignment: {
     prompt: LocalizedText;
@@ -45,6 +59,8 @@ export interface PublishCheckInput {
     submissionTypes: readonly SubmissionType[];
   } | null;
   rubric: Rubric | null;
+  /** The final test; only looked at when the course ends with one. */
+  test?: { questions: readonly TestQuestion[] } | null;
   platform?: PlatformCapabilities;
   /** The academy around the course; omitted, academy-level checks are skipped. */
   academy?: { legalLinks: { imprint?: string; privacy?: string } };
@@ -67,6 +83,9 @@ export type PublishIssueCode =
   | "missing_assignment_text"
   | "no_rubric"
   | "criterion_not_taught"
+  | "no_test"
+  | "missing_test_text"
+  | "test_too_short"
   | "delivery_mode"
   | "no_duration"
   | "legal_pages_missing"
@@ -102,8 +121,9 @@ export interface PublishCheck {
 export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
   const issues: PublishIssue[] = [];
   const add = (issue: PublishIssue) => issues.push(issue);
-  const { course, lessons, assignment, rubric } = input;
-  const primary = course.languages[0] ?? "en";
+  const { course, lessons } = input;
+  // A course that ends with a test alone keeps any rubric it had for later, unchecked.
+  const work = requiresWork(course.completionMode);
 
   const lint = (text: LocalizedText | string, context: WordingContext) => {
     const findings =
@@ -157,6 +177,9 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
       });
     }
     lint(lesson.markdown, "lesson_text");
+    for (const question of lesson.questions ?? []) {
+      lint(questionTexts(question).join("\n"), "lesson_text");
+    }
   }
   const allKeys = new Set(
     lessons.filter((l) => course.languages.includes(l.locale)).map((l) => l.key),
@@ -184,55 +207,13 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     }
   }
 
-  // The one required artifact.
-  if (!assignment) {
-    add({
-      code: "no_assignment",
-      severity: "error",
-      message: "Define what learners build (the assignment).",
-    });
-  } else {
-    for (const locale of course.languages) {
-      if (!assignment.prompt[locale] || !assignment.artifactName[locale]) {
-        add({
-          code: "missing_assignment_text",
-          severity: "error",
-          locale,
-          message: `Add the assignment prompt and artifact name in ${locale.toUpperCase()}.`,
-        });
-      }
-    }
-    lint(assignment.artifactName, "artifact_name");
-    lint(assignment.prompt, "assignment_prompt");
-  }
+  // What learners hand in, with its rubric and coverage map, when the course asks for work.
+  const coverage = work ? checkWork(input, add, lint) : [];
 
-  // Rubric and coverage map.
-  const coverage: CoverageRow[] = [];
-  if (!rubric) {
-    add({
-      code: "no_rubric",
-      severity: "error",
-      message: "Add a rubric so submissions can be reviewed.",
-    });
-  } else {
-    for (const criterion of rubric.criteria) {
-      const teaching = [
-        ...new Set(lessons.filter((l) => l.criterionIds.includes(criterion.id)).map((l) => l.key)),
-      ];
-      const label = localize(criterion.label, primary);
-      coverage.push({ criterionId: criterion.id, label, lessonKeys: teaching });
-      if (teaching.length === 0) {
-        add({
-          code: "criterion_not_taught",
-          severity: "warning",
-          params: { label },
-          message: `No lesson teaches "${label}".`,
-        });
-      }
-    }
-  }
+  if (requiresTest(course.completionMode))
+    checkTest(input.test ?? null, course.languages, add, lint);
 
-  if (input.calibration && rubric) {
+  if (input.calibration && work && input.rubric) {
     const { latest } = input.calibration;
     if (!latest || !latest.current) {
       add({
@@ -297,6 +278,100 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     warnings: issues.filter((issue) => issue.severity === "warning"),
     coverage,
   };
+}
+
+type Add = (issue: PublishIssue) => void;
+type Lint = (text: LocalizedText | string, context: WordingContext) => void;
+
+/** The work learners build: assignment texts, a rubric, and which lesson teaches each criterion. */
+function checkWork(input: PublishCheckInput, add: Add, lint: Lint): CoverageRow[] {
+  const { course, lessons, assignment, rubric } = input;
+  if (!assignment) {
+    add({
+      code: "no_assignment",
+      severity: "error",
+      message: "Define what learners build (the assignment).",
+    });
+  } else {
+    for (const locale of course.languages) {
+      if (!assignment.prompt[locale] || !assignment.artifactName[locale]) {
+        add({
+          code: "missing_assignment_text",
+          severity: "error",
+          locale,
+          message: `Add the assignment prompt and artifact name in ${locale.toUpperCase()}.`,
+        });
+      }
+    }
+    lint(assignment.artifactName, "artifact_name");
+    lint(assignment.prompt, "assignment_prompt");
+  }
+
+  if (!rubric) {
+    add({
+      code: "no_rubric",
+      severity: "error",
+      message: "Add a rubric so submissions can be reviewed.",
+    });
+    return [];
+  }
+  const primary = course.languages[0] ?? "en";
+  return rubric.criteria.map((criterion) => {
+    const teaching = [
+      ...new Set(lessons.filter((l) => l.criterionIds.includes(criterion.id)).map((l) => l.key)),
+    ];
+    const label = localize(criterion.label, primary);
+    if (teaching.length === 0) {
+      add({
+        code: "criterion_not_taught",
+        severity: "warning",
+        params: { label },
+        message: `No lesson teaches "${label}".`,
+      });
+    }
+    return { criterionId: criterion.id, label, lessonKeys: teaching };
+  });
+}
+
+/** The final test: questions in every course language, and enough of them to mean something. */
+function checkTest(
+  test: PublishCheckInput["test"] | null,
+  languages: readonly Locale[],
+  add: Add,
+  lint: Lint,
+) {
+  const questions = test?.questions ?? [];
+  if (questions.length === 0) {
+    add({
+      code: "no_test",
+      severity: "error",
+      message: "Write the final test: at least one question.",
+    });
+    return;
+  }
+  for (const locale of languages) {
+    const missing = untranslatedQuestions(questions, locale).length;
+    if (missing > 0) {
+      add({
+        code: "missing_test_text",
+        severity: "error",
+        locale,
+        params: { count: missing },
+        message: `${missing} test question(s) have no ${locale.toUpperCase()} text yet.`,
+      });
+    }
+  }
+  if (questions.length < MIN_USEFUL_TEST_QUESTIONS) {
+    add({
+      code: "test_too_short",
+      severity: "warning",
+      params: { count: questions.length, min: MIN_USEFUL_TEST_QUESTIONS },
+      message: `The final test has ${questions.length} question(s); ${MIN_USEFUL_TEST_QUESTIONS} or more say more about what someone learned.`,
+    });
+  }
+  for (const question of questions) {
+    for (const text of testQuestionTexts(question)) lint(text, "test_question");
+  }
 }
 
 export function hasLegalPages(links: { imprint?: string; privacy?: string }): boolean {

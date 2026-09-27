@@ -12,3 +12,4 @@ export * from "@/db/schema/messaging";
 export * from "@/db/schema/domains";
 export * from "@/db/schema/integrations";
 export * from "@/db/schema/cohorts";
+export * from "@/db/schema/usage";

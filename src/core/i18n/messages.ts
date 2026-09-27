@@ -151,6 +151,10 @@ const en = {
   "verify.level": "{term.level} {n} · {name}",
   "verify.artifact": "{term.artifact}: {name}",
   "verify.backedByWork": "Earned with real work that passed a rubric-based review.",
+  "verify.testPassed": "{term.test} passed",
+  "verify.backedByTest": "Earned by passing the {term.test}.",
+  "verify.backedByWorkAndTest":
+    "Earned with real work that passed a rubric-based review, and with the {term.test}.",
   "verify.unavailable": "This credential is no longer available",
   "verify.addToProfile": "Add to LinkedIn profile",
   "verify.share": "Share on LinkedIn",
@@ -181,6 +185,13 @@ const en = {
   "openBadge.criteria":
     "Hand in “{artifact}” and pass a review against every criterion of the course rubric.",
   "openBadge.evidence": "The work passed a review against every criterion of the course rubric.",
+  "openBadge.descriptionTest": "Completed {course} by passing its {term.test}.",
+  "openBadge.descriptionWorkAndTest":
+    "Completed {course} by building “{artifact}” and passing its {term.test}.",
+  "openBadge.criteriaTest": "Pass the {term.test} of the course.",
+  "openBadge.criteriaWorkAndTest":
+    "Hand in “{artifact}”, pass a review against every criterion of the course rubric, and pass the {term.test}.",
+  "openBadge.evidenceTest": "The learner passed the {term.test}.",
 
   "cohort.joinTitle": "Join “{cohort}”",
   "cohort.joinBody":
@@ -223,6 +234,8 @@ const en = {
   "email.reviewReady.secondLook": "A reviewer took a second look at your work.",
   "email.reviewReady.bodyPassed":
     "Your work in “{course}” passed the review. Your {term.credential} is ready. It stays private until you choose to share it.",
+  "email.reviewReady.bodyPassedTestPending":
+    "Your work in “{course}” passed the review. One step to go: pass the {term.test}, and your {term.credential} is ready.",
   "email.reviewReady.bodyRevise":
     "Your work in “{course}” got feedback on every criterion. Revise it and hand it in again whenever you're ready.",
   "email.reviewReady.levelUp": "You also reached {term.level} {n} · {name}.",
@@ -398,6 +411,10 @@ const de: Record<MessageKey, string> = {
   "verify.artifact": "{term.artifact}: {name}",
   "verify.backedByWork":
     "Erworben mit einer echten Arbeit, die eine Bewertung anhand klarer Kriterien bestanden hat.",
+  "verify.testPassed": "{term.test} bestanden",
+  "verify.backedByTest": "Erworben mit dem bestandenen {term.test}.",
+  "verify.backedByWorkAndTest":
+    "Erworben mit einer echten Arbeit, die eine Bewertung anhand klarer Kriterien bestanden hat, und dem bestandenen {term.test}.",
   "verify.unavailable": "Dieser Nachweis ist nicht mehr verfügbar",
   "verify.addToProfile": "Zum LinkedIn-Profil hinzufügen",
   "verify.share": "Auf LinkedIn teilen",
@@ -431,6 +448,13 @@ const de: Record<MessageKey, string> = {
     "„{artifact}“ einreichen und die Bewertung in jedem Kriterium der Kurs-Rubrik bestehen.",
   "openBadge.evidence":
     "Die Arbeit hat die Bewertung in jedem Kriterium der Kurs-Rubrik bestanden.",
+  "openBadge.descriptionTest": "{course} abgeschlossen mit bestandenem {term.test}.",
+  "openBadge.descriptionWorkAndTest":
+    "{course} abgeschlossen mit „{artifact}“ und bestandenem {term.test}.",
+  "openBadge.criteriaTest": "Den {term.test} des Kurses bestehen.",
+  "openBadge.criteriaWorkAndTest":
+    "„{artifact}“ einreichen, die Bewertung in jedem Kriterium der Kurs-Rubrik bestehen und den {term.test} bestehen.",
+  "openBadge.evidenceTest": "Der {term.test} wurde bestanden.",
 
   "cohort.joinTitle": "„{cohort}“ beitreten",
   "cohort.joinBody":
@@ -475,6 +499,8 @@ const de: Record<MessageKey, string> = {
     "Jemand aus dem Team hat sich deine Arbeit noch einmal angesehen.",
   "email.reviewReady.bodyPassed":
     "Deine Arbeit in „{course}“ hat die Bewertung bestanden. Deine {term.credential} ist bereit. Sie bleibt privat, bis du sie teilst.",
+  "email.reviewReady.bodyPassedTestPending":
+    "Deine Arbeit in „{course}“ hat die Bewertung bestanden. Noch ein Schritt: Besteh den {term.test}, dann ist deine {term.credential} fertig.",
   "email.reviewReady.bodyRevise":
     "Deine Arbeit in „{course}“ hat Feedback zu jedem Kriterium bekommen. Überarbeite sie und reiche sie wieder ein, wann immer du so weit bist.",
   "email.reviewReady.levelUp": "Außerdem hast du {term.level} {n} · {name} erreicht.",

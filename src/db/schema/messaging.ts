@@ -18,6 +18,8 @@ export interface ReviewReadyPayload {
   levelUp: number | null;
   /** A reviewer changed a result the learner had already seen. */
   secondLook: boolean;
+  /** The work passed, but the credential waits for the course's final test. */
+  testPending?: boolean;
 }
 
 export interface LevelUpPayload {

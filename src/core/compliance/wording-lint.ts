@@ -25,6 +25,8 @@ export const WORDING_CONTEXTS = {
   /** A learner's excerpt on their public credential page. */
   showcase: "error",
   lesson_text: "warning",
+  /** The final test's questions: running text like lessons (knowledge checks are lesson text). */
+  test_question: "warning",
   course_description: "warning",
   assignment_prompt: "warning",
 } as const satisfies Record<string, WordingSeverity>;

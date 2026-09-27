@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { COMPLETION_MODES } from "@/core/courses/completion";
 import type { LocalizedText } from "@/core/i18n/locales";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
@@ -26,6 +27,8 @@ export interface Showcase {
   updatedAt: string;
 }
 export const credentialSource = pgEnum("credential_source", ["native", "imported"]);
+/** How the credential was earned: the course's completion mode when it was issued. */
+export const credentialBasis = pgEnum("credential_basis", COMPLETION_MODES);
 
 /**
  * Credentials (brief §6). Private by default; `display_name` exactly as the
@@ -50,7 +53,9 @@ export const credentials = pgTable(
     levelAtIssue: integer("level_at_issue"),
     levelName: jsonb("level_name").$type<LocalizedText>(),
     courseTitle: jsonb("course_title").$type<LocalizedText>().notNull(),
-    artifactName: text("artifact_name").notNull(),
+    basis: credentialBasis("basis").notNull().default("work"),
+    /** What the learner built; null when the course ended with a test alone. */
+    artifactName: text("artifact_name"),
     displayName: text("display_name").notNull(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     visibility: credentialVisibility("visibility").notNull().default("private"),
@@ -59,6 +64,8 @@ export const credentials = pgTable(
     sourcePlatform: text("source_platform"),
     externalId: text("external_id"),
     submissionId: uuid("submission_id"),
+    /** The passed final test, when the course has one. */
+    testAttemptId: uuid("test_attempt_id"),
     /** The original Open Badges document of an imported credential, kept as received. */
     ob3Json: jsonb("ob3_json").$type<Record<string, unknown>>(),
     /**

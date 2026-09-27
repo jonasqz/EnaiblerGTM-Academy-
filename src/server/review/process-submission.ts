@@ -10,7 +10,7 @@ import type { Database, Transaction } from "@/db/client";
 import { assignments, courses, enrollments, reviews, rubrics, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
-import { issueCredential } from "@/server/credentials/issue";
+import { completeCourse } from "@/server/courses/completion";
 import { trackEvent } from "@/server/events";
 import type { LlmCaller } from "@/server/llm";
 import { queueReviewReady } from "@/server/notifications";
@@ -270,14 +270,19 @@ export async function recordDecision(
   };
   await trackEvent(tx, { ...base, name: "review_completed", props: { pass: input.pass } });
   let levelUp: number | null = null;
+  let testPending = false;
   if (input.pass) {
     await trackEvent(tx, { ...base, name: "review_passed" });
-    levelUp = (await issueCredential(tx, tenant, input)).levelUp?.n ?? null;
+    // The credential waits for the final test when the course has one.
+    const completion = await completeCourse(tx, tenant, input);
+    if (completion.issued) levelUp = completion.levelUp?.n ?? null;
+    else testPending = completion.missing.includes("test");
   }
   await queueReviewReady(tx, tenant.id, {
     userId: input.userId,
     submissionId: input.submissionId,
     levelUp,
     secondLook: input.secondLook ?? false,
+    testPending,
   });
 }

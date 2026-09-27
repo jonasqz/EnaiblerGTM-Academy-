@@ -1,5 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 
+import { requiresWork, type CompletionMode } from "@/core/courses/completion";
 import { generatePublicId } from "@/core/credentials/public-id";
 import type { Locale } from "@/core/i18n/locales";
 import { localize } from "@/core/i18n/locales";
@@ -19,20 +20,27 @@ import {
 import { trackEvent } from "@/server/events";
 
 /**
- * Issues (or re-activates) the learner's credential for a course after a
- * released pass: private by default, name as the learner entered it, course,
- * artifact and level as snapshots. Records course completion and level-ups.
+ * Issues (or re-activates) the learner's credential for a course once every
+ * required part is passed (server/courses/completion): private by default,
+ * name as the learner entered it, course, artifact, level and how it was
+ * earned as snapshots. Records course completion and level-ups.
  */
 export async function issueCredential(
   tx: Transaction,
   tenant: TenantContext,
-  input: { userId: string; courseId: string; submissionId: string },
+  input: {
+    userId: string;
+    courseId: string;
+    basis: CompletionMode;
+    submissionId: string | null;
+    testAttemptId: string | null;
+  },
 ): Promise<{ publicId: string; levelUp: LevelDefinition | null }> {
+  const work = requiresWork(input.basis);
   const [course] = await tx.select().from(courses).where(eq(courses.id, input.courseId));
-  const [assignment] = await tx
-    .select()
-    .from(assignments)
-    .where(eq(assignments.courseId, input.courseId));
+  const [assignment] = work
+    ? await tx.select().from(assignments).where(eq(assignments.courseId, input.courseId))
+    : [];
   const [enrollment] = await tx
     .select()
     .from(enrollments)
@@ -41,7 +49,7 @@ export async function issueCredential(
     .select()
     .from(learnerProfiles)
     .where(eq(learnerProfiles.userId, input.userId));
-  if (!course || !assignment) throw new Error("Course or assignment missing");
+  if (!course || (work && !assignment)) throw new Error("Course or assignment missing");
 
   const locale = (enrollment?.locale ?? tenant.settings.default_locale) as Locale;
   const pathId = enrollment?.pathId ?? profile?.currentPathId ?? null;
@@ -84,9 +92,13 @@ export async function issueCredential(
     levelAtIssue: levelAtIssue?.n ?? null,
     levelName: levelAtIssue?.name ?? null,
     courseTitle: course.title,
-    artifactName: localize(assignment.artifactName, locale, [tenant.settings.default_locale]),
+    basis: input.basis,
+    artifactName: assignment
+      ? localize(assignment.artifactName, locale, [tenant.settings.default_locale])
+      : null,
     displayName: profile?.displayName ?? "",
     submissionId: input.submissionId,
+    testAttemptId: input.testAttemptId,
     issuedAt: new Date(),
     revokedAt: null,
     revokeReason: null,

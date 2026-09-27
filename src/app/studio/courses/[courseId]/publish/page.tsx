@@ -30,6 +30,7 @@ function fixTab(issue: PublishIssue): string {
   if (issue.code !== "wording") return FIX_TAB[issue.code];
   const context = issue.finding?.context;
   if (context === "lesson_text") return "lessons";
+  if (context === "test_question") return "test";
   if (context === "artifact_name" || context === "assignment_prompt") return "outcome";
   return "details";
 }
@@ -45,6 +46,9 @@ const FIX_TAB: Record<PublishIssue["code"], string> = {
   missing_assignment_text: "outcome",
   no_rubric: "outcome",
   criterion_not_taught: "lessons",
+  no_test: "test",
+  missing_test_text: "test",
+  test_too_short: "test",
   delivery_mode: "details",
   no_duration: "details",
   legal_pages_missing: "details",

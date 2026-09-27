@@ -12,6 +12,7 @@ export const TERM_KEYS = [
   "lesson",
   "assignment",
   "artifact",
+  "test",
   "level",
   "credential",
 ] as const;
@@ -42,6 +43,11 @@ export const DEFAULT_TERMS: Record<TermKey, Record<Locale, TermForms>> = {
   artifact: {
     en: { one: "Deliverable", other: "Deliverables" },
     de: { one: "Arbeitsergebnis", other: "Arbeitsergebnisse" },
+  },
+  // The final multiple-choice test some courses end with (core/courses/completion).
+  test: {
+    en: { one: "Final Test", other: "Final Tests" },
+    de: { one: "Abschlusstest", other: "Abschlusstests" },
   },
   level: {
     en: { one: "Level", other: "Levels" },

@@ -1,3 +1,4 @@
+import { earnedText, proofLine } from "@/core/credentials/proof";
 import { formatPublicId } from "@/core/credentials/public-id";
 import { localize, type Locale } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
@@ -24,7 +25,9 @@ export function credentialCopy(
     academy: tenant.settings.author_display_name,
     credentialTerm: t.term("credential"),
     courseTitle,
-    artifactLine: t.t("verify.artifact", { name: credential.artifactName }),
+    /** What was done for it: the work, the final test, or both. */
+    proofLine: proofLine(t, credential),
+    earned: earnedText(t, credential.basis),
     levelLine:
       tenant.settings.features.levels && credential.level && levelName
         ? t.t("verify.level", { n: credential.level.n, name: levelName })

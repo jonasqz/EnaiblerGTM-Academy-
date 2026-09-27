@@ -33,6 +33,8 @@ export const WEBHOOK_EVENT_GROUPS = {
     "course_started",
     "lesson_completed",
     "assignment_submitted",
+    "test_submitted",
+    "test_passed",
     "review_completed",
     "review_passed",
     "review_overridden",

@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
+import { proofLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import { pathColor } from "@/core/theme/css";
 import { getDb } from "@/db/client";
@@ -84,9 +85,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
                     <p className="font-display text-xl">
                       {localize(credential.courseTitle, t.locale, fallback)}
                     </p>
-                    <p className="text-sm text-muted">
-                      {t.t("verify.artifact", { name: credential.artifactName })}
-                    </p>
+                    <p className="text-sm text-muted">{proofLine(t, credential)}</p>
                   </div>
                   {credential.visibility === "public" ? (
                     <Badge tone="good" icon={Globe}>

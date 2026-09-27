@@ -1,5 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 
+import type { CompletionMode } from "@/core/courses/completion";
 import { normalizePublicId } from "@/core/credentials/public-id";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
@@ -15,7 +16,9 @@ export interface CredentialView {
   courseId: string;
   courseSlug: string;
   courseTitle: LocalizedText;
-  artifactName: string;
+  /** How it was earned (core/credentials/proof). */
+  basis: CompletionMode;
+  artifactName: string | null;
   issuedAt: Date;
   visibility: "private" | "public";
   /** Where it was issued: here, or on the platform the academy used before. */
@@ -76,6 +79,7 @@ export async function loadCredential(
       courseId: credential.courseId,
       courseSlug: row.courseSlug,
       courseTitle: credential.courseTitle,
+      basis: credential.basis,
       artifactName: credential.artifactName,
       issuedAt: credential.issuedAt,
       visibility: credential.visibility,

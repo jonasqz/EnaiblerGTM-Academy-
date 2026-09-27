@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 
 import { lessonKeyFor } from "@/core/courses/lessons";
 import type { Locale } from "@/core/i18n/locales";
+import type { CheckQuestion } from "@/core/questions/questions";
 import type { Database } from "@/db/client";
 import { assignments, courses, lessons, lessonVersions, rubrics, sources } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
@@ -19,6 +20,11 @@ export function markdownOf(blocks: readonly LessonBlock[]): string {
     )
     .map((block) => block.markdown)
     .join("\n\n");
+}
+
+/** The lesson's knowledge check questions (none when it has no check). */
+export function checkQuestionsOf(blocks: readonly LessonBlock[]): CheckQuestion[] {
+  return blocks.flatMap((block) => (block.type === "check" ? block.questions : []));
 }
 
 export async function createLesson(

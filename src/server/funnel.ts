@@ -6,7 +6,6 @@ import { events } from "@/db/schema";
 
 export interface FunnelStep {
   key: (typeof FUNNEL_STEPS)[number]["key"];
-  event: (typeof FUNNEL_STEPS)[number]["event"];
   count: number;
 }
 
@@ -19,7 +18,7 @@ export async function loadFunnel(
   tx: Transaction,
   options: { from: Date; to: Date; courseId?: string },
 ): Promise<FunnelStep[]> {
-  const names = FUNNEL_STEPS.map((step) => step.event);
+  const names: string[] = FUNNEL_STEPS.flatMap((step) => step.events);
   const rows = await tx
     .select({ name: events.name, count: sql<number>`count(*)::int` })
     .from(events)
@@ -35,7 +34,6 @@ export async function loadFunnel(
   const counts = new Map(rows.map((row) => [row.name, row.count]));
   return FUNNEL_STEPS.map((step) => ({
     key: step.key,
-    event: step.event,
-    count: counts.get(step.event) ?? 0,
+    count: step.events.reduce((sum, name) => sum + (counts.get(name) ?? 0), 0),
   }));
 }

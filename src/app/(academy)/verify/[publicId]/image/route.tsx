@@ -175,7 +175,7 @@ export async function GET(
           >
             {copy.courseTitle}
           </div>
-          <div style={{ display: "flex", fontSize: 30, marginTop: 14 }}>{copy.artifactLine}</div>
+          <div style={{ display: "flex", fontSize: 30, marginTop: 14 }}>{copy.proofLine}</div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>

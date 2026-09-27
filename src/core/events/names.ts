@@ -5,6 +5,8 @@ export const EVENT_NAMES = [
   "course_started",
   "lesson_completed",
   "assignment_submitted",
+  "test_submitted",
+  "test_passed",
   "review_completed",
   "review_overridden",
   "review_passed",
@@ -18,14 +20,18 @@ export const EVENT_NAMES = [
 
 export type EventName = (typeof EVENT_NAMES)[number];
 
-/** Tenant funnel (MVP-light dashboard), in order. */
+/**
+ * Tenant funnel (MVP-light dashboard), in order. A step counts several events
+ * where courses differ: hand-ins and test attempts are both "submit", and
+ * "pass" is the finished course, so passing work and test counts once.
+ */
 export const FUNNEL_STEPS = [
-  { key: "entry", event: "signup_started" },
-  { key: "start", event: "course_started" },
-  { key: "submit", event: "assignment_submitted" },
-  { key: "pass", event: "review_passed" },
-  { key: "public", event: "credential_made_public" },
-  { key: "shared", event: "credential_shared_linkedin" },
-  { key: "verification_views", event: "verification_page_viewed" },
-  { key: "cta_clicks", event: "verification_cta_clicked" },
-] as const satisfies ReadonlyArray<{ key: string; event: EventName }>;
+  { key: "entry", events: ["signup_started"] },
+  { key: "start", events: ["course_started"] },
+  { key: "submit", events: ["assignment_submitted", "test_submitted"] },
+  { key: "pass", events: ["course_completed"] },
+  { key: "public", events: ["credential_made_public"] },
+  { key: "shared", events: ["credential_shared_linkedin"] },
+  { key: "verification_views", events: ["verification_page_viewed"] },
+  { key: "cta_clicks", events: ["verification_cta_clicked"] },
+] as const satisfies ReadonlyArray<{ key: string; events: readonly EventName[] }>;

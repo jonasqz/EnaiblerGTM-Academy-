@@ -16,6 +16,7 @@ import type { Database, Transaction } from "@/db/client";
 import {
   assignments,
   calibrationRuns,
+  courseTests,
   courses,
   credentials,
   enrollments,
@@ -24,6 +25,7 @@ import {
   submissions,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 
 /*
  * Studio data for courses (brief §7). Everything runs inside withTenant:
@@ -152,6 +154,7 @@ export async function loadCourseEditor(db: Database, tenantId: string, courseId:
       .from(lessons)
       .where(eq(lessons.courseId, courseId))
       .orderBy(asc(lessons.position), asc(lessons.locale));
+    const [test] = await tx.select().from(courseTests).where(eq(courseTests.courseId, courseId));
     const [calibration] = await tx
       .select({
         agreement: calibrationRuns.agreement,
@@ -166,6 +169,8 @@ export async function loadCourseEditor(db: Database, tenantId: string, courseId:
       assignment: assignment ?? null,
       rubric: rubric ?? null,
       lessons: lessonRows,
+      /** The final test, kept even while the course ends with work only. */
+      test: test ?? null,
       calibration: calibration ?? null,
     };
   });
@@ -287,15 +292,15 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
       offersRecordings: editor.course.offersRecordings,
       zfuApproval: editor.course.zfuApproval,
       estMinutes: editor.course.estMinutes,
+      completionMode: editor.course.completionMode,
     },
     lessons: editor.lessons.map((lesson) => ({
       key: lesson.key,
       locale: lesson.locale as Locale,
       title: lesson.title,
-      markdown: lesson.blocks
-        .map((block) => (block.type === "markdown" ? block.markdown : ""))
-        .join("\n"),
+      markdown: markdownOf(lesson.blocks),
       criterionIds: lesson.criterionIds,
+      questions: checkQuestionsOf(lesson.blocks),
     })),
     assignment: editor.assignment
       ? {
@@ -305,6 +310,7 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
         }
       : null,
     rubric: editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null,
+    test: editor.test ? { questions: editor.test.questions } : null,
     platform,
   };
 }

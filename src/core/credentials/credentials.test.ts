@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { credentialImportSchema } from "@/core/credentials/import";
+import { earnedText, proofLine } from "@/core/credentials/proof";
+import { createTranslator } from "@/core/i18n/translator";
 import { linkedInAddToProfileUrl, linkedInShareUrl } from "@/core/credentials/linkedin";
 import {
   buildOpenBadgeCredential,
@@ -156,5 +158,22 @@ describe("credential import", () => {
     expect(
       credentialImportSchema.safeParse({ credentials: [{ ...item, public_id: "nope" }] }).success,
     ).toBe(false);
+  });
+});
+
+describe("how a credential was earned", () => {
+  const en = createTranslator({ locale: "en" });
+  const de = createTranslator({ locale: "de", termOverrides: { test: { de: "Wissenstest" } } });
+
+  it("names the work, the test or both, and never work nobody handed in", () => {
+    expect(proofLine(en, { basis: "work", artifactName: "Reminder playbook" })).toBe(
+      "Deliverable: Reminder playbook",
+    );
+    expect(proofLine(en, { basis: "test", artifactName: null })).toBe("Final Test passed");
+    expect(proofLine(de, { basis: "work_and_test", artifactName: "Mahnplan" })).toBe(
+      "Arbeitsergebnis: Mahnplan · Wissenstest bestanden",
+    );
+    expect(earnedText(en, "test")).toBe("Earned by passing the Final Test.");
+    expect(earnedText(en, "work")).toBe("Earned with real work that passed a rubric-based review.");
   });
 });

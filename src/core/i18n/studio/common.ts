@@ -129,6 +129,7 @@ export const en = {
   "common.wording.where.cta_label": "the call to action",
   "common.wording.where.showcase": "the showcase",
   "common.wording.where.lesson_text": "lesson text",
+  "common.wording.where.test_question": "the final test",
   "common.wording.where.course_description": "the course summary",
   "common.wording.where.assignment_prompt": "the assignment prompt",
   "common.wording.hint.certified":
@@ -168,6 +169,13 @@ export const en = {
     "Add the assignment prompt and artifact name in {language}.",
   "common.publish.no_rubric": "Add a rubric so submissions can be reviewed.",
   "common.publish.criterion_not_taught": "No lesson teaches “{label}”.",
+  "common.publish.no_test": "Write the final test: at least one question.",
+  "common.publish.missing_test_text.one": "{n} test question has no {language} text yet.",
+  "common.publish.missing_test_text.other": "{n} test questions have no {language} text yet.",
+  "common.publish.test_too_short.one":
+    "The final test has {n} question. {min} or more say more about what someone learned.",
+  "common.publish.test_too_short.other":
+    "The final test has {n} questions. {min} or more say more about what someone learned.",
   "common.publish.no_duration": "Add an estimated duration for the catalogue.",
   "common.publish.legal_pages_missing": "Add your academy's imprint and privacy page in Settings.",
   "common.publish.calibration_missing":
@@ -415,6 +423,7 @@ export const de: Record<keyof typeof en, string> = {
   "common.wording.where.cta_label": "der Handlungsaufforderung",
   "common.wording.where.showcase": "der Präsentation",
   "common.wording.where.lesson_text": "Lektionstexten",
+  "common.wording.where.test_question": "dem Abschlusstest",
   "common.wording.where.course_description": "der Kursbeschreibung",
   "common.wording.where.assignment_prompt": "der Aufgabenstellung",
   "common.wording.hint.certified":
@@ -454,6 +463,13 @@ export const de: Record<keyof typeof en, string> = {
     "Ergänze Aufgabenstellung und Bezeichnung des Arbeitsergebnisses auf {language}.",
   "common.publish.no_rubric": "Leg ein Bewertungsraster an, damit Abgaben bewertet werden können.",
   "common.publish.criterion_not_taught": "Keine Lektion vermittelt „{label}“.",
+  "common.publish.no_test": "Schreib den Abschlusstest: mindestens eine Frage.",
+  "common.publish.missing_test_text.one": "{n} Testfrage hat noch keinen Text auf {language}.",
+  "common.publish.missing_test_text.other": "{n} Testfragen haben noch keinen Text auf {language}.",
+  "common.publish.test_too_short.one":
+    "Der Abschlusstest hat {n} Frage. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
+  "common.publish.test_too_short.other":
+    "Der Abschlusstest hat {n} Fragen. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
   "common.publish.no_duration": "Gib eine geschätzte Dauer für den Katalog an.",
   "common.publish.legal_pages_missing":
     "Ergänze Impressum und Datenschutzerklärung deiner Akademie in den Einstellungen.",

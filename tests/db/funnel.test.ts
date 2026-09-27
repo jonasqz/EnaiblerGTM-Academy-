@@ -27,7 +27,11 @@ describe.skipIf(!hasDatabase)("tenant funnel", () => {
         "signup_started",
         "signup_started",
         "course_started",
+        "test_submitted",
+        "assignment_submitted",
+        // Passing the work is not yet the finished course; completing it is.
         "review_passed",
+        "course_completed",
         "lesson_completed",
       ] as const) {
         await trackEvent(tx, { tenantId: tenant, name, entry: { utm: { source: "newsletter" } } });
@@ -42,7 +46,7 @@ describe.skipIf(!hasDatabase)("tenant funnel", () => {
     expect(funnel.map((step) => [step.key, step.count])).toEqual([
       ["entry", 2],
       ["start", 1],
-      ["submit", 0],
+      ["submit", 2],
       ["pass", 1],
       ["public", 0],
       ["shared", 0],

@@ -15,8 +15,14 @@ import {
 
 import type { SubmissionType } from "@/core/assignments/submission-types";
 import { DELIVERY_MODES, type ZfuApproval } from "@/core/compliance/delivery-mode";
+import { COMPLETION_MODES } from "@/core/courses/completion";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { LevelDefinition } from "@/core/levels/rules";
+import {
+  DEFAULT_PASS_PERCENT,
+  type CheckQuestion,
+  type TestQuestion,
+} from "@/core/questions/questions";
 import type { Rubric } from "@/core/review/rubric";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
@@ -56,6 +62,7 @@ export const paths = pgTable(
 ).enableRLS();
 
 export const deliveryMode = pgEnum("delivery_mode", DELIVERY_MODES);
+export const completionMode = pgEnum("completion_mode", COMPLETION_MODES);
 export const courseStatus = pgEnum("course_status", [
   "draft",
   "published",
@@ -83,6 +90,8 @@ export const courses = pgTable(
     /** Paid live courses must never offer recordings (FernUSG, brief §9). */
     offersRecordings: boolean("offers_recordings").notNull().default(false),
     zfuApproval: jsonb("zfu_approval").$type<ZfuApproval>(),
+    /** How learners finish: the work, the final test or both (core/courses/completion). */
+    completionMode: completionMode("completion_mode").notNull().default("work"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -161,7 +170,9 @@ export const levelGrants = pgTable(
 export type LessonBlock =
   | { type: "markdown"; markdown: string }
   | { type: "image"; key: string; alt: string; caption?: string }
-  | { type: "video"; key: string; caption?: string; poster?: string };
+  | { type: "video"; key: string; caption?: string; poster?: string }
+  /** Knowledge check at the end of the lesson: practice, checked in the browser. */
+  | { type: "check"; questions: CheckQuestion[] };
 
 /**
  * Lessons exist per locale; `key` links the translations of one lesson so
@@ -266,6 +277,36 @@ export const assignments = pgTable(
       columns: [table.tenantId, table.rubricId],
       foreignColumns: [rubrics.tenantId, rubrics.id],
     }),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+/**
+ * The final test of a course whose completion mode includes one (at most one
+ * per course). Kept when the authors switch to work only, so switching back
+ * loses nothing; `version` bumps on every change and attempts record it.
+ */
+export const courseTests = pgTable(
+  "course_tests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    courseId: uuid("course_id").notNull(),
+    questions: jsonb("questions").$type<TestQuestion[]>().notNull().default([]),
+    passPercent: integer("pass_percent").notNull().default(DEFAULT_PASS_PERCENT),
+    showMistakes: boolean("show_mistakes").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("course_tests_one_per_course").on(table.tenantId, table.courseId),
+    unique("course_tests_tenant_id").on(table.tenantId, table.id),
+    foreignKey({
+      name: "course_tests_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
+    }).onDelete("cascade"),
     tenantIsolation(),
   ],
 ).enableRLS();

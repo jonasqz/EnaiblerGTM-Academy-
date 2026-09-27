@@ -14,6 +14,8 @@ import {
   OB3_CONTEXT,
   openBadgeJwtPayload,
 } from "@/core/credentials/open-badges";
+import { requiresTest } from "@/core/courses/completion";
+import { proofLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
@@ -117,6 +119,28 @@ export interface OpenBadgeExport {
 }
 
 /** The learner's credential as a signed Open Badges 3.0 VC-JWT. */
+/** What the achievement asked for: the work, the final test, or both (core/credentials/proof). */
+function achievementTexts(t: Translator, credential: CredentialView, course: string) {
+  const artifact = credential.artifactName ?? "";
+  switch (credential.basis) {
+    case "work":
+      return {
+        description: t.t("openBadge.description", { course, artifact }),
+        criteriaNarrative: t.t("openBadge.criteria", { artifact }),
+      };
+    case "test":
+      return {
+        description: t.t("openBadge.descriptionTest", { course }),
+        criteriaNarrative: t.t("openBadge.criteriaTest"),
+      };
+    case "work_and_test":
+      return {
+        description: t.t("openBadge.descriptionWorkAndTest", { course, artifact }),
+        criteriaNarrative: t.t("openBadge.criteriaWorkAndTest", { artifact }),
+      };
+  }
+}
+
 export async function openBadgeFor(
   db: Database,
   tenant: TenantContext,
@@ -141,8 +165,7 @@ export async function openBadgeFor(
     achievement: {
       id: academyUrl(tenant, `/courses/${credential.courseSlug}`),
       name: course,
-      description: t.t("openBadge.description", { course, artifact: credential.artifactName }),
-      criteriaNarrative: t.t("openBadge.criteria", { artifact: credential.artifactName }),
+      ...achievementTexts(t, credential, course),
     },
     subject: {
       id: `urn:uuid:${pseudonymUuid("ob3-subject", tenant.id, credential.userId)}`,
@@ -151,8 +174,13 @@ export async function openBadgeFor(
     },
     credentialName: t.term("credential"),
     evidence: {
-      name: t.t("verify.artifact", { name: credential.artifactName }),
-      narrative: t.t("openBadge.evidence"),
+      name: proofLine(t, credential),
+      narrative: [
+        credential.artifactName ? t.t("openBadge.evidence") : null,
+        requiresTest(credential.basis) ? t.t("openBadge.evidenceTest") : null,
+      ]
+        .filter((part): part is string => part !== null)
+        .join(" "),
     },
   });
   const key = await issuerSigningKey(db, tenant.id);

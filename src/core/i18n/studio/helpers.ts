@@ -42,6 +42,12 @@ export function publishIssueText(t: StudioText, issue: PublishIssue): string {
         : issue.message;
     case "missing_translation":
       return t.n("common.publish.missing_translation", Number(params.count ?? 0), { language });
+    case "missing_test_text":
+      return t.n("common.publish.missing_test_text", Number(params.count ?? 0), { language });
+    case "test_too_short":
+      return t.n("common.publish.test_too_short", Number(params.count ?? 0), {
+        min: params.min ?? 5,
+      });
     case "calibration_missing":
       return t.t(
         params.rubricChanged

@@ -17,6 +17,7 @@ import { checkCoursePublishable, type PublishCheckInput } from "@/core/courses/p
 import { starterRubric } from "@/core/courses/starter-rubric";
 import { lintLocalizedWording } from "@/core/compliance/wording-lint";
 import { learnerAlias } from "@/core/people/alias";
+import type { TestQuestion } from "@/core/questions/questions";
 import { canResubmit, effectiveOutcome } from "@/core/review/outcome";
 
 describe("roles", () => {
@@ -123,6 +124,7 @@ describe("publish checklist", () => {
       languages: ["en"],
       deliveryMode: "free_async",
       estMinutes: 90,
+      completionMode: "work",
     },
     lessons: [
       { key: "intro", locale: "en", title: "Intro", markdown: "Hello", criterionIds: ["complete"] },
@@ -221,6 +223,103 @@ describe("publish checklist", () => {
     expect(result.ok).toBe(false);
     expect(result.errors.map((e) => e.code)).toEqual(["wording"]);
     expect(result.warnings.map((w) => w.code)).toEqual(["wording"]);
+  });
+
+  describe("courses that end with a final test", () => {
+    const question = (id: string, texts: { en: string; de?: string }): TestQuestion => ({
+      id,
+      prompt: texts,
+      options: [
+        { id: "a", text: { en: "Yes", ...(texts.de ? { de: "Ja" } : {}) } },
+        { id: "b", text: { en: "No", ...(texts.de ? { de: "Nein" } : {}) } },
+      ],
+      correct: ["a"],
+    });
+    const five = ["q1", "q2", "q3", "q4", "q5"].map((id) =>
+      question(id, { en: `Is ${id} right?` }),
+    );
+
+    it("asks for a test instead of work when the test alone completes the course", () => {
+      const result = checkCoursePublishable({
+        ...ready,
+        course: { ...ready.course, completionMode: "test" },
+        assignment: null,
+        rubric: null,
+        test: { questions: five },
+      });
+      expect(result.ok).toBe(true);
+      expect(result.warnings).toEqual([]);
+      // No rubric to cover when nobody hands in work.
+      expect(result.coverage).toEqual([]);
+      const empty = checkCoursePublishable({
+        ...ready,
+        course: { ...ready.course, completionMode: "test" },
+        test: { questions: [] },
+      });
+      expect(empty.errors.map((e) => e.code)).toEqual(["no_test"]);
+    });
+
+    it("asks for both when the course ends with work and a test", () => {
+      const result = checkCoursePublishable({
+        ...ready,
+        course: { ...ready.course, completionMode: "work_and_test" },
+        assignment: null,
+        test: null,
+      });
+      expect(result.errors.map((e) => e.code).sort()).toEqual(["no_assignment", "no_test"]);
+    });
+
+    it("needs every question in every course language and warns about short tests", () => {
+      const result = checkCoursePublishable({
+        ...ready,
+        course: {
+          ...ready.course,
+          title: { en: "Lab", de: "Lab" },
+          languages: ["en", "de"],
+          completionMode: "test",
+        },
+        lessons: [...ready.lessons, ...ready.lessons.map((l) => ({ ...l, locale: "de" as const }))],
+        test: {
+          questions: [question("q1", { en: "Yes?", de: "Ja?" }), question("q2", { en: "Hm?" })],
+        },
+      });
+      expect(result.errors.map((e) => [e.code, e.locale, e.params])).toEqual([
+        ["missing_test_text", "de", { count: 1 }],
+      ]);
+      expect(result.warnings.map((w) => [w.code, w.params])).toEqual([
+        ["test_too_short", { count: 2, min: 5 }],
+      ]);
+    });
+
+    it("lints questions: lesson checks as lesson text, the test as test text", () => {
+      const result = checkCoursePublishable({
+        ...ready,
+        course: { ...ready.course, completionMode: "work_and_test" },
+        lessons: [
+          {
+            ...ready.lessons[0]!,
+            questions: [
+              {
+                id: "k1",
+                prompt: "Which certification fits?",
+                options: [
+                  { id: "a", text: "A" },
+                  { id: "b", text: "B" },
+                ],
+                correct: ["a"],
+              },
+            ],
+          },
+          ready.lessons[1]!,
+        ],
+        test: { questions: [...five, question("q6", { en: "Is this accredited?" })] },
+      });
+      expect(result.ok).toBe(true);
+      expect(result.warnings.map((w) => w.finding?.context)).toEqual([
+        "lesson_text",
+        "test_question",
+      ]);
+    });
   });
 
   it("blocks paid delivery modes until payments ship", () => {

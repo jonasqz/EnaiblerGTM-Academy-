@@ -60,6 +60,7 @@ export async function queueReviewReady(
       submissionId: input.submissionId,
       levelUp: input.levelUp,
       secondLook: input.secondLook,
+      testPending: input.testPending ?? false,
     },
     sendAfter: new Date(Date.now() + REVIEW_MAIL_DELAY_SECONDS * 1000),
   });
@@ -146,9 +147,14 @@ async function reviewReadyMail(
   const paragraphs: string[] = [];
   if (payload.secondLook) paragraphs.push(t.t("email.reviewReady.secondLook"));
   paragraphs.push(
-    t.t(passed ? "email.reviewReady.bodyPassed" : "email.reviewReady.bodyRevise", {
-      course: courseTitle,
-    }),
+    t.t(
+      !passed
+        ? "email.reviewReady.bodyRevise"
+        : payload.testPending
+          ? "email.reviewReady.bodyPassedTestPending"
+          : "email.reviewReady.bodyPassed",
+      { course: courseTitle },
+    ),
   );
   if (passed && payload.levelUp !== null && tenant.settings.features.levels) {
     const [scheme] = await tx.select().from(levelSchemes);

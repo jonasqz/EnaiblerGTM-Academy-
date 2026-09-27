@@ -35,7 +35,7 @@ export async function generateMetadata({
 
   const copy = credentialCopy(tenant, credential, t, await getOrigin());
   const title = `${copy.credentialTerm}: ${copy.courseTitle}`;
-  const description = `${copy.displayName} · ${copy.artifactLine}`;
+  const description = `${copy.displayName} · ${copy.proofLine}`;
   const image = { url: `/verify/${credential.publicId}/image?format=og`, width: 1200, height: 630 };
   return {
     title,
@@ -116,7 +116,7 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
               {copy.credentialTerm}
             </p>
             <h1 className="font-display text-3xl sm:text-4xl">{copy.courseTitle}</h1>
-            <p className="text-lg">{copy.artifactLine}</p>
+            <p className="text-lg">{copy.proofLine}</p>
           </header>
 
           <div className="space-y-1">
@@ -150,7 +150,7 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
                   academy: copy.academy,
                   platform: credential.source.platform,
                 })
-              : t.t("verify.backedByWork")}
+              : copy.earned}
           </p>
 
           <dl className="grid gap-3 text-sm sm:grid-cols-2">

@@ -134,6 +134,7 @@ export const terminologySchema = z.strictObject({
   lesson: termOverrideSchema.optional(),
   assignment: termOverrideSchema.optional(),
   artifact: termOverrideSchema.optional(),
+  test: termOverrideSchema.optional(),
   level: termOverrideSchema.optional(),
   credential: termOverrideSchema.optional(),
   /** Per-key overrides of learner UI strings (see core/i18n/messages.ts). */

@@ -1,4 +1,5 @@
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -169,6 +170,47 @@ export const reviews = pgTable(
       name: "reviews_submission_fk",
       columns: [table.tenantId, table.submissionId],
       foreignColumns: [submissions.tenantId, submissions.id],
+    }).onDelete("cascade"),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+/**
+ * Attempts at a course's final test, graded on the server when handed in.
+ * Retakes are unlimited; a pass counts towards the credential.
+ */
+export const testAttempts = pgTable(
+  "test_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    courseId: uuid("course_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    attemptNo: integer("attempt_no").notNull(),
+    /** The test's version when it was taken. */
+    testVersion: integer("test_version").notNull(),
+    locale: text("locale").notNull(),
+    /** Chosen option ids by question id. */
+    answers: jsonb("answers").$type<Record<string, string[]>>().notNull(),
+    correct: integer("correct").notNull(),
+    total: integer("total").notNull(),
+    passed: boolean("passed").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    unique("test_attempts_attempt").on(
+      table.tenantId,
+      table.courseId,
+      table.userId,
+      table.attemptNo,
+    ),
+    unique("test_attempts_tenant_id").on(table.tenantId, table.id),
+    foreignKey({
+      name: "test_attempts_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),
     tenantIsolation(),
   ],
