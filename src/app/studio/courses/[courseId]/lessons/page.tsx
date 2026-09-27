@@ -50,7 +50,10 @@ export default async function LessonsPage({
   const criterionLabel = new Map(
     rubric?.criteria.map((criterion) => [criterion.id, localize(criterion.label, primary)]),
   );
-  const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
+  const check = publishCheckFor(editor, {
+    legalLinks: tenant.settings.legal_links,
+    aiReview: tenant.settings.features.ai_review,
+  });
   const [runs, sourceRows] = await Promise.all([
     listLessonDrafts(getDb(), tenant.id, courseId),
     listSources(getDb(), tenant.id, courseId),

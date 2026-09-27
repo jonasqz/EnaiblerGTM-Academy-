@@ -12,6 +12,7 @@ import {
   type WordingContext,
 } from "@/core/compliance/wording-lint";
 import { localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import { GOOD_AGREEMENT } from "@/core/review/calibration";
 import type { Rubric } from "@/core/review/rubric";
 
 /**
@@ -45,6 +46,12 @@ export interface PublishCheckInput {
   platform?: PlatformCapabilities;
   /** The academy around the course; omitted, academy-level checks are skipped. */
   academy?: { legalLinks: { imprint?: string; privacy?: string } };
+  /**
+   * Review calibration (brief §7, step 5): only when the AI reviews this
+   * course. `latest` is the newest finished run, `current` whether it ran on
+   * today's rubric.
+   */
+  calibration?: { latest: { agreement: number | null; current: boolean } | null };
 }
 
 export type PublishIssueCode =
@@ -60,7 +67,9 @@ export type PublishIssueCode =
   | "criterion_not_taught"
   | "delivery_mode"
   | "no_duration"
-  | "legal_pages_missing";
+  | "legal_pages_missing"
+  | "calibration_missing"
+  | "calibration_low";
 
 export interface PublishIssue {
   code: PublishIssueCode;
@@ -208,6 +217,25 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
           message: `No lesson teaches "${label}".`,
         });
       }
+    }
+  }
+
+  if (input.calibration && rubric) {
+    const { latest } = input.calibration;
+    if (!latest || !latest.current) {
+      add({
+        code: "calibration_missing",
+        severity: "warning",
+        message: latest
+          ? "The rubric changed since the last calibration: run it again on your examples."
+          : "Calibrate the AI review: run it on a few examples you would and would not pass.",
+      });
+    } else if (latest.agreement !== null && latest.agreement < GOOD_AGREEMENT) {
+      add({
+        code: "calibration_low",
+        severity: "warning",
+        message: `The AI agreed with you on ${Math.round(latest.agreement * 100)} % of your examples. Sharpen the rubric's level descriptions, then calibrate again.`,
+      });
     }
   }
 

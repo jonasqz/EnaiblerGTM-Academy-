@@ -15,6 +15,7 @@ import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
+import { runCalibration } from "@/server/review/calibration";
 import { processSubmission } from "@/server/review/process-submission";
 import { storageConfigured } from "@/server/storage";
 
@@ -125,6 +126,19 @@ await boss.work(
         model: authoringModel(),
         embeddings: embeddingConfig(),
         finalAttempt: finalTry(job, QUEUES.lessonDraft),
+      });
+    }
+  },
+);
+await boss.work(
+  QUEUES.calibration,
+  { batchSize: 1 },
+  async (jobs: Job<JobPayloads["calibration.run"]>[]) => {
+    for (const job of jobs) {
+      await runCalibration(db, job.data.tenantId, job.data.runId, {
+        llm,
+        model: reviewModel,
+        finalAttempt: finalTry(job, QUEUES.calibration),
       });
     }
   },

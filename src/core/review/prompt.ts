@@ -1,4 +1,5 @@
 import { localize, type Locale } from "@/core/i18n/locales";
+import { promptExemplars } from "@/core/review/calibration";
 import type { Rubric } from "@/core/review/rubric";
 
 /**
@@ -9,7 +10,7 @@ import type { Rubric } from "@/core/review/rubric";
  * carries a random nonce, the model is told that the block is data, and any
  * text in the submission that imitates the tag is neutralised.
  */
-export const REVIEW_PROMPT_VERSION = "review-v1";
+export const REVIEW_PROMPT_VERSION = "review-v2";
 
 export const REVIEW_TONES = ["warm", "neutral", "direct"] as const;
 export type ReviewTone = (typeof REVIEW_TONES)[number];
@@ -98,8 +99,9 @@ export function buildReviewPrompt(input: ReviewPromptInput): ReviewPrompt {
     `# Rubric\n${criteria}`,
   ];
 
-  if (input.includeExemplars && rubric.exemplars.length > 0) {
-    const exemplars = rubric.exemplars
+  const examples = input.includeExemplars ? promptExemplars(rubric.exemplars) : [];
+  if (examples.length > 0) {
+    const exemplars = examples
       .map((exemplar, index) => {
         const content = exemplar.content.slice(0, EXEMPLAR_CHAR_LIMIT);
         const verdict = exemplar.expected_pass ? "passes" : "does not pass";

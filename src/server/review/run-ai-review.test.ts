@@ -63,11 +63,11 @@ describe("runAiReview", () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.review).toMatchObject({ percent: 100, pass: true, evidenceVerifiedRatio: 1 });
-    expect(outcome.promptVersion).toBe("review-v1");
+    expect(outcome.promptVersion).toBe("review-v2");
     expect(outcome.totalCost).toBeCloseTo(0.002);
     expect(seen[0]?.temperature).toBeLessThanOrEqual(0.2);
     expect(seen[0]?.jsonSchema?.name).toBe("rubric_review");
-    expect(seen[0]?.metadata?.prompt_version).toBe("review-v1");
+    expect(seen[0]?.metadata?.prompt_version).toBe("review-v2");
   });
 
   it("sends validation errors back and retries", async () => {

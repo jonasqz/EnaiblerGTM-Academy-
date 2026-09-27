@@ -152,6 +152,8 @@ export async function processSubmission(
             tenant.settings.default_locale,
           ]),
           rubric,
+          // The author's exemplars anchor the scale (brief §8, inputs).
+          includeExemplars: true,
           submission: {
             text: reviewText({
               extractedText: context.submission.extractedText,

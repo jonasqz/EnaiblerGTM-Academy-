@@ -1,4 +1,5 @@
 import {
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -136,6 +137,58 @@ export const lessonDrafts = pgTable(
     unique("lesson_drafts_tenant_id").on(table.tenantId, table.id),
     foreignKey({
       name: "lesson_drafts_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
+    }).onDelete("cascade"),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+/** One exemplar in a calibration run: what the author expects and what the AI said. */
+export interface CalibrationResult {
+  exemplarId: string;
+  title: string;
+  expectedPass: boolean;
+  /** Null when the AI gave no valid review. */
+  aiPass: boolean | null;
+  aiPercent: number | null;
+  aiScores: Record<string, number>;
+  expectedScores?: Record<string, number>;
+  summary?: string;
+  error?: string;
+}
+
+/**
+ * "Calibrate the review" (brief §7, step 5): the AI review run on the
+ * author's good and bad exemplars, before publishing.
+ */
+export const calibrationRuns = pgTable(
+  "calibration_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    courseId: uuid("course_id").notNull(),
+    rubricVersion: integer("rubric_version").notNull(),
+    status: draftStatus("status").notNull().default("queued"),
+    requestedBy: text("requested_by").references(() => user.id, { onDelete: "set null" }),
+    results: jsonb("results").$type<CalibrationResult[]>().notNull().default([]),
+    /** Share of exemplars where the AI verdict matched the author's (0–1). */
+    agreement: doublePrecision("agreement"),
+    error: text("error"),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    costMicroUsd: integer("cost_micro_usd"),
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("calibration_runs_tenant_id").on(table.tenantId, table.id),
+    foreignKey({
+      name: "calibration_runs_course_fk",
       columns: [table.tenantId, table.courseId],
       foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),

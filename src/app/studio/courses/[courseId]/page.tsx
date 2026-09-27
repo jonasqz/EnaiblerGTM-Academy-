@@ -37,7 +37,10 @@ export default async function StudioCoursePage({
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const stats = await courseStats(getDb(), tenant.id, courseId);
-  const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
+  const check = publishCheckFor(editor, {
+    legalLinks: tenant.settings.legal_links,
+    aiReview: tenant.settings.features.ai_review,
+  });
   const base = `/studio/courses/${courseId}`;
   const canEdit = can(roles, "courses.edit");
   const primary = tenant.settings.default_locale;

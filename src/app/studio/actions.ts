@@ -240,6 +240,7 @@ export async function publishCourseAction(formData: FormData): Promise<void> {
   );
   const check = await publishCourse(getDb(), tenant.id, courseId, {
     legalLinks: tenant.settings.legal_links,
+    aiReview: tenant.settings.features.ai_review,
   });
   revalidatePath("/", "layout");
   redirect(`/studio/courses/${courseId}/publish?${check.ok ? "published=1" : "blocked=1"}`);

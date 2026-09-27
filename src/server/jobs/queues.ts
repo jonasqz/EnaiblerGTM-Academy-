@@ -16,6 +16,7 @@ export const QUEUES = {
   imageRender: "image.render",
   filesCleanup: "files.cleanup",
   sourcesExtract: "sources.extract",
+  calibration: "calibration.run",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -31,6 +32,7 @@ export interface JobPayloads {
   "files.cleanup": Record<string, never>;
   /** Documents, web pages and interviews: text → chunks (→ embeddings). */
   "sources.extract": { tenantId: string; sourceId: string };
+  "calibration.run": { tenantId: string; runId: string };
 }
 
 export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
@@ -42,4 +44,5 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "image.render": { retryLimit: 3, retryDelay: 10, expireInSeconds: 120 },
   "files.cleanup": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
   "sources.extract": { retryLimit: 2, retryDelay: 30, expireInSeconds: 10 * 60 },
+  "calibration.run": { retryLimit: 1, retryDelay: 60, expireInSeconds: 30 * 60 },
 };

@@ -46,6 +46,8 @@ const FIX_TAB: Record<PublishIssue["code"], string> = {
   delivery_mode: "details",
   no_duration: "details",
   legal_pages_missing: "details",
+  calibration_missing: "calibrate",
+  calibration_low: "calibrate",
 };
 
 export default async function PublishPage({
@@ -60,7 +62,10 @@ export default async function PublishPage({
   );
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
-  const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
+  const check = publishCheckFor(editor, {
+    legalLinks: tenant.settings.legal_links,
+    aiReview: tenant.settings.features.ai_review,
+  });
   const { course } = editor;
   const canPublish = can(roles, "courses.publish");
   const live = course.status === "published";

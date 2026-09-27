@@ -15,6 +15,7 @@ import { slugify } from "@/core/shared/slug";
 import type { Database, Transaction } from "@/db/client";
 import {
   assignments,
+  calibrationRuns,
   courses,
   credentials,
   enrollments,
@@ -151,7 +152,22 @@ export async function loadCourseEditor(db: Database, tenantId: string, courseId:
       .from(lessons)
       .where(eq(lessons.courseId, courseId))
       .orderBy(asc(lessons.position), asc(lessons.locale));
-    return { course, assignment: assignment ?? null, rubric: rubric ?? null, lessons: lessonRows };
+    const [calibration] = await tx
+      .select({
+        agreement: calibrationRuns.agreement,
+        rubricVersion: calibrationRuns.rubricVersion,
+      })
+      .from(calibrationRuns)
+      .where(and(eq(calibrationRuns.courseId, courseId), eq(calibrationRuns.status, "done")))
+      .orderBy(desc(calibrationRuns.createdAt))
+      .limit(1);
+    return {
+      course,
+      assignment: assignment ?? null,
+      rubric: rubric ?? null,
+      lessons: lessonRows,
+      calibration: calibration ?? null,
+    };
   });
 }
 
@@ -235,6 +251,32 @@ export async function updateOutcome(
   });
 }
 
+/**
+ * Replaces the rubric's exemplars (calibration examples). They are part of
+ * the rubric: reviews see them, so a change is a new rubric version.
+ */
+export async function updateExemplars(
+  db: Database,
+  tenantId: string,
+  courseId: string,
+  exemplars: Rubric["exemplars"],
+): Promise<void> {
+  await withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx
+      .select({ rubric: rubrics })
+      .from(assignments)
+      .innerJoin(rubrics, eq(rubrics.id, assignments.rubricId))
+      .where(eq(assignments.courseId, courseId));
+    if (!row) throw new Error("Rubric not found");
+    const definition = rubricSchema.parse({ ...row.rubric.definition, exemplars });
+    if (sameJson(row.rubric.definition, definition)) return;
+    await tx
+      .update(rubrics)
+      .set({ definition, version: row.rubric.version + 1 })
+      .where(eq(rubrics.id, row.rubric.id));
+  });
+}
+
 function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
   return {
     course: {
@@ -270,13 +312,29 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
 export interface PublishContext {
   /** The academy's legal pages; publishing is blocked without imprint and privacy. */
   legalLinks?: { imprint?: string; privacy?: string };
+  /** Whether the academy uses AI review (features.ai_review); calibration is checked then. */
+  aiReview?: boolean;
   platform?: PlatformCapabilities;
 }
 
 export function publishCheckFor(editor: CourseEditor, context: PublishContext = {}): PublishCheck {
+  const rubric = editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null;
+  const usesAi = (context.aiReview ?? false) && rubric?.review_policy.mode !== "human_only";
   return checkCoursePublishable({
     ...checkInput(editor, context.platform ?? PLATFORM_CAPABILITIES),
     ...(context.legalLinks ? { academy: { legalLinks: context.legalLinks } } : {}),
+    ...(usesAi
+      ? {
+          calibration: {
+            latest: editor.calibration
+              ? {
+                  agreement: editor.calibration.agreement,
+                  current: editor.calibration.rubricVersion === editor.rubric?.version,
+                }
+              : null,
+          },
+        }
+      : {}),
   });
 }
 

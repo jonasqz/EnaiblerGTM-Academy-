@@ -68,6 +68,8 @@ export type RubricCriterion = z.output<typeof rubricCriterionSchema>;
 
 export const exemplarSchema = z.strictObject({
   id: z.string().min(1).max(64),
+  /** How the author refers to it, e.g. "Strong brief from the pilot". */
+  title: z.string().trim().max(120).optional(),
   /** What the author expects the review to conclude. */
   expected_pass: z.boolean(),
   /** Text of the exemplar (extracted from the uploaded file). */

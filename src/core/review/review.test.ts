@@ -273,7 +273,7 @@ describe("review prompt", () => {
 
   it("wraps the submission in a nonce-tagged data block", () => {
     const prompt = buildReviewPrompt({ ...input, submission: { text: "My brief" } });
-    expect(prompt.version).toBe("review-v1");
+    expect(prompt.version).toBe("review-v2");
     expect(prompt.system).toMatch(/untrusted data/);
     expect(prompt.system).toMatch(/German/);
     expect(prompt.user).toContain("<submission-n0nce>\nMy brief\n</submission-n0nce>");
