@@ -5,18 +5,22 @@ import {
   Circle,
   Hammer,
   Languages,
+  ListChecks,
   Timer,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { cohortDateLine } from "@/components/cohort-dates";
 import { continueUrl } from "@/components/entry-links";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
+import { requiresWork } from "@/core/courses/completion";
 import { courseProgress, resumeLessonKey, type LessonProgressMap } from "@/core/courses/lessons";
+import { nextStep, nextStepHref } from "@/core/courses/next-step";
 import { decodeEntryContext } from "@/core/entry/context";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
@@ -61,9 +65,23 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
   const progressMap = (data.enrollment?.lessonProgress ?? {}) as LessonProgressMap;
   const progress = courseProgress(keys, progressMap);
   const resume = resumeLessonKey(keys, progressMap);
-  const artifact = data.assignment
-    ? localize(data.assignment.artifactName, data.locale, fallback)
-    : null;
+  // What learners finish with follows the authors' choice: the work, the test or both.
+  const work = requiresWork(data.completionMode) && data.assignment !== null;
+  const { test } = data;
+  const both = work && test !== null;
+  const workOutcome = data.attempts[0]?.outcome ?? null;
+  const next = nextStep({
+    mode: data.completionMode,
+    resumeKey: resume,
+    work: workOutcome,
+    test: {
+      taken: (test?.attempts.count ?? 0) > 0,
+      passed: Boolean(test?.attempts.passed),
+    },
+  });
+  const artifact =
+    work && data.assignment ? localize(data.assignment.artifactName, data.locale, fallback) : null;
+  const testCall = test?.attempts.latest ? t.t("course.test.retake") : t.t("course.test.take");
   const [cohort] =
     session && tenant.settings.features.cohorts
       ? await learnerCohorts(getDb(), tenant.id, session.viewer.userId, [data.course.id])
@@ -120,6 +138,44 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
           </section>
         )}
 
+        {test && (
+          <section className="card space-y-3 p-6" aria-labelledby="test-heading">
+            <h2 id="test-heading" className="flex items-center gap-2 font-display text-2xl">
+              <ListChecks aria-hidden size={22} className="shrink-0" /> {t.term("test")}
+            </h2>
+            <p className="font-semibold">
+              {test.questions.length === 1
+                ? t.t("course.test.questionsOne")
+                : t.t("course.test.questions", { n: test.questions.length })}{" "}
+              · {t.t("assignment.passAt", { threshold: test.passPercent })}
+            </p>
+            <p className="text-muted">{t.t("course.test.intro")}</p>
+            {both && <p>{t.t("course.test.needsBoth")}</p>}
+            {data.enrollment &&
+              (test.attempts.passed ? (
+                <Badge tone="good" icon={CircleCheck}>
+                  {t.t("course.test.passed", { percent: test.attempts.passed.percent })}
+                </Badge>
+              ) : (
+                !data.credential && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+                    <Link href={`/courses/${slug}/test`} className="btn btn-secondary">
+                      <ListChecks aria-hidden size={16} /> {testCall}
+                    </Link>
+                    {test.attempts.latest && (
+                      <span className="text-sm text-muted">
+                        {t.t("course.test.lastAttempt", { percent: test.attempts.latest.percent })}
+                        {test.attempts.best &&
+                          test.attempts.best.attemptNo !== test.attempts.latest.attemptNo &&
+                          ` · ${t.t("course.test.best", { percent: test.attempts.best.percent })}`}
+                      </span>
+                    )}
+                  </div>
+                )
+              ))}
+          </section>
+        )}
+
         <section className="space-y-4" aria-labelledby="lessons-heading">
           <h2 id="lessons-heading" className="font-display text-2xl">
             {t.term("lesson", { plural: true })}
@@ -157,28 +213,26 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
                 </li>
               );
             })}
-            {data.assignment && (
-              <li>
-                {data.enrollment ? (
-                  <Link
-                    href={`/courses/${slug}/assignment`}
-                    className="flex items-center gap-3 px-5 py-4 font-semibold hover:bg-subtle"
-                  >
-                    <Hammer aria-hidden size={16} className="w-6" />
-                    <span className="flex-1">{t.term("assignment")}</span>
-                  </Link>
-                ) : (
-                  <span className="flex items-center gap-3 px-5 py-4 font-semibold">
-                    <Hammer aria-hidden size={16} className="w-6" />
-                    <span className="flex-1">{t.term("assignment")}</span>
-                  </span>
-                )}
-              </li>
+            {work && (
+              <FinalStep
+                href={data.enrollment ? `/courses/${slug}/assignment` : null}
+                icon={<Hammer aria-hidden size={16} className="w-6" />}
+                label={t.term("assignment")}
+                passed={data.workPassed ? t.t("assignment.passed") : null}
+              />
+            )}
+            {test && (
+              <FinalStep
+                href={data.enrollment ? `/courses/${slug}/test` : null}
+                icon={<ListChecks aria-hidden size={16} className="w-6" />}
+                label={t.term("test")}
+                passed={test.attempts.passed ? t.t("assignment.passed") : null}
+              />
             )}
           </ol>
         </section>
 
-        {data.rubric && (
+        {work && data.rubric && (
           <section className="space-y-4" aria-labelledby="review-heading">
             <h2 id="review-heading" className="font-display text-2xl">
               {t.t("course.howReviewed")}
@@ -221,15 +275,52 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
               value={progress.percent}
               label={t.t("course.progress", { done: progress.done, total: progress.total })}
             />
-            <Link
-              href={resume ? `/courses/${slug}/learn/${resume}` : `/courses/${slug}/assignment`}
-              className="btn btn-primary w-full"
-            >
+            {both && test && (
+              <div className="space-y-2 border-t border-line pt-4">
+                <p className="text-sm font-semibold">{t.t("course.test.needsBothTitle")}</p>
+                <ul className="space-y-1.5 text-sm">
+                  <PartState
+                    label={t.term("artifact")}
+                    passed={data.workPassed}
+                    state={
+                      workOutcome === "passed"
+                        ? t.t("assignment.passed")
+                        : workOutcome === "pending"
+                          ? t.t("assignment.inReview")
+                          : workOutcome === "needs_revision"
+                            ? t.t("assignment.needsRevision")
+                            : t.t("course.test.workToDo")
+                    }
+                  />
+                  <PartState
+                    label={t.term("test")}
+                    passed={Boolean(test.attempts.passed)}
+                    state={
+                      test.attempts.passed
+                        ? t.t("assignment.passed")
+                        : test.attempts.latest
+                          ? t.t("course.test.lastAttempt", {
+                              percent: test.attempts.latest.percent,
+                            })
+                          : t.t("course.test.notTaken")
+                    }
+                  />
+                </ul>
+              </div>
+            )}
+            <Link href={nextStepHref(slug, next)} className="btn btn-primary w-full">
               {t.t("course.continue")}
             </Link>
-            <Link href={`/courses/${slug}/assignment`} className="btn btn-secondary w-full">
-              {t.t("course.openAssignment")}
-            </Link>
+            {work && (
+              <Link href={`/courses/${slug}/assignment`} className="btn btn-secondary w-full">
+                {t.t("course.openAssignment")}
+              </Link>
+            )}
+            {test && !test.attempts.passed && (
+              <Link href={`/courses/${slug}/test`} className="btn btn-secondary w-full">
+                {testCall}
+              </Link>
+            )}
           </>
         ) : (
           <>
@@ -241,5 +332,52 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
         )}
       </aside>
     </article>
+  );
+}
+
+/** The last rows of the syllabus: what the course ends with. */
+function FinalStep(props: {
+  href: string | null;
+  icon: ReactNode;
+  label: string;
+  /** Set once passed: the words for the check mark. */
+  passed: string | null;
+}) {
+  const content = (
+    <>
+      {props.icon}
+      <span className="flex-1">{props.label}</span>
+      {props.passed && (
+        <CircleCheck aria-label={props.passed} size={18} style={{ color: "var(--status-good)" }} />
+      )}
+    </>
+  );
+  return (
+    <li>
+      {props.href ? (
+        <Link
+          href={props.href}
+          className="flex items-center gap-3 px-5 py-4 font-semibold hover:bg-subtle"
+        >
+          {content}
+        </Link>
+      ) : (
+        <span className="flex items-center gap-3 px-5 py-4 font-semibold">{content}</span>
+      )}
+    </li>
+  );
+}
+
+function PartState(props: { label: string; passed: boolean; state: string }) {
+  return (
+    <li className="flex items-center gap-2">
+      {props.passed ? (
+        <CircleCheck aria-hidden size={16} style={{ color: "var(--status-good)" }} />
+      ) : (
+        <Circle aria-hidden size={16} className="text-muted" />
+      )}
+      <span className="flex-1 font-medium">{props.label}</span>
+      <span className="text-muted">{props.state}</span>
+    </li>
   );
 }

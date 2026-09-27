@@ -214,7 +214,8 @@ async function levelUpMail(
     subject: t.t("email.levelUp.subject", { academy, name }),
     heading: t.t("email.levelUp.heading", { n: level.n, name }),
     paragraphs: [
-      t.t("email.levelUp.body", {
+      // Only the team grants manual levels; the others are reached by finishing courses.
+      t.t(level.rule.type === "manual_grant" ? "email.levelUp.body" : "email.levelUp.bodyReached", {
         academy,
         name,
         path: localize(path.title, t.locale, fallback),

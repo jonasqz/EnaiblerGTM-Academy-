@@ -1,8 +1,9 @@
-import { BookOpen, CircleCheck, Hammer, Timer } from "lucide-react";
+import { BookOpen, CircleCheck, Hammer, ListChecks, Timer } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { requiresTest } from "@/core/courses/completion";
 import { localize, type Locale } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import type { CatalogCourse } from "@/server/catalog";
@@ -54,6 +55,12 @@ export function CourseCard(props: {
           <span className="flex items-center gap-2 text-sm font-semibold">
             <Hammer aria-hidden size={16} className="shrink-0" />
             {t.t("home.youBuild", { artifact })}
+          </span>
+        )}
+        {requiresTest(course.completionMode) && (
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <ListChecks aria-hidden size={16} className="shrink-0" />
+            {artifact ? t.t("course.test.plus") : t.t("course.test.endsWith")}
           </span>
         )}
         <span className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-sm text-muted">
