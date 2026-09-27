@@ -174,7 +174,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/studio/peo
               </thead>
               <tbody>
                 {leads.map((lead) => (
-                  <tr key={lead.userId} className="align-top">
+                  <tr key={lead.userId} className="*:align-top">
                     <td className="min-w-48">
                       <LearnerName
                         alias={lead.alias}

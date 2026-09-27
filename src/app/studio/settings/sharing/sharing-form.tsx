@@ -107,7 +107,7 @@ export function SharingForm(props: {
               href={`https://www.linkedin.com/company/${pageId}/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+              className="inline-flex items-center gap-1 justify-self-start text-sm font-semibold hover:underline"
             >
               {t.t("settings.sharing.linkedin.open")} <ExternalLink aria-hidden size={14} />
             </a>
