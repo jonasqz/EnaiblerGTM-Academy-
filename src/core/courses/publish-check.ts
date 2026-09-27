@@ -43,6 +43,8 @@ export interface PublishCheckInput {
   } | null;
   rubric: Rubric | null;
   platform?: PlatformCapabilities;
+  /** The academy around the course; omitted, academy-level checks are skipped. */
+  academy?: { legalLinks: { imprint?: string; privacy?: string } };
 }
 
 export type PublishIssueCode =
@@ -57,7 +59,8 @@ export type PublishIssueCode =
   | "no_rubric"
   | "criterion_not_taught"
   | "delivery_mode"
-  | "no_duration";
+  | "no_duration"
+  | "legal_pages_missing";
 
 export interface PublishIssue {
   code: PublishIssueCode;
@@ -230,6 +233,15 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     });
   }
 
+  // A public academy needs an imprint and a privacy page (TMG/DDG, GDPR).
+  if (input.academy && !hasLegalPages(input.academy.legalLinks)) {
+    add({
+      code: "legal_pages_missing",
+      severity: "error",
+      message: "Add your academy's imprint and privacy page in Settings.",
+    });
+  }
+
   const errors = issues.filter((issue) => issue.severity === "error");
   return {
     ok: errors.length === 0,
@@ -237,4 +249,8 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     warnings: issues.filter((issue) => issue.severity === "warning"),
     coverage,
   };
+}
+
+export function hasLegalPages(links: { imprint?: string; privacy?: string }): boolean {
+  return Boolean(links.imprint && links.privacy);
 }

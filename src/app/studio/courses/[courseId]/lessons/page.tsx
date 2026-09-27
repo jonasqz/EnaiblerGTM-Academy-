@@ -43,7 +43,7 @@ export default async function LessonsPage({
   const criterionLabel = new Map(
     rubric?.criteria.map((criterion) => [criterion.id, localize(criterion.label, primary)]),
   );
-  const check = publishCheckFor(editor);
+  const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
 
   // One row per lesson key, in course order; one cell per course language.
   const rows: Array<{ key: string; byLocale: Map<Locale, LessonRow>; criteria: string[] }> = [];

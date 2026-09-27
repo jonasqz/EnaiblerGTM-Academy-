@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { FONT_LIBRARY } from "./src/core/theme/fonts";
+
 const nextConfig: NextConfig = {
   // Self-contained server bundle for the Coolify container (see Dockerfile).
   output: "standalone",
@@ -19,9 +21,10 @@ const nextConfig: NextConfig = {
     ];
   },
   // Credential images read these font files at runtime (src/server/og-fonts.ts).
+  // Keys are globs, so the brackets of the dynamic segment are escaped.
   outputFileTracingIncludes: {
-    "/verify/[publicId]/image": [
-      "./node_modules/@fontsource/{inter,rubik,bungee}/files/*-latin-{400,700}-normal.woff",
+    "/verify/\\[publicId\\]/image": [
+      `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
     ],
   },
 };

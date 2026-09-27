@@ -105,8 +105,13 @@ export default async function VerifyPage({ params }: PageProps<"/verify/[publicI
           </header>
 
           <div className="space-y-1">
-            <p className="text-sm opacity-70">{t.t("verify.awardedTo")}</p>
-            <p className="font-display text-2xl">{copy.displayName}</p>
+            {/* Learners who set no name get a credential without one. */}
+            {copy.displayName && (
+              <>
+                <p className="text-sm opacity-70">{t.t("verify.awardedTo")}</p>
+                <p className="font-display text-2xl">{copy.displayName}</p>
+              </>
+            )}
             {copy.levelLine && <p>{copy.levelLine}</p>}
             {copy.pathTitle && (
               <p className="text-sm opacity-80">

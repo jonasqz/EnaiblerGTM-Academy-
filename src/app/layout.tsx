@@ -5,11 +5,12 @@ import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 
 import { themeToCssVariables } from "@/core/theme/css";
-import { getOrigin, getTenant, getTranslator } from "@/server/request";
+import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
+import { getOrigin, getSurface, getTranslator } from "@/server/request";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const tenant = await getTenant();
-  const name = tenant.settings.author_display_name;
+  const surface = await getSurface();
+  const name = surface.kind === "tenant" ? surface.tenant.settings.author_display_name : "enaibler";
   return {
     metadataBase: new URL(await getOrigin()),
     title: { default: name, template: `%s · ${name}` },
@@ -17,16 +18,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** Theme via CSS variables resolved from the tenant's tokens at request time (brief §11). */
+/**
+ * Theme via CSS variables resolved at request time (brief §11): the academy's
+ * tokens on academy hosts, enaibler's own on the platform site.
+ */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const tenant = await getTenant();
+  const surface = await getSurface();
   const t = await getTranslator();
+  const theme = surface.kind === "tenant" ? surface.tenant.theme : DEFAULT_THEME;
   return (
-    <html
-      lang={t.locale}
-      style={themeToCssVariables(tenant.theme) as CSSProperties}
-      data-visual-style={tenant.theme.visual_style}
-    >
+    <html lang={t.locale} style={themeToCssVariables(theme) as CSSProperties}>
       <body className="flex min-h-dvh flex-col bg-surface font-body text-ink antialiased">
         {children}
       </body>

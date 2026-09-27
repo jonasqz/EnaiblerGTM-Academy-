@@ -27,6 +27,16 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_REVIEW_MODEL: ${LLM_REVIEW_MODEL:-}
+      LLM_BRAND_MODEL: ${LLM_BRAND_MODEL:-}
+      # Self-serve signup: unset PLATFORM_HOST keeps it off (academies from manifests only).
+      PLATFORM_HOST: ${PLATFORM_HOST:-}
+      ACADEMY_DOMAIN: ${ACADEMY_DOMAIN:-}
+      PLATFORM_TERMS_URL: ${PLATFORM_TERMS_URL:-}
+      PLATFORM_DPA_URL: ${PLATFORM_DPA_URL:-}
+      PLATFORM_PRIVACY_URL: ${PLATFORM_PRIVACY_URL:-}
+      PLATFORM_IMPRINT_URL: ${PLATFORM_IMPRINT_URL:-}
+      PLATFORM_AGREEMENT_VERSION: ${PLATFORM_AGREEMENT_VERSION:-}
     expose:
       - "3000"
     restart: unless-stopped
@@ -42,4 +52,5 @@ services:
       SMTP_URL: ${SMTP_URL:?}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_REVIEW_MODEL: ${LLM_REVIEW_MODEL:-}
     restart: unless-stopped

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { contrastRatio, mostReadable } from "@/core/theme/color";
+import { themeContrastIssues } from "@/core/theme/contrast";
 import { pathColor, themeToCssVariables } from "@/core/theme/css";
-import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
+import { DEFAULT_THEME, enaiblerTokens } from "@/core/theme/enaibler-tokens";
+import { closestBundledFont } from "@/core/theme/fonts";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
 
 const tenant0: ThemeInput = {
@@ -94,5 +96,38 @@ describe("contrast", () => {
   it("chooses the most readable candidate", () => {
     expect(mostReadable("#FFFF00", ["#000000", "#FFFFFF"])).toBe("#000000");
     expect(mostReadable("#000080", ["#000000", "#FFFFFF"])).toBe("#FFFFFF");
+  });
+});
+
+describe("theme readability", () => {
+  const base = themeSchema.parse(enaiblerTokens);
+
+  it("accepts enaibler's default theme", () => {
+    expect(themeContrastIssues(base)).toEqual([]);
+  });
+
+  it("blocks pale text on a pale background and unreadable buttons", () => {
+    const pale = { ...base, colors: { ...base.colors, ink: "#C8C8C8" } };
+    expect(themeContrastIssues(pale).map((issue) => [issue.code, issue.severity])).toEqual([
+      ["text_on_surface", "error"],
+      ["text_on_card", "error"],
+    ]);
+    const button = {
+      ...base,
+      colors: { ...base.colors, primary: "#FFE066", on_primary: "#FFFFFF" },
+    };
+    expect(themeContrastIssues(button)).toMatchObject([
+      { code: "text_on_primary", severity: "error" },
+    ]);
+  });
+
+  it("maps a website's fonts to the closest bundled family", () => {
+    expect(closestBundledFont("Montserrat")).toBe("Montserrat");
+    expect(closestBundledFont("open sans")).toBe("Open Sans");
+    expect(closestBundledFont("Proxima Nova")).toBe("Montserrat");
+    expect(closestBundledFont("Georgia")).toBe("Merriweather");
+    expect(closestBundledFont("Source Sans Pro")).toBe("Open Sans");
+    expect(closestBundledFont("-apple-system")).toBe("Inter");
+    expect(closestBundledFont("Helvetica Neue")).toBe("Inter");
   });
 });

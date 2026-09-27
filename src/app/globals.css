@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 /*
- * Tenant theme tokens are set per request on <html style> by the root layout
- * (src/core/theme/css.ts). These fallbacks only apply without a tenant.
+ * Theme tokens are set per request on <html style> by the root layout
+ * (src/core/theme/css.ts). A subtree can carry another theme: set the
+ * variables on an element with [data-theme-scope] (the Studio, the brand
+ * preview) and the derived tokens below are recomputed there.
+ * These fallbacks only apply without a theme.
  */
 :root {
   --tenant-ink: #191b22;
@@ -18,20 +21,28 @@
   --tenant-shadow: 0 6px 24px #191b2214;
   --tenant-shadow-x: 0px;
   --tenant-shadow-y: 6px;
-
-  /* Derived tokens: everything below follows the tenant's colours. */
-  --ui-muted: color-mix(in srgb, var(--tenant-ink) 68%, var(--tenant-surface));
-  --ui-subtle: color-mix(in srgb, var(--tenant-ink) 5%, var(--tenant-card));
-  --ui-primary-soft: color-mix(in srgb, var(--tenant-primary) 16%, var(--tenant-card));
-  --ui-control-radius: min(var(--tenant-radius), 10px);
-  /* 0 for square themes, a pill for rounded ones. */
-  --ui-pill-radius: calc(var(--tenant-radius) * 100);
+  --tenant-hover-shift: 0 -1px;
+  --tenant-lift-shift: 0 -2px;
+  --tenant-lift-shadow: 0 12px 32px #191b221f;
+  --tenant-press-shift: 0 0;
+  --tenant-press-shadow: 0 6px 24px #191b2214;
 
   /* Status colours are fixed, never themed, and always come with an icon + label. */
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
   --status-critical: #d03b3b;
+}
+
+/* Derived tokens follow the theme in scope (custom properties resolve where declared). */
+:root,
+[data-theme-scope] {
+  --ui-muted: color-mix(in srgb, var(--tenant-ink) 68%, var(--tenant-surface));
+  --ui-subtle: color-mix(in srgb, var(--tenant-ink) 5%, var(--tenant-card));
+  --ui-primary-soft: color-mix(in srgb, var(--tenant-primary) 16%, var(--tenant-card));
+  --ui-control-radius: min(var(--tenant-radius), 10px);
+  /* 0 for square themes, a pill for rounded ones. */
+  --ui-pill-radius: calc(var(--tenant-radius) * 100);
 }
 
 /* Tailwind utilities that resolve to the tenant tokens: bg-primary, text-ink,
@@ -89,17 +100,13 @@
   }
   .card-interactive {
     transition:
-      transform 140ms ease,
+      translate 140ms ease,
       box-shadow 140ms ease;
   }
-  :root[data-visual-style="soft"] .card-interactive:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 32px color-mix(in srgb, var(--tenant-ink) 12%, transparent);
-  }
-  :root[data-visual-style="outlined"] .card-interactive:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: calc(var(--tenant-shadow-x) + 2px) calc(var(--tenant-shadow-y) + 2px) 0
-      var(--tenant-ink);
+  /* Interaction flavour (theme.visual_style) comes in as variables: see core/theme/css.ts. */
+  .card-interactive:hover {
+    translate: var(--tenant-lift-shift);
+    box-shadow: var(--tenant-lift-shadow);
   }
 
   .eyebrow {
@@ -123,7 +130,7 @@
     border: var(--tenant-border-width) solid var(--tenant-border-color);
     border-radius: var(--ui-control-radius);
     transition:
-      transform 120ms ease,
+      translate 120ms ease,
       box-shadow 120ms ease,
       background-color 120ms ease;
   }
@@ -161,15 +168,12 @@
   }
 
   /* Interaction flavour per theme (theme.visual_style). */
-  :root[data-visual-style="soft"] .btn:not(:disabled):not(.btn-ghost):hover {
-    transform: translateY(-1px);
+  .btn:not(:disabled):not(.btn-ghost):hover {
+    translate: var(--tenant-hover-shift);
   }
-  :root[data-visual-style="outlined"] .btn:not(:disabled):not(.btn-ghost):hover {
-    transform: translate(-1px, -1px);
-  }
-  :root[data-visual-style="outlined"] .btn-primary:not(:disabled):active {
-    transform: translate(var(--tenant-shadow-x), var(--tenant-shadow-y));
-    box-shadow: none;
+  .btn-primary:not(:disabled):active {
+    translate: var(--tenant-press-shift);
+    box-shadow: var(--tenant-press-shadow);
   }
 
   /* ---- Forms ------------------------------------------------------------- */

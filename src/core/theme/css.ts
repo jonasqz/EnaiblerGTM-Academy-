@@ -39,11 +39,38 @@ export function themeToCssVariables(theme: Theme): ThemeCssVariables {
     "--tenant-shadow": shadowValue,
     "--tenant-shadow-x": shadow.x,
     "--tenant-shadow-y": shadow.y,
+    ...interactionVariables(theme, shadowValue),
   };
   colors.accents.forEach((accent, index) => {
     variables[`--tenant-accent-${index + 1}`] = accent;
   });
   return variables;
+}
+
+/**
+ * How hover and press feel, as variables rather than selectors, so a subtree
+ * with another theme (the Studio, the brand preview) behaves like that theme.
+ * Soft themes lift; outlined themes shift against their hard shadow and press in.
+ */
+function interactionVariables(theme: Theme, shadowValue: string): ThemeCssVariables {
+  const { ink } = theme.colors;
+  const { x, y } = theme.shadow;
+  if (theme.visual_style === "outlined") {
+    return {
+      "--tenant-hover-shift": "-1px -1px",
+      "--tenant-lift-shift": "-2px -2px",
+      "--tenant-lift-shadow": `calc(${x} + 2px) calc(${y} + 2px) 0 ${ink}`,
+      "--tenant-press-shift": `${x} ${y}`,
+      "--tenant-press-shadow": "none",
+    };
+  }
+  return {
+    "--tenant-hover-shift": "0 -1px",
+    "--tenant-lift-shift": "0 -2px",
+    "--tenant-lift-shadow": `0 12px 32px color-mix(in srgb, ${ink} 12%, transparent)`,
+    "--tenant-press-shift": "0 0",
+    "--tenant-press-shadow": shadowValue,
+  };
 }
 
 /** Colour for the n-th path: its own colour, else cycle through the accents. */

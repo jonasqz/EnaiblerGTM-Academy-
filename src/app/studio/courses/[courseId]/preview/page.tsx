@@ -2,6 +2,7 @@ import { BookOpen, Circle, Hammer, Timer } from "lucide-react";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { CSSProperties } from "react";
 
 import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Markdown } from "@/components/ui/markdown";
@@ -9,6 +10,7 @@ import { Notice } from "@/components/ui/notice";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { createTranslator } from "@/core/i18n/translator";
 import { rubricSchema } from "@/core/review/rubric";
+import { themeToCssVariables } from "@/core/theme/css";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { markdownOf } from "@/server/studio/lessons";
@@ -69,7 +71,13 @@ export default async function PreviewPage({
         </nav>
       )}
 
-      <div lang={locale} className="grid gap-8 lg:grid-cols-[17rem_1fr]">
+      {/* The academy's own theme, inside the Studio's. */}
+      <div
+        lang={locale}
+        data-theme-scope
+        style={themeToCssVariables(tenant.theme) as CSSProperties}
+        className="grid gap-8 rounded-card bg-surface p-4 font-body text-ink sm:p-8 lg:grid-cols-[17rem_1fr]"
+      >
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
           <Link
             href={base as Route}

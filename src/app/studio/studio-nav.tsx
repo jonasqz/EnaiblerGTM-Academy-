@@ -1,6 +1,13 @@
 "use client";
 
-import { BookOpen, ClipboardCheck, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  ClipboardCheck,
+  LayoutDashboard,
+  Settings,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,6 +17,7 @@ const ICONS = {
   courses: BookOpen,
   reviews: ClipboardCheck,
   people: Users,
+  settings: Settings,
 } satisfies Record<string, LucideIcon>;
 
 export interface StudioNavItem {

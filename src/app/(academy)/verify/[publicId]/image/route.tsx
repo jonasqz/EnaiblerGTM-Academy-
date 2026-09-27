@@ -115,10 +115,17 @@ export async function GET(
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 22, opacity: 0.7 }}>
-              {t.t("verify.awardedTo")}
-            </div>
-            <div style={{ display: "flex", fontSize: 40, fontWeight: 700 }}>{copy.displayName}</div>
+            {/* Learners who set no name get a credential without one. */}
+            {copy.displayName && (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", fontSize: 22, opacity: 0.7 }}>
+                  {t.t("verify.awardedTo")}
+                </div>
+                <div style={{ display: "flex", fontSize: 40, fontWeight: 700 }}>
+                  {copy.displayName}
+                </div>
+              </div>
+            )}
             {copy.levelLine && (
               <div style={{ display: "flex", fontSize: 24, marginTop: 4 }}>{copy.levelLine}</div>
             )}

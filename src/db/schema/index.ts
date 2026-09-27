@@ -6,3 +6,4 @@ export * from "@/db/schema/learning";
 export * from "@/db/schema/credentials";
 export * from "@/db/schema/authoring";
 export * from "@/db/schema/analytics";
+export * from "@/db/schema/platform";

@@ -30,14 +30,23 @@ export async function renderMagicLinkEmail(
       preview={subject}
       footer={
         <>
-          {academy} ·{" "}
-          <a href={tenant.settings.legal_links.imprint} style={{ color: "inherit" }}>
-            {t.t("footer.imprint")}
-          </a>{" "}
-          ·{" "}
-          <a href={tenant.settings.legal_links.privacy} style={{ color: "inherit" }}>
-            {t.t("footer.privacy")}
-          </a>
+          {academy}
+          {tenant.settings.legal_links.imprint && (
+            <>
+              {" · "}
+              <a href={tenant.settings.legal_links.imprint} style={{ color: "inherit" }}>
+                {t.t("footer.imprint")}
+              </a>
+            </>
+          )}
+          {tenant.settings.legal_links.privacy && (
+            <>
+              {" · "}
+              <a href={tenant.settings.legal_links.privacy} style={{ color: "inherit" }}>
+                {t.t("footer.privacy")}
+              </a>
+            </>
+          )}
           <br />
           {t.t("app.poweredBy")}
         </>

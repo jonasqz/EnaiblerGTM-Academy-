@@ -40,7 +40,7 @@ await boss.work(QUEUES.email, { batchSize: 5 }, async (jobs: Job<JobPayloads["em
 const llm = process.env.LLM_BASE_URL
   ? createLlmCaller({ baseUrl: process.env.LLM_BASE_URL, apiKey: process.env.LLM_API_KEY })
   : null;
-const reviewModel = process.env.LLM_REVIEW_MODEL ?? "review-default";
+const reviewModel = process.env.LLM_REVIEW_MODEL || "review-default";
 const reviewRetries = QUEUE_OPTIONS[QUEUES.review].retryLimit ?? 0;
 if (!llm) console.warn("[worker] LLM_BASE_URL is not set: submissions wait for a human review");
 

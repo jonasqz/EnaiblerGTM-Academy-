@@ -28,6 +28,8 @@ export interface LessonEditorProps {
   criteria: Array<{ id: string; label: string; description: string }>;
   selected: string[];
   reference: { locale: Locale; title: string; markdown: string } | null;
+  /** The academy's theme variables: the preview shows the lesson as learners see it. */
+  academyTheme: Record<string, string>;
 }
 
 export function LessonEditor(props: LessonEditorProps) {
@@ -145,15 +147,22 @@ export function LessonEditor(props: LessonEditorProps) {
             </p>
           </div>
           {mode !== "write" && (
-            <div className="card min-h-[28rem] min-w-0 p-6" aria-label="Preview">
-              <h2 className="mb-4 font-display text-2xl leading-tight">
-                {title || "Untitled lesson"}
-              </h2>
-              {markdown.trim() ? (
-                <Markdown source={markdown} />
-              ) : (
-                <p className="text-muted">Nothing to preview yet.</p>
-              )}
+            <div
+              data-theme-scope
+              style={props.academyTheme}
+              className="min-h-[28rem] min-w-0 rounded-card bg-surface p-3 font-body text-ink"
+              aria-label="Preview"
+            >
+              <div className="card h-full p-6">
+                <h2 className="mb-4 font-display text-2xl leading-tight">
+                  {title || "Untitled lesson"}
+                </h2>
+                {markdown.trim() ? (
+                  <Markdown source={markdown} />
+                ) : (
+                  <p className="text-muted">Nothing to preview yet.</p>
+                )}
+              </div>
             </div>
           )}
         </div>

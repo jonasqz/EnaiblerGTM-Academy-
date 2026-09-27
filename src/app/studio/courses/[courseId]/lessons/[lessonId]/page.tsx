@@ -11,6 +11,7 @@ import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
+import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { loadLessonEditor, markdownOf } from "@/server/studio/lessons";
@@ -75,6 +76,7 @@ export default async function LessonEditorPage({
             description: localize(criterion.description, locale),
           }))}
           selected={lesson.criterionIds}
+          academyTheme={themeToCssVariables(tenant.theme)}
           reference={
             reference && isLocale(reference.locale)
               ? {

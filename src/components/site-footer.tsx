@@ -10,21 +10,21 @@ export function SiteFooter(props: { tenant: TenantContext; t: Translator }) {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm">
         <p className="font-display">{tenant.settings.author_display_name}</p>
         <ul className="flex flex-wrap gap-4">
-          <li>
-            <a href={links.imprint} className="underline-offset-4 hover:underline">
-              {t.t("footer.imprint")}
-            </a>
-          </li>
-          <li>
-            <a href={links.privacy} className="underline-offset-4 hover:underline">
-              {t.t("footer.privacy")}
-            </a>
-          </li>
-          <li>
-            <a href={links.terms} className="underline-offset-4 hover:underline">
-              {t.t("footer.terms")}
-            </a>
-          </li>
+          {(
+            [
+              ["imprint", links.imprint],
+              ["privacy", links.privacy],
+              ["terms", links.terms],
+            ] as const
+          ).map(([key, href]) =>
+            href ? (
+              <li key={key}>
+                <a href={href} className="underline-offset-4 hover:underline">
+                  {t.t(`footer.${key}`)}
+                </a>
+              </li>
+            ) : null,
+          )}
         </ul>
         <p className="text-muted">{t.t("app.poweredBy")}</p>
       </div>

@@ -29,23 +29,45 @@ const envSchema = z.object({
   LLM_BASE_URL: optional,
   LLM_API_KEY: optional,
   LLM_REVIEW_MODEL: z.string().default("review-default"),
+  /** Model for "import brand from website"; falls back to the review model. */
+  LLM_BRAND_MODEL: optional,
+  /**
+   * Self-serve: the platform site where customers create academies, e.g.
+   * enaibler.app. Development defaults to plain localhost. Unset in
+   * production: no self-serve signup, academies come from manifests only.
+   */
+  PLATFORM_HOST: optional,
+  /** New academies get <slug>.<ACADEMY_DOMAIN> (needs wildcard DNS and TLS). */
+  ACADEMY_DOMAIN: optional,
+  /** enaibler's own legal pages, shown on the platform site and at signup. */
+  PLATFORM_TERMS_URL: optional,
+  PLATFORM_DPA_URL: optional,
+  PLATFORM_PRIVACY_URL: optional,
+  PLATFORM_IMPRINT_URL: optional,
+  /** Recorded with every accepted agreement; bump it when the terms or the DPA change. */
+  PLATFORM_AGREEMENT_VERSION: z.string().trim().min(1).default("2026-09"),
 });
 
 export type Env = z.output<typeof envSchema> & { APP_PROTOCOL: "http" | "https" };
 
 let cached: Env | null = null;
 
-export function env(): Env {
-  if (cached) return cached;
-  const result = envSchema.safeParse(process.env);
+export function parseEnv(source: Record<string, string | undefined>): Env {
+  // docker-compose.prod.yml passes unset variables as empty strings (${VAR:-}).
+  const values = Object.fromEntries(Object.entries(source).filter(([, value]) => value?.trim()));
+  const result = envSchema.safeParse(values);
   if (!result.success) {
     throw new Error(`Invalid environment:\n${z.prettifyError(result.error)}`);
   }
   const parsed = result.data;
-  cached = {
+  return {
     ...parsed,
     APP_PROTOCOL: parsed.APP_PROTOCOL ?? (parsed.NODE_ENV === "production" ? "https" : "http"),
   };
+}
+
+export function env(): Env {
+  cached ??= parseEnv(process.env);
   return cached;
 }
 

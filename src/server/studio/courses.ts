@@ -267,22 +267,28 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
   };
 }
 
-export function publishCheckFor(
-  editor: CourseEditor,
-  platform = PLATFORM_CAPABILITIES,
-): PublishCheck {
-  return checkCoursePublishable(checkInput(editor, platform));
+export interface PublishContext {
+  /** The academy's legal pages; publishing is blocked without imprint and privacy. */
+  legalLinks?: { imprint?: string; privacy?: string };
+  platform?: PlatformCapabilities;
+}
+
+export function publishCheckFor(editor: CourseEditor, context: PublishContext = {}): PublishCheck {
+  return checkCoursePublishable({
+    ...checkInput(editor, context.platform ?? PLATFORM_CAPABILITIES),
+    ...(context.legalLinks ? { academy: { legalLinks: context.legalLinks } } : {}),
+  });
 }
 
 export async function publishCourse(
   db: Database,
   tenantId: string,
   courseId: string,
-  platform = PLATFORM_CAPABILITIES,
+  context: PublishContext = {},
 ): Promise<PublishCheck> {
   const editor = await loadCourseEditor(db, tenantId, courseId);
   if (!editor) throw new Error("Course not found");
-  const check = publishCheckFor(editor, platform);
+  const check = publishCheckFor(editor, context);
   if (!check.ok) return check;
   await withTenant(db, tenantId, (tx) =>
     tx

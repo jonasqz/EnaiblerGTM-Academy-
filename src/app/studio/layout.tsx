@@ -1,10 +1,13 @@
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { signOut } from "@/app/actions";
 import { StudioNav, type StudioNavItem } from "@/app/studio/studio-nav";
 import { can } from "@/core/access/roles";
+import { themeToCssVariables } from "@/core/theme/css";
+import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { countHeldSubmissions } from "@/server/studio/reviews";
@@ -15,9 +18,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * Studio: where authors and reviewers run the academy. English only for now;
- * everything learners see stays DE/EN. The academy's brand stays in front.
+ * Studio: where authors and reviewers run the academy. It is enaibler's tool,
+ * so it always wears enaibler's theme; the academy's own theme applies to
+ * what learners see (and to previews of it). English only for now; everything
+ * learners see stays DE/EN.
  */
+const STUDIO_THEME = themeToCssVariables(DEFAULT_THEME) as CSSProperties;
+
 export default async function StudioLayout({ children }: LayoutProps<"/studio">) {
   const { tenant, roles } = await requireCapability("studio.view");
   const reviewer = can(roles, "reviews.decide");
@@ -31,10 +38,17 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
     ...(can(roles, "people.view")
       ? [{ icon: "people", href: "/studio/people", label: "People" } as const]
       : []),
+    ...(can(roles, "academy.manage")
+      ? [{ icon: "settings", href: "/studio/settings", label: "Settings" } as const]
+      : []),
   ];
 
   return (
-    <>
+    <div
+      data-theme-scope
+      style={STUDIO_THEME}
+      className="flex flex-1 flex-col bg-surface font-body text-ink"
+    >
       <header className="border-b-outline border-line bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/studio" className="flex items-center gap-3">
@@ -64,6 +78,6 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
       <footer className="border-t border-line py-4 text-center text-xs text-muted">
         Powered by enaibler
       </footer>
-    </>
+    </div>
   );
 }

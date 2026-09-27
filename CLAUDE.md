@@ -19,6 +19,7 @@ The spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md). Read the rel
 
 - **Always use `withTenant`.** Read and write tenant data only inside `withTenant(db, tenant.id, async (tx) => …)` (`src/db/tenant-scope.ts`), never through the bare `db`. RLS will hide the rows anyway, but code must not rely on that.
 - **Where the tenant comes from.** Get it from `getTenant()` (pages, route handlers, server actions) or `resolveTenant(host)`. Never take it from request parameters.
+- **The platform host has no tenant.** Requests on `PLATFORM_HOST` are rewritten to `src/app/platform` (self-serve signup). There `getSurface()` returns `{ kind: "platform" }` and `getTenant()` answers 404. Academies are created only by `createAcademy` (`src/server/platform/academies.ts`), which never updates an existing tenant: a taken address is an error, never a takeover.
 - **Global tables have no RLS:** `tenants`, `tenant_domains` and the Better Auth tables (`user`, `session`, `account`, `verification`).
 - **Adding a tenant-scoped table:**
   - add a `tenant_id uuid not null` foreign key to `tenants`;
@@ -32,7 +33,8 @@ The spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md). Read the rel
 - **Object storage.** Build keys with `src/core/storage/keys.ts`, which enforces the `tenants/<id>/` prefix.
 - **Background jobs** (pg-boss) carry `tenantId`, must be idempotent, and open their own `withTenant` transaction.
 - **Auth.** `authFor(tenant)` gives the academy's Better Auth instance. Use `getViewer(tenant)` for the signed-in user; it ignores sessions from other academies.
-- **Roles.** Capabilities come from membership roles (`src/core/access/roles.ts`). Studio pages and every Studio server action call `requireCapability(capability, next)` from `src/server/access.ts`; learner pages that need a session use `requireViewer(next)`. Grant roles with `npm run role:grant`.
+- **Roles.** Capabilities come from membership roles (`src/core/access/roles.ts`). Studio pages and every Studio server action call `requireCapability(capability, next)` from `src/server/access.ts`; learner pages that need a session use `requireViewer(next)`. Academy settings and the brand need `academy.manage` (tenant admins). Grant roles with `npm run role:grant`.
+- **Settings have two writers.** Tenant admins edit settings and theme in Studio → Settings (`src/server/studio/academy.ts`, validated as a manifest, address fixed). `tenant:apply` replaces settings, theme and terminology from the file, so never re-apply an old manifest to an academy that is managed in the Studio.
 - **Learners in the Studio** appear under `learnerAlias()`. Show a name or e-mail address only for learners with a confirmed, unrevoked `lead_handoff` consent (see `src/server/studio/insights.ts`).
 
 ## Code conventions
@@ -48,17 +50,26 @@ The spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md). Read the rel
 - **Theme values** reach CSS only through `src/core/theme` (validated tokens → `--tenant-*` variables → Tailwind `@theme inline` in `src/app/globals.css`).
   - Utilities: `bg-primary`, `text-ink`, `bg-card`, `rounded-card`, `shadow-card`, `border-outline` (width), `border-line` (colour), `font-display`.
   - Component classes: `.card`, `.btn`, `.btn-primary`, `.btn-secondary`.
+  - Visual-style behaviour (hover, lift, press) is in variables too, never in selectors on `<html>`. So an element with `data-theme-scope` and `style={themeToCssVariables(theme)}` renders another theme.
+  - The Studio renders in enaibler's theme (`DEFAULT_THEME`) whatever the academy picks. Only its previews (preview as learner, the lesson preview, the brand editor) use the academy's theme.
+  - A theme with contrast errors (`themeContrastIssues`: text 4.5:1, buttons 3:1) is rejected everywhere: manifests, the brand editor and the brand import.
+  - Fonts come only from `FONT_LIBRARY` (`src/core/theme/fonts.ts`). To add one, install its `@fontsource/*` package, add it to the library and import its CSS in `src/app/fonts.ts`.
+- **Customer-supplied URLs** are fetched only through `safeFetchText` (`src/server/brand/safe-fetch.ts`): public addresses checked on the resolved IPs of every connection and redirect, ports 80 and 443, size and time limits. Never `fetch()` such a URL directly. `BRAND_IMPORT_ALLOWED_HOSTS` exists for local tests only.
 - **Events:** record them with `trackEvent(tx, …)` inside the transaction of the action they describe, using names from `src/core/events/names.ts`. Skip bots (`isBot`) on public pages.
 - **Studio** (`src/app/studio`) is the author tool and English-only for now; learner-facing pages live in `src/app/(academy)` and stay DE/EN.
 - **Forms with server actions:** use `useActionForm` (`src/components/ui/use-action-form.ts`) when a form returns validation errors. React 19 resets `<form action={fn}>` after every action, which would wipe what the person typed. Plain one-button forms can keep `action={serverAction}`.
 - **Comparing JSON from the database:** `jsonb` does not keep key order, so compare with `sameJson` (`src/core/shared/json.ts`), never `JSON.stringify(a) === JSON.stringify(b)`.
 - **AI review:** pass/fail is computed from rubric scores (`scoreRubric`), never taken from the model. Bump `REVIEW_PROMPT_VERSION` on any prompt change.
+- **AI brand import:** the model only sees extracted facts (colours, fonts, radii), never the page. Its answer must pass the theme schema, the font list and the contrast check, or the rule-based proposal stands. Bump `BRAND_PROMPT_VERSION` on any prompt change.
+- **Publishing** needs the academy's imprint and privacy page (`legal_pages_missing` in the publish checklist).
 - Comments explain why, not what. Match the surrounding style.
 
 ## Stack notes (September 2026 versions)
 
 - **Next.js 16:**
   - Middleware is `src/proxy.ts` (Node runtime, can query Postgres).
+  - In the proxy, read environment variables by name (`process.env.PLATFORM_HOST`). Code that passes `process.env` as a whole (for example to `env()`) did not see them there, so anything the proxy imports reads its variables by name (`src/server/platform/config.ts`).
+  - Build proxy rewrites with `new URL(target, request.url)`, not from `request.nextUrl`, and keep `HOSTNAME=0.0.0.0` for the standalone server. Otherwise the rewrite leaves Next's own origin and is proxied as an external request.
   - `params`, `searchParams`, `headers()` and `cookies()` are async.
   - `PageProps<"/route">`, `LayoutProps` and `RouteContext` are generated, so `npm run typecheck` runs `next typegen` first.
   - `agentRules: false` stops `next dev` from writing agent files over this one.
@@ -84,4 +95,5 @@ npm run test:db        # when you touched src/db, migrations or anything tenant-
 - `src/core/theme/enaibler-tokens.ts` holds placeholder brand values until the real `enaibler-tokens.ts` is added.
 - The German credential term and "du" copy are proposals pending review.
 - Tenant 0 legal links in its manifest are placeholders; validation warns about them.
+- Self-serve academies live on `<slug>.<ACADEMY_DOMAIN>`. Custom domains, logo upload and own fonts are not built yet.
 - Open decisions are in brief §15. The 1024 embedding size in `src/db/schema/authoring.ts` follows decision #1.

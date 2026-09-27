@@ -19,6 +19,11 @@ export const metadata: Metadata = { title: "Publish" };
 const dates = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
 
 /** Where each finding is fixed. Wording findings name their context in the message. */
+function fixHref(issue: PublishIssue, base: string): string {
+  if (issue.code === "legal_pages_missing") return "/studio/settings";
+  return `${base}/${fixTab(issue)}`;
+}
+
 function fixTab(issue: PublishIssue): string {
   if (issue.code !== "wording") return FIX_TAB[issue.code];
   if (issue.message.includes("lesson text")) return "lessons";
@@ -40,6 +45,7 @@ const FIX_TAB: Record<PublishIssue["code"], string> = {
   criterion_not_taught: "lessons",
   delivery_mode: "details",
   no_duration: "details",
+  legal_pages_missing: "details",
 };
 
 export default async function PublishPage({
@@ -54,7 +60,7 @@ export default async function PublishPage({
   );
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
-  const check = publishCheckFor(editor);
+  const check = publishCheckFor(editor, { legalLinks: tenant.settings.legal_links });
   const { course } = editor;
   const canPublish = can(roles, "courses.publish");
   const live = course.status === "published";
@@ -88,7 +94,7 @@ export default async function PublishPage({
             )}
           </span>
           <Link
-            href={`${base}/${fixTab(issue)}` as Route}
+            href={fixHref(issue, base) as Route}
             className="shrink-0 text-sm font-semibold hover:underline"
           >
             Fix

@@ -22,6 +22,7 @@ import { REVIEW_TONES } from "@/core/review/prompt";
 import { slugSchema, slugify } from "@/core/shared/slug";
 import { termOverrideEntries, termOverrideSchema } from "@/core/terminology/terms";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
+import { themeContrastIssues } from "@/core/theme/contrast";
 import { isBundledFont } from "@/core/theme/fonts";
 import { hexColorSchema, themeSchema } from "@/core/theme/schema";
 
@@ -92,11 +93,19 @@ export const tenantSettingsSchema = z.strictObject({
   default_locale: localeSchema,
   /** A brand, never a person ("Scaling Product Academy"). */
   author_display_name: z.string().trim().min(2).max(80),
-  legal_links: z.strictObject({
-    imprint: httpsUrlSchema,
-    privacy: httpsUrlSchema,
-    terms: httpsUrlSchema,
-  }),
+  /**
+   * The academy's own legal pages. Self-serve academies start without them;
+   * publishing a course requires the imprint and privacy page (see publish-check).
+   */
+  legal_links: z
+    .strictObject({
+      imprint: httpsUrlSchema.optional(),
+      privacy: httpsUrlSchema.optional(),
+      terms: httpsUrlSchema.optional(),
+    })
+    .prefault({}),
+  /** The academy's own website (brand import, links back). */
+  website: httpsUrlSchema.optional(),
   features: featuresSchema.prefault({}),
   /** Sender for transactional mail. Defaults to the platform address with the academy name. */
   email_sender: emailSenderSchema.optional(),
@@ -290,6 +299,12 @@ export const tenantManifestSchema = z
         ctx.addIssue({ code: "custom", path: check.path, message: describeFinding(finding) });
       }
     }
+
+    for (const issue of manifest.theme ? themeContrastIssues(manifest.theme) : []) {
+      if (issue.severity === "error") {
+        ctx.addIssue({ code: "custom", path: ["theme", "colors"], message: issue.message });
+      }
+    }
   });
 
 export type TenantManifestInput = z.input<typeof tenantManifestSchema>;
@@ -316,11 +331,20 @@ export function manifestWarnings(manifest: TenantManifest): string[] {
   if (!tenant.email_sender)
     warnings.push("No email_sender set: mail goes out from the platform address.");
 
-  const legal = Object.values(tenant.legal_links);
+  const legal = Object.values(tenant.legal_links).filter((url): url is string => Boolean(url));
   if (new Set(legal).size < legal.length || legal.some((url) => new URL(url).pathname === "/")) {
     warnings.push(
       "Legal links look like placeholders (shared or pointing at a home page): set the exact pages before go-live.",
     );
+  }
+  if (!tenant.legal_links.imprint || !tenant.legal_links.privacy) {
+    warnings.push(
+      "No imprint or privacy page yet: courses cannot be published until both are set.",
+    );
+  }
+
+  for (const issue of themeContrastIssues(theme)) {
+    if (issue.severity === "warning") warnings.push(issue.message);
   }
 
   for (const family of new Set([theme.fonts.display, theme.fonts.body])) {

@@ -1,6 +1,8 @@
 import {
   ArrowRight,
   BookOpen,
+  Circle,
+  CircleCheck,
   ClipboardCheck,
   Hammer,
   ListChecks,
@@ -19,8 +21,11 @@ import { Funnel } from "@/components/ui/funnel";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { can } from "@/core/access/roles";
+import { hasLegalPages } from "@/core/courses/publish-check";
 import type { FUNNEL_STEPS } from "@/core/events/names";
 import { localize } from "@/core/i18n/locales";
+import { sameJson } from "@/core/shared/json";
+import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listCourses } from "@/server/studio/courses";
@@ -55,6 +60,36 @@ export default async function StudioOverviewPage() {
   const spotChecks = queue.length - toDecide;
   const canEdit = can(roles, "courses.edit");
   const fallback = [tenant.settings.default_locale];
+  // First steps of a new academy, until each one is done.
+  const setup = can(roles, "academy.manage")
+    ? [
+        {
+          done: !sameJson(tenant.theme, DEFAULT_THEME),
+          title: "Make it yours",
+          body: "Colours, fonts and shape, or import them from your website.",
+          href: "/studio/settings/brand",
+        },
+        {
+          done: hasLegalPages(tenant.settings.legal_links),
+          title: "Add your legal pages",
+          body: "Imprint and privacy page. Required before anything goes live.",
+          href: "/studio/settings",
+        },
+        {
+          done: courses.length > 0,
+          title: "Create your first course",
+          body: "Start from what learners build; the lessons follow.",
+          href: "/studio/courses/new",
+        },
+        {
+          done: overview.publishedCourses > 0,
+          title: "Publish it",
+          body: "The checklist tells you what is missing. Then share the link.",
+          href: "/studio/courses",
+        },
+      ]
+    : [];
+  const setupLeft = setup.filter((step) => !step.done).length;
 
   return (
     <div className="space-y-10">
@@ -70,6 +105,54 @@ export default async function StudioOverviewPage() {
           )
         }
       />
+
+      {setupLeft > 0 && (
+        <section aria-labelledby="setup-heading" className="card space-y-4 p-5 sm:p-6">
+          <div>
+            <h2 id="setup-heading" className="text-lg font-semibold">
+              Get your academy ready
+            </h2>
+            <p className="text-sm text-muted">
+              {setup.length - setupLeft} of {setup.length} done.
+            </p>
+          </div>
+          <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {setup.map((step) => (
+              <li key={step.title}>
+                <Link
+                  href={step.href as Route}
+                  className="flex h-full gap-3 rounded-control border border-line p-3 hover:bg-subtle"
+                >
+                  {step.done ? (
+                    <CircleCheck
+                      role="img"
+                      aria-label="Done"
+                      size={20}
+                      className="mt-0.5 shrink-0"
+                      style={{ color: "var(--status-good)" }}
+                    />
+                  ) : (
+                    <Circle
+                      role="img"
+                      aria-label="To do"
+                      size={20}
+                      className="mt-0.5 shrink-0 text-muted"
+                    />
+                  )}
+                  <span>
+                    <span
+                      className={`block font-semibold ${step.done ? "text-muted line-through" : ""}`}
+                    >
+                      {step.title}
+                    </span>
+                    <span className="text-sm text-muted">{step.body}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section aria-label="Totals" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Learners" value={overview.learners} />

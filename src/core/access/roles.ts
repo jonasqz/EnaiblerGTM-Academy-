@@ -17,6 +17,8 @@ export const CAPABILITIES = [
   "courses.publish",
   "reviews.decide",
   "people.view",
+  /** Academy settings: name, languages, legal pages, brand. */
+  "academy.manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 

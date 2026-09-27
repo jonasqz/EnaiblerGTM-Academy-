@@ -29,6 +29,20 @@
       "when": 1790466657398,
       "tag": "0003_own_memberships",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790483751971,
+      "tag": "0004_tenant_agreements",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790483752806,
+      "tag": "0005_force_rls_agreements",
+      "breakpoints": true
     }
   ]
 }

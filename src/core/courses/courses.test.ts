@@ -42,6 +42,11 @@ describe("roles", () => {
   it("combines roles", () => {
     expect(can(["learner", "tenant_admin"], "courses.publish")).toBe(true);
   });
+
+  it("leaves the academy's settings and brand to admins", () => {
+    expect(can(["tenant_admin"], "academy.manage")).toBe(true);
+    expect(can(["author", "reviewer"], "academy.manage")).toBe(false);
+  });
 });
 
 describe("lessons", () => {
@@ -134,6 +139,25 @@ describe("publish checklist", () => {
     },
     rubric,
   };
+
+  it("needs the academy's imprint and privacy page before anything goes public", () => {
+    const blocked = checkCoursePublishable({
+      ...ready,
+      academy: { legalLinks: { imprint: "https://acme.example/imprint" } },
+    });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.errors.map((issue) => issue.code)).toEqual(["legal_pages_missing"]);
+    const fine = checkCoursePublishable({
+      ...ready,
+      academy: {
+        legalLinks: {
+          imprint: "https://acme.example/imprint",
+          privacy: "https://acme.example/privacy",
+        },
+      },
+    });
+    expect(fine.ok).toBe(true);
+  });
 
   it("passes a complete course and maps coverage", () => {
     const result = checkCoursePublishable(ready);
