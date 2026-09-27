@@ -7,24 +7,28 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { can } from "@/core/access/roles";
 import { localize } from "@/core/i18n/locales";
+import type { StudioKey } from "@/core/i18n/studio/index";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listCourses, type CourseStatus } from "@/server/studio/courses";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Courses" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("courses.list.title") };
+}
 
-const FILTERS: Array<{ status: CourseStatus | null; label: string }> = [
-  { status: null, label: "All" },
-  { status: "draft", label: "Drafts" },
-  { status: "published", label: "Published" },
-  { status: "unpublished", label: "Unpublished" },
+const FILTERS: Array<{ status: CourseStatus | null; label: StudioKey }> = [
+  { status: null, label: "courses.list.filter.all" },
+  { status: "draft", label: "courses.list.filter.draft" },
+  { status: "published", label: "courses.list.filter.published" },
+  { status: "unpublished", label: "courses.list.filter.unpublished" },
 ];
-
-const dates = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
 
 /** Every course of the academy, drafts included, with what happens in each. */
 export default async function StudioCoursesPage({ searchParams }: PageProps<"/studio/courses">) {
   const { tenant, roles } = await requireCapability("courses.view", "/studio/courses");
+  const t = await getStudioText();
   const { status } = await searchParams;
   const all = await listCourses(getDb(), tenant.id);
   const active = FILTERS.find((filter) => filter.status === status) ?? FILTERS[0]!;
@@ -35,18 +39,18 @@ export default async function StudioCoursesPage({ searchParams }: PageProps<"/st
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Courses"
-        description="Every course of this academy, drafts included. Numbers are learners, not visits."
+        title={t.t("courses.list.title")}
+        description={t.t("courses.list.description")}
         actions={
           canEdit && (
             <Link href="/studio/courses/new" className="btn btn-primary">
-              <Plus aria-hidden size={18} /> New course
+              <Plus aria-hidden size={18} /> {t.t("courses.newCourse")}
             </Link>
           )
         }
       />
 
-      <nav className="tabs" aria-label="Filter by status">
+      <nav className="tabs" aria-label={t.t("courses.list.filterLabel")}>
         {FILTERS.map((filter) => {
           const count = filter.status
             ? all.filter((course) => course.status === filter.status).length
@@ -57,7 +61,7 @@ export default async function StudioCoursesPage({ searchParams }: PageProps<"/st
               href={filter.status ? `/studio/courses?status=${filter.status}` : "/studio/courses"}
               aria-current={filter === active ? "page" : undefined}
             >
-              {filter.label}
+              {t.t(filter.label)}
               <span className="ml-1.5 text-muted">{count}</span>
             </Link>
           );
@@ -67,17 +71,13 @@ export default async function StudioCoursesPage({ searchParams }: PageProps<"/st
       {courses.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title={all.length === 0 ? "No courses yet" : "No courses with this status"}
-          body={
-            all.length === 0
-              ? "Start with what learners will build; lessons follow from the rubric."
-              : undefined
-          }
+          title={all.length === 0 ? t.t("courses.list.empty") : t.t("courses.list.emptyFiltered")}
+          body={all.length === 0 ? t.t("courses.list.emptyBody") : undefined}
           action={
             canEdit &&
             all.length === 0 && (
               <Link href="/studio/courses/new" className="btn btn-primary btn-sm">
-                Create the first course
+                {t.t("courses.list.firstCourse")}
               </Link>
             )
           }
@@ -85,27 +85,27 @@ export default async function StudioCoursesPage({ searchParams }: PageProps<"/st
       ) : (
         <div className="card-flat table-wrap">
           <table className="table">
-            <caption className="sr-only">Courses</caption>
+            <caption className="sr-only">{t.t("courses.list.title")}</caption>
             <thead>
               <tr>
-                <th scope="col">Course</th>
-                <th scope="col">Status</th>
+                <th scope="col">{t.t("courses.list.course")}</th>
+                <th scope="col">{t.t("courses.list.status")}</th>
                 <th scope="col" className="num">
-                  Lessons
+                  {t.t("courses.list.lessons")}
                 </th>
                 <th scope="col" className="num">
-                  Started
+                  {t.t("courses.list.started")}
                 </th>
                 <th scope="col" className="num">
-                  Completed
+                  {t.t("courses.list.completed")}
                 </th>
                 <th scope="col" className="num">
-                  In review
+                  {t.t("courses.list.inReview")}
                 </th>
                 <th scope="col" className="num">
-                  Certificates
+                  {t.t("courses.list.certificates")}
                 </th>
-                <th scope="col">Updated</th>
+                <th scope="col">{t.t("courses.list.updated")}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +134,7 @@ export default async function StudioCoursesPage({ searchParams }: PageProps<"/st
                   </td>
                   <td className="num">{course.credentials}</td>
                   <td className="whitespace-nowrap text-sm text-muted">
-                    {dates.format(course.updatedAt)}
+                    {t.date(course.updatedAt)}
                   </td>
                 </tr>
               ))}
