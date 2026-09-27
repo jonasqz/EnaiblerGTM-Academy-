@@ -133,9 +133,10 @@ export function TestEditor(props: TestEditorProps) {
                 required
                 className="input w-24"
                 aria-describedby={`${uid}-pass-hint`}
-                value={draft.passPercent}
+                // Empty while retyping (NaN), instead of jumping to 0.
+                value={Number.isNaN(draft.passPercent) ? "" : draft.passPercent}
                 onChange={(event) =>
-                  setDraft({ ...draft, passPercent: Number(event.target.value) })
+                  setDraft({ ...draft, passPercent: event.target.valueAsNumber })
                 }
               />
               <span className="font-semibold">%</span>

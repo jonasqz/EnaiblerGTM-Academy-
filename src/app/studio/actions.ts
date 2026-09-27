@@ -65,21 +65,23 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
   const { tenant } = await requireCapability("courses.edit", "/studio/courses/new");
   const t = await getStudioText();
   const languages = courseLanguages(formData, tenant.settings.locales);
+  const completionMode = z
+    .enum(COMPLETION_MODES, t.t("courses.completion.choose"))
+    .safeParse(text(formData, "completionMode") || "work");
   const parsed = z
     .strictObject({
       title: z.string().min(3, t.t("common.actions.titleMin")).max(120),
       deliveryMode: deliveryModeSchema,
-      completionMode: z.enum(COMPLETION_MODES, t.t("courses.completion.choose")),
     })
     .safeParse({
       title: text(formData, "title"),
       deliveryMode: text(formData, "deliveryMode") || "free_async",
-      completionMode: text(formData, "completionMode") || "work",
     });
   // A test-only course has no artifact: the form leaves those fields out.
   const work =
-    parsed.success && requiresWork(parsed.data.completionMode)
-      ? z
+    completionMode.success && !requiresWork(completionMode.data)
+      ? null
+      : z
           .strictObject({
             artifactName: z.string().min(2, t.t("common.actions.artifactMin")).max(80),
             outcome: z.string().min(20, t.t("common.actions.outcomeMin")).max(4000),
@@ -87,13 +89,13 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
           .safeParse({
             artifactName: text(formData, "artifactName"),
             outcome: text(formData, "outcome"),
-          })
-      : null;
-  const errors = [parsed, work].flatMap((result) =>
+          });
+  const errors = [completionMode, parsed, work].flatMap((result) =>
     result && !result.success ? result.error.issues.map((issue) => issue.message) : [],
   );
   if (languages.length === 0) errors.push(t.t("common.actions.chooseLanguage"));
-  if (!parsed.success || work?.success === false || errors.length > 0) return { errors };
+  if (!completionMode.success || !parsed.success || work?.success === false || errors.length > 0)
+    return { errors };
 
   const lint = wording(
     t,
@@ -109,6 +111,7 @@ export async function createCourseAction(_: FormState, formData: FormData): Prom
   const courseId = await createCourse(getDb(), tenant.id, {
     ...parsed.data,
     ...work?.data,
+    completionMode: completionMode.data,
     languages,
   });
   revalidatePath("/studio", "layout");
