@@ -4,18 +4,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
 import { isLocale, localize } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 import { createTranslator } from "@/core/i18n/translator";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { markdownOf } from "@/server/studio/lessons";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Preview" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("courses.preview.title") };
+}
 
 /**
  * Preview as learner (brief §7 step 6): the course in any of its languages,
@@ -28,6 +32,7 @@ export default async function PreviewPage({
   const { courseId } = await params;
   const { lang, lesson: lessonKey } = await searchParams;
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/preview`);
+  const t = await getStudioText();
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const languages = editor.course.languages.filter(isLocale);
@@ -35,7 +40,8 @@ export default async function PreviewPage({
     isLocale(lang) && languages.includes(lang)
       ? lang
       : (languages[0] ?? tenant.settings.default_locale);
-  const t = createTranslator({
+  // What learners read comes in the previewed language; the Studio around it in the team member's.
+  const learner = createTranslator({
     locale,
     termOverrides: tenant.terminology,
     messageOverrides: tenant.terminology.strings,
@@ -48,14 +54,14 @@ export default async function PreviewPage({
 
   return (
     <div className="space-y-6">
-      <Notice tone="info" title="Preview">
-        This is what learners see
-        {editor.course.status === "published" ? "" : " once the course is published"}. Nothing you
-        do here is recorded.
+      <Notice tone="info" title={t.t("courses.preview.title")}>
+        {editor.course.status === "published"
+          ? t.t("courses.preview.body")
+          : t.t("courses.preview.bodyDraft")}
       </Notice>
 
       {languages.length > 1 && (
-        <nav aria-label="Preview language" className="flex gap-2">
+        <nav aria-label={t.t("courses.preview.language")} className="flex gap-2">
           {languages.map((language) => (
             <Link
               key={language}
@@ -65,7 +71,7 @@ export default async function PreviewPage({
               aria-current={language === locale ? "true" : undefined}
               className={`btn btn-sm ${language === locale ? "btn-primary" : "btn-secondary"}`}
             >
-              {LANGUAGE_NAMES[language]}
+              {languageName(t, language)}
             </Link>
           ))}
         </nav>
@@ -104,7 +110,7 @@ export default async function PreviewPage({
               </li>
             ))}
             <li className="flex items-center gap-2 px-3 py-2 text-sm font-semibold">
-              <Hammer aria-hidden size={16} className="shrink-0" /> {t.term("assignment")}
+              <Hammer aria-hidden size={16} className="shrink-0" /> {learner.term("assignment")}
             </li>
           </ol>
         </aside>
@@ -112,21 +118,21 @@ export default async function PreviewPage({
         {current ? (
           <article className="card min-w-0 p-6 sm:p-10">
             <p className="eyebrow">
-              {t.term("lesson")} {lessons.indexOf(current) + 1} / {lessons.length}
+              {learner.term("lesson")} {lessons.indexOf(current) + 1} / {lessons.length}
             </p>
             <h2 className="mt-2 font-display text-3xl leading-tight">{current.title}</h2>
             <div className="mt-6">
               {markdownOf(current.blocks).trim() ? (
                 <Markdown source={markdownOf(current.blocks)} />
               ) : (
-                <p className="text-muted">{t.t("lesson.empty")}</p>
+                <p className="text-muted">{learner.t("lesson.empty")}</p>
               )}
             </div>
           </article>
         ) : (
           <article className="min-w-0 space-y-8">
             <header className="space-y-3">
-              <p className="eyebrow">{t.term("course")}</p>
+              <p className="eyebrow">{learner.term("course")}</p>
               <h2 className="font-display text-4xl leading-tight">
                 {localize(editor.course.title, locale, fallback)}
               </h2>
@@ -139,18 +145,18 @@ export default async function PreviewPage({
                 {editor.course.estMinutes && (
                   <span className="inline-flex items-center gap-1.5">
                     <Timer aria-hidden size={16} />{" "}
-                    {t.t("home.minutes", { minutes: editor.course.estMinutes })}
+                    {learner.t("home.minutes", { minutes: editor.course.estMinutes })}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5">
                   <BookOpen aria-hidden size={16} />{" "}
-                  {t.t("home.lessonCount", { n: lessons.length })}
+                  {learner.t("home.lessonCount", { n: lessons.length })}
                 </span>
               </p>
             </header>
             {editor.assignment && (
               <section className="card space-y-3 p-6">
-                <p className="eyebrow">{t.t("course.whatYouBuild")}</p>
+                <p className="eyebrow">{learner.t("course.whatYouBuild")}</p>
                 <p className="font-display text-2xl">
                   {localize(editor.assignment.artifactName, locale, fallback)}
                 </p>
@@ -159,9 +165,9 @@ export default async function PreviewPage({
             )}
             {rubric && (
               <section className="space-y-3">
-                <h3 className="font-display text-xl">{t.t("course.howReviewed")}</h3>
+                <h3 className="font-display text-xl">{learner.t("course.howReviewed")}</h3>
                 <p className="text-muted">
-                  {t.t("course.howReviewedIntro", { threshold: rubric.pass_threshold })}
+                  {learner.t("course.howReviewedIntro", { threshold: rubric.pass_threshold })}
                 </p>
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {rubric.criteria.map((criterion) => (

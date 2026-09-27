@@ -9,8 +9,12 @@ import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { courseLearners } from "@/server/studio/insights";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Learners" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("courses.tab.learners") };
+}
 
 /** Everyone who started this course, where they are, and what they handed in. */
 export default async function CourseLearnersPage({
@@ -21,6 +25,7 @@ export default async function CourseLearnersPage({
     "people.view",
     `/studio/courses/${courseId}/learners`,
   );
+  const t = await getStudioText();
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const rows = await courseLearners(getDb(), tenant.id, courseId);
@@ -32,19 +37,21 @@ export default async function CourseLearnersPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">
-            {rows.length} {rows.length === 1 ? "learner" : "learners"} · {completed} completed
+            {t.n("common.learner", rows.length)} ·{" "}
+            {t.t("courses.learners.completed", { n: completed })}
           </h2>
-          <p className="max-w-2xl text-sm text-muted">
-            Learners appear under an alias. Names and e-mail addresses only show for learners who
-            agreed to be contacted by the academy.
-          </p>
+          <p className="max-w-2xl text-sm text-muted">{t.t("courses.learners.privacy")}</p>
         </div>
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Users} title="Nobody has started this course yet" />
+        <EmptyState icon={Users} title={t.t("courses.learners.empty")} />
       ) : (
-        <LearnersTable rows={rows} canReview={canReview} caption="Learners of this course" />
+        <LearnersTable
+          rows={rows}
+          canReview={canReview}
+          caption={t.t("courses.learners.caption")}
+        />
       )}
     </div>
   );

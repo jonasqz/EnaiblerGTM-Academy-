@@ -2,20 +2,22 @@
 
 import { createCourseAction, type FormState } from "@/app/studio/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 
 export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm: string }) {
   const { state, pending, onSubmit } = useActionForm<FormState>(createCourseAction, {});
+  const t = useStudioText();
   return (
     <form onSubmit={onSubmit} className="card space-y-6 p-5 sm:p-8">
       <FormFeedback state={state} />
 
       <div className="field">
         <label htmlFor="artifactName" className="label">
-          What do learners build?
+          {t.t("courses.new.artifact")}
         </label>
         <input
           id="artifactName"
@@ -23,18 +25,17 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
           className="input"
           required
           maxLength={80}
-          placeholder="e.g. Validated idea brief"
+          placeholder={t.t("courses.new.artifactPlaceholder")}
           aria-describedby="artifactName-hint"
         />
         <p id="artifactName-hint" className="hint">
-          The one piece of work that proves the skill. Learners see it as their “
-          {props.artifactTerm}”; it is named on the Certificate of Completion.
+          {t.t("courses.new.artifactHint", { term: props.artifactTerm })}
         </p>
       </div>
 
       <div className="field">
         <label htmlFor="outcome" className="label">
-          What does a good result look like?
+          {t.t("courses.new.outcome")}
         </label>
         <textarea
           id="outcome"
@@ -44,18 +45,17 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
           minLength={20}
           maxLength={4000}
           rows={6}
-          placeholder="Write a one-page brief for your product idea: the problem, who has it, the evidence you collected and the riskiest assumption you will test next."
+          placeholder={t.t("courses.new.outcomePlaceholder")}
           aria-describedby="outcome-hint"
         />
         <p id="outcome-hint" className="hint">
-          This becomes the assignment learners get. Be concrete: parts, evidence, length. You can
-          refine it later.
+          {t.t("courses.new.outcomeHint")}
         </p>
       </div>
 
       <div className="field">
         <label htmlFor="title" className="label">
-          Course title
+          {t.t("courses.new.courseTitle")}
         </label>
         <input
           id="title"
@@ -64,12 +64,12 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
           required
           minLength={3}
           maxLength={120}
-          placeholder="e.g. Write a validated idea brief"
+          placeholder={t.t("courses.new.courseTitlePlaceholder")}
         />
       </div>
 
       <fieldset className="field">
-        <legend className="label mb-1.5">Languages</legend>
+        <legend className="label mb-1.5">{t.t("courses.new.languages")}</legend>
         <div className="flex flex-wrap gap-4">
           {props.locales.map((locale) => (
             <label key={locale} className="inline-flex items-center gap-2">
@@ -80,17 +80,15 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
                 defaultChecked
                 className="size-4 accent-(--tenant-primary)"
               />
-              {LANGUAGE_NAMES[locale]}
+              {languageName(t, locale)}
             </label>
           ))}
         </div>
-        <p className="hint">
-          Texts you write now go into the first language. The publish checklist asks for the others.
-        </p>
+        <p className="hint">{t.t("courses.new.languagesHint")}</p>
       </fieldset>
 
       <fieldset className="field">
-        <legend className="label mb-1.5">Delivery</legend>
+        <legend className="label mb-1.5">{t.t("courses.delivery.title")}</legend>
         <div className="grid gap-2">
           <label className="flex items-start gap-3 rounded-control border border-line p-3">
             <input
@@ -101,8 +99,8 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
               className="mt-1 size-4 accent-(--tenant-primary)"
             />
             <span>
-              <span className="block font-semibold">Free, self-paced</span>
-              <span className="text-sm text-muted">Learners start any time.</span>
+              <span className="block font-semibold">{t.t("courses.delivery.free_async")}</span>
+              <span className="text-sm text-muted">{t.t("courses.delivery.free_async.body")}</span>
             </span>
           </label>
           <label className="flex items-start gap-3 rounded-control border border-line p-3 opacity-60">
@@ -114,21 +112,17 @@ export function NewCourseForm(props: { locales: readonly Locale[]; artifactTerm:
               className="mt-1 size-4"
             />
             <span>
-              <span className="block font-semibold">Paid</span>
-              <span className="text-sm text-muted">
-                Blocked until payments ship (FernUSG rules apply).
-              </span>
+              <span className="block font-semibold">{t.t("courses.delivery.paid")}</span>
+              <span className="text-sm text-muted">{t.t("courses.delivery.paid.body")}</span>
             </span>
           </label>
         </div>
       </fieldset>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <p className="text-sm text-muted">
-          Creates a draft with a starter rubric. Nothing is public yet.
-        </p>
-        <SubmitButton pending={pending} pendingLabel="Creating…">
-          Create course
+        <p className="text-sm text-muted">{t.t("courses.new.draftNote")}</p>
+        <SubmitButton pending={pending} pendingLabel={t.t("courses.new.creating")}>
+          {t.t("courses.new.create")}
         </SubmitButton>
       </div>
     </form>

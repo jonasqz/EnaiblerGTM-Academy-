@@ -5,8 +5,12 @@ import { DetailsForm } from "@/app/studio/courses/[courseId]/details/details-for
 import { isLocale } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Details" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("courses.step.details") };
+}
 
 export default async function DetailsPage({
   params,

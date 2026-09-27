@@ -2,16 +2,12 @@
 
 import { saveDetailsAction, type FormState } from "@/app/studio/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { DeliveryMode } from "@/core/compliance/delivery-mode";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
-
-const PAID_LABELS: Record<Exclude<DeliveryMode, "free_async">, string> = {
-  paid_live: "Paid, live sessions",
-  paid_async_approved: "Paid, self-paced (ZFU approval)",
-};
+import { languageName } from "@/core/i18n/studio/helpers";
 
 export interface DetailsFormProps {
   courseId: string;
@@ -28,6 +24,7 @@ export interface DetailsFormProps {
 
 export function DetailsForm(props: DetailsFormProps) {
   const { state, pending, onSubmit } = useActionForm<FormState>(saveDetailsAction, {});
+  const t = useStudioText();
   // Show fields for every language the academy offers; only checked ones are saved.
   const locales = props.academyLocales;
 
@@ -38,19 +35,17 @@ export function DetailsForm(props: DetailsFormProps) {
       <section aria-labelledby="texts-heading" className="card-flat space-y-5 p-5 sm:p-6">
         <div>
           <h2 id="texts-heading" className="text-lg font-semibold">
-            Catalogue text
+            {t.t("courses.details.texts")}
           </h2>
-          <p className="text-sm text-muted">
-            What learners see before they start. Titles must never promise a certification.
-          </p>
+          <p className="text-sm text-muted">{t.t("courses.details.textsIntro")}</p>
         </div>
         <div className={`grid gap-5 ${locales.length > 1 ? "lg:grid-cols-2" : ""}`}>
           {locales.map((locale) => (
             <div key={locale} className="space-y-4">
-              <p className="eyebrow">{LANGUAGE_NAMES[locale]}</p>
+              <p className="eyebrow">{languageName(t, locale)}</p>
               <div className="field">
                 <label htmlFor={`title.${locale}`} className="label">
-                  Title
+                  {t.t("courses.details.title")}
                 </label>
                 <input
                   id={`title.${locale}`}
@@ -62,7 +57,7 @@ export function DetailsForm(props: DetailsFormProps) {
               </div>
               <div className="field">
                 <label htmlFor={`summary.${locale}`} className="label">
-                  Summary
+                  {t.t("courses.details.summary")}
                 </label>
                 <textarea
                   id={`summary.${locale}`}
@@ -83,10 +78,10 @@ export function DetailsForm(props: DetailsFormProps) {
         className="card-flat grid gap-5 p-5 sm:grid-cols-2 sm:p-6"
       >
         <h2 id="settings-heading" className="text-lg font-semibold sm:col-span-2">
-          Settings
+          {t.t("courses.details.settings")}
         </h2>
         <fieldset className="field">
-          <legend className="label mb-1.5">Course languages</legend>
+          <legend className="label mb-1.5">{t.t("courses.details.languages")}</legend>
           <div className="flex flex-wrap gap-4">
             {locales.map((locale) => (
               <label key={locale} className="inline-flex items-center gap-2">
@@ -97,15 +92,15 @@ export function DetailsForm(props: DetailsFormProps) {
                   defaultChecked={props.languages.includes(locale)}
                   className="size-4 accent-(--tenant-primary)"
                 />
-                {LANGUAGE_NAMES[locale]}
+                {languageName(t, locale)}
               </label>
             ))}
           </div>
-          <p className="hint">Each language needs its own lessons before publishing.</p>
+          <p className="hint">{t.t("courses.details.languagesHint")}</p>
         </fieldset>
         <div className="field">
           <label htmlFor="estMinutes" className="label">
-            Duration (minutes)
+            {t.t("courses.details.duration")}
           </label>
           <input
             id="estMinutes"
@@ -119,7 +114,7 @@ export function DetailsForm(props: DetailsFormProps) {
         </div>
         <div className="field">
           <label htmlFor="slug" className="label">
-            Address
+            {t.t("courses.details.address")}
           </label>
           <div className="flex items-center gap-1">
             <span className="text-muted">/courses/</span>
@@ -135,13 +130,13 @@ export function DetailsForm(props: DetailsFormProps) {
           </div>
           <p id="slug-hint" className="hint">
             {props.slugLocked
-              ? "Fixed since the first publish: shared links and certificates point here."
-              : "Fixed at the first publish."}
+              ? t.t("courses.details.addressLocked")
+              : t.t("courses.details.addressOpen")}
           </p>
         </div>
         <div className="field">
           <label htmlFor="plannedLaunch" className="label">
-            Planned launch
+            {t.t("courses.details.launch")}
           </label>
           <input
             id="plannedLaunch"
@@ -153,7 +148,7 @@ export function DetailsForm(props: DetailsFormProps) {
           />
         </div>
         <fieldset className="field sm:col-span-2">
-          <legend className="label mb-1.5">Delivery</legend>
+          <legend className="label mb-1.5">{t.t("courses.delivery.title")}</legend>
           <div className="grid gap-2 md:grid-cols-2">
             <label className="flex items-start gap-3 rounded-control border border-line p-3">
               <input
@@ -164,8 +159,10 @@ export function DetailsForm(props: DetailsFormProps) {
                 className="mt-1 size-4 accent-(--tenant-primary)"
               />
               <span>
-                <span className="block font-semibold">Free, self-paced</span>
-                <span className="text-sm text-muted">Learners start any time.</span>
+                <span className="block font-semibold">{t.t("courses.delivery.free_async")}</span>
+                <span className="text-sm text-muted">
+                  {t.t("courses.delivery.free_async.body")}
+                </span>
               </span>
             </label>
             {props.deliveryMode !== "free_async" ? (
@@ -178,15 +175,17 @@ export function DetailsForm(props: DetailsFormProps) {
                   className="mt-1 size-4 accent-(--tenant-primary)"
                 />
                 <span>
-                  <span className="block font-semibold">{PAID_LABELS[props.deliveryMode]}</span>
+                  <span className="block font-semibold">
+                    {t.t(`courses.delivery.${props.deliveryMode}`)}
+                  </span>
                   <span className="text-sm text-muted">
-                    Set in the manifest. Publishing stays blocked until payments ship.
+                    {t.t("courses.delivery.paidFromManifest")}
                   </span>
                 </span>
               </label>
             ) : (
               <p className="flex items-center rounded-control border border-dashed border-line p-3 text-sm text-muted">
-                Paid courses stay blocked until payments ship (FernUSG).
+                {t.t("courses.delivery.paidBlocked")}
               </p>
             )}
           </div>
@@ -196,8 +195,8 @@ export function DetailsForm(props: DetailsFormProps) {
       <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-line bg-surface/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-card sm:border">
         <FormFeedback state={state} />
         <div className="flex justify-end">
-          <SubmitButton pending={pending} pendingLabel="Saving…">
-            Save details
+          <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+            {t.t("courses.details.save")}
           </SubmitButton>
         </div>
       </div>
