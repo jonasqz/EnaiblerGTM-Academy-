@@ -1,11 +1,14 @@
 "use client";
 
-import { Columns2, Eye, ImagePlus, PencilLine } from "lucide-react";
+import { Circle, CircleCheck, Columns2, Eye, ImagePlus, PencilLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { saveLessonAction, type FormState } from "@/app/studio/actions";
+import { CheckEditor } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/check-editor";
+import { KnowledgeCheck, type KnowledgeCheckLabels } from "@/components/knowledge-check";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
+import { Badge } from "@/components/ui/badge";
 import { uploadFile } from "@/components/ui/file-upload";
 import { Markdown } from "@/components/ui/markdown";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -14,6 +17,9 @@ import { lintWording } from "@/core/compliance/wording-lint";
 import type { Locale } from "@/core/i18n/locales";
 import { languageName, wordingText } from "@/core/i18n/studio/helpers";
 import type { StudioKey } from "@/core/i18n/studio/index";
+import { cleanCheckQuestions, previewCheckQuestions } from "@/core/questions/knowledge-check";
+import type { CheckQuestion } from "@/core/questions/questions";
+import { canonicalJson, sameJson } from "@/core/shared/json";
 
 type Mode = "write" | "split" | "preview";
 
@@ -39,9 +45,17 @@ export interface LessonEditorProps {
   markdown: string;
   criteria: Array<{ id: string; label: string; description: string }>;
   selected: string[];
-  reference: { locale: Locale; title: string; markdown: string } | null;
+  questions: CheckQuestion[];
+  reference: {
+    locale: Locale;
+    title: string;
+    markdown: string;
+    questions: CheckQuestion[];
+  } | null;
   /** The academy's theme variables: the preview shows the lesson as learners see it. */
   academyTheme: Record<string, string>;
+  /** The knowledge check's words in the preview, in a language the academy offers. */
+  checkLabels: KnowledgeCheckLabels;
 }
 
 export function LessonEditor(props: LessonEditorProps) {
@@ -49,10 +63,12 @@ export function LessonEditor(props: LessonEditorProps) {
   const [title, setTitle] = useState(props.title);
   const [markdown, setMarkdown] = useState(props.markdown);
   const [selected, setSelected] = useState<string[]>(props.selected);
+  const [questions, setQuestions] = useState<CheckQuestion[]>(props.questions);
   const [saved, setSaved] = useState({
     title: props.title,
     markdown: props.markdown,
     selected: props.selected,
+    questions: cleanCheckQuestions(props.questions),
   });
   const [mode, setMode] = useState<Mode>("write");
   const formRef = useRef<HTMLFormElement>(null);
@@ -93,15 +109,20 @@ export function LessonEditor(props: LessonEditorProps) {
         title: String(formData.get("title") ?? "").trim(),
         markdown: String(formData.get("markdown") ?? ""),
         selected: formData.getAll("criteria").map(String),
+        questions: JSON.parse(String(formData.get("questions") ?? "[]")) as CheckQuestion[],
       });
     }
     return result;
   }, {});
 
+  // Sent and compared the way the server stores them, so stray spaces are no change.
+  const cleanQuestions = cleanCheckQuestions(questions);
+  const preview = previewCheckQuestions(questions);
   const dirty =
     title.trim() !== saved.title ||
     markdown !== saved.markdown ||
-    [...selected].sort().join() !== [...saved.selected].sort().join();
+    [...selected].sort().join() !== [...saved.selected].sort().join() ||
+    !sameJson(cleanQuestions, saved.questions);
   const words = markdown.trim() ? markdown.trim().split(/\s+/).length : 0;
   const findings = lintWording(`${title}\n${markdown}`, "lesson_text");
 
@@ -127,6 +148,7 @@ export function LessonEditor(props: LessonEditorProps) {
   return (
     <form ref={formRef} onSubmit={onSubmit} className="space-y-6">
       <input type="hidden" name="lessonId" value={props.lessonId} />
+      <input type="hidden" name="questions" value={JSON.stringify(cleanQuestions)} />
 
       <div className="field">
         <label htmlFor="lesson-title" className="label">
@@ -241,6 +263,16 @@ export function LessonEditor(props: LessonEditorProps) {
                 ) : (
                   <p className="text-muted">{t.t("lessons.editor.previewEmpty")}</p>
                 )}
+                {preview.length > 0 && (
+                  <KnowledgeCheck
+                    // Starts over when the questions change, so no answer outlives its question.
+                    key={canonicalJson(preview)}
+                    questions={preview}
+                    labels={props.checkLabels}
+                    headingLevel={3}
+                    className="mt-8 border-t border-line pt-6"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -252,6 +284,8 @@ export function LessonEditor(props: LessonEditorProps) {
           state={{ warnings: [...new Set(findings.map((finding) => wordingText(t, finding)))] }}
         />
       )}
+
+      <CheckEditor questions={questions} onChange={setQuestions} />
 
       <fieldset className="card-flat space-y-3 p-4">
         <legend className="px-1 font-semibold">{t.t("lessons.editor.teaches")}</legend>
@@ -301,6 +335,39 @@ export function LessonEditor(props: LessonEditorProps) {
               <Markdown source={props.reference.markdown} />
             ) : (
               <p className="text-sm text-muted">{t.t("lessons.editor.noContent")}</p>
+            )}
+            {props.reference.questions.length > 0 && (
+              <div className="mt-6 space-y-3 border-t border-line pt-4">
+                <p className="font-semibold">{t.t("lessons.check.title")}</p>
+                <ol className="space-y-4 text-sm">
+                  {props.reference.questions.map((question, index) => (
+                    <li key={question.id} className="space-y-1.5">
+                      <p className="font-semibold">
+                        {index + 1}. {question.prompt}
+                      </p>
+                      <ul className="space-y-1">
+                        {question.options.map((option) => {
+                          const right = question.correct.includes(option.id);
+                          const Icon = right ? CircleCheck : Circle;
+                          return (
+                            <li key={option.id} className="flex flex-wrap items-center gap-2">
+                              <Icon
+                                aria-hidden
+                                size={14}
+                                className="shrink-0 text-muted"
+                                style={right ? { color: "var(--status-good)" } : undefined}
+                              />
+                              <span className="min-w-0 break-words">{option.text}</span>
+                              {right && <Badge tone="good">{t.t("lessons.check.right")}</Badge>}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {question.explanation && <p className="text-muted">{question.explanation}</p>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
           </div>
         </details>
