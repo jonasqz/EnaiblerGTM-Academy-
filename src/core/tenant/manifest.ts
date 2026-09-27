@@ -72,10 +72,8 @@ export const FEATURE_KEYS = ["paths", "levels", "cohorts", "ai_review", "showcas
 export const featuresSchema = z.strictObject({
   paths: z.boolean().default(false),
   levels: z.boolean().default(false),
-  /** Phase 2. */
   cohorts: z.boolean().default(false),
   ai_review: z.boolean().default(true),
-  /** Phase 2. */
   showcase: z.boolean().default(false),
 });
 export type Features = z.output<typeof featuresSchema>;
@@ -329,10 +327,6 @@ export function manifestWarnings(manifest: TenantManifest): string[] {
     warnings.push("The levels feature is on, but no levels are defined.");
   if (!tenant.features.levels && manifest.levels.length > 0)
     warnings.push("Levels are defined, but the levels feature is off.");
-  if (tenant.features.cohorts)
-    warnings.push("Cohorts are a phase 2 feature and are not available yet.");
-  if (tenant.features.showcase)
-    warnings.push("Showcase is a phase 2 feature and is not available yet.");
   if (!tenant.email_sender?.address)
     warnings.push("No email_sender address set: mail goes out from the platform address.");
 

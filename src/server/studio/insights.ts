@@ -180,7 +180,10 @@ export async function courseLearners(
   db: Database,
   tenantId: string,
   courseId: string,
+  /** Only these learners (e.g. a cohort's). */
+  only?: readonly string[],
 ): Promise<CourseLearnerRow[]> {
+  if (only && only.length === 0) return [];
   return withTenant(db, tenantId, async (tx) => {
     const rows = await tx
       .select({
@@ -199,7 +202,12 @@ export async function courseLearners(
           eq(learnerProfiles.tenantId, enrollments.tenantId),
         ),
       )
-      .where(eq(enrollments.courseId, courseId))
+      .where(
+        and(
+          eq(enrollments.courseId, courseId),
+          only ? inArray(enrollments.userId, [...only]) : undefined,
+        ),
+      )
       .orderBy(desc(enrollments.startedAt));
 
     const keysByLocale = new Map<string, string[]>();

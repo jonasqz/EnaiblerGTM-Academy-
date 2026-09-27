@@ -101,3 +101,14 @@ describe("UI copy", () => {
     }
   });
 });
+
+describe("counted terms", () => {
+  it("use the singular for one", () => {
+    const t = createTranslator({ locale: "en" });
+    expect(t.t("home.lessonCount", { n: 1 })).toBe("1 Lesson");
+    expect(t.t("home.lessonCount", { n: 3 })).toBe("3 Lessons");
+    expect(t.t("course.progress", { done: 0, total: 1 })).toBe("0 of 1 Lesson done");
+    const de = createTranslator({ locale: "de" });
+    expect(de.t("course.progress", { done: 2, total: 5 })).toBe("2 von 5 Lektionen erledigt");
+  });
+});

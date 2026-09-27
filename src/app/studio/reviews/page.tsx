@@ -9,7 +9,7 @@ import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
-import { requireCapability } from "@/server/access";
+import { requireCapability, reviewScopeOf } from "@/server/access";
 import { listReviewQueue, type QueueRow } from "@/server/studio/reviews";
 
 export const metadata: Metadata = { title: "Reviews" };
@@ -17,8 +17,9 @@ export const metadata: Metadata = { title: "Reviews" };
 /** Review queue (brief §8): results waiting for a human first, then spot checks of released ones. */
 export default async function ReviewsPage({ searchParams }: PageProps<"/studio/reviews">) {
   const { decided } = await searchParams;
-  const { tenant } = await requireCapability("reviews.decide", "/studio/reviews");
-  const queue = await listReviewQueue(getDb(), tenant.id);
+  const session = await requireCapability("reviews.decide", "/studio/reviews");
+  const { tenant } = session;
+  const queue = await listReviewQueue(getDb(), tenant.id, reviewScopeOf(session));
   const decide = queue.filter((row) => row.kind === "decide");
   const spotChecks = queue.filter((row) => row.kind === "spot_check");
   const locale = tenant.settings.default_locale;

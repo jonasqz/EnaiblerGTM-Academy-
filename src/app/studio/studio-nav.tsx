@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Milestone,
   Settings,
+  UsersRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const ICONS = {
   overview: LayoutDashboard,
   courses: BookOpen,
   paths: Milestone,
+  cohorts: UsersRound,
   reviews: ClipboardCheck,
   people: Users,
   settings: Settings,

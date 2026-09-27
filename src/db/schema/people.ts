@@ -13,6 +13,7 @@ import {
 import { createdAt, currentUserId, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { paths } from "@/db/schema/catalog";
+import { cohorts } from "@/db/schema/cohorts";
 import { tenants } from "@/db/schema/tenancy";
 
 export const membershipRole = pgEnum("membership_role", [
@@ -35,7 +36,7 @@ export const memberships = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: membershipRole("role").notNull(),
-    /** Mentors are cohort-scoped (phase 2). */
+    /** Mentors are scoped to one cohort; every other role is academy-wide. */
     cohortId: uuid("cohort_id"),
     createdAt: createdAt(),
   },
@@ -43,6 +44,11 @@ export const memberships = pgTable(
     unique("memberships_unique")
       .on(table.tenantId, table.userId, table.role, table.cohortId)
       .nullsNotDistinct(),
+    foreignKey({
+      name: "memberships_cohort_fk",
+      columns: [table.tenantId, table.cohortId],
+      foreignColumns: [cohorts.tenantId, cohorts.id],
+    }).onDelete("cascade"),
     tenantIsolation(),
     // Read-only view of one's own memberships across academies, only inside
     // withUser() (account deletion must know whether other academies remain).

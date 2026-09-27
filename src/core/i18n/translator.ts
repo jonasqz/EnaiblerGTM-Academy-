@@ -18,7 +18,11 @@ export interface Translator {
   term(key: TermKey, options?: { plural?: boolean }): string;
 }
 
-const PLACEHOLDER = /\{(?:(term|terms)\.([a-z]+)|([A-Za-z0-9_]+))\}/g;
+/**
+ * {term.x} singular, {terms.x} plural, {terms.x:n} plural unless the variable
+ * n is 1 ("1 Lesson", "3 Lessons"), {name} a variable.
+ */
+const PLACEHOLDER = /\{(?:(term|terms)\.([a-z]+)(?::([A-Za-z0-9_]+))?|([A-Za-z0-9_]+))\}/g;
 
 export function createTranslator(options: {
   locale: Locale;
@@ -38,9 +42,16 @@ export function createTranslator(options: {
     const template = messageOverrides?.[key]?.[locale] ?? MESSAGES[locale][key];
     return template.replace(
       PLACEHOLDER,
-      (match, kind: string | undefined, termKey: string | undefined, name: string | undefined) => {
+      (
+        match,
+        kind: string | undefined,
+        termKey: string | undefined,
+        countVar: string | undefined,
+        name: string | undefined,
+      ) => {
         if (kind && termKey && termKey in terms) {
-          return term(termKey as TermKey, { plural: kind === "terms" });
+          const one = countVar !== undefined && Number(vars[countVar]) === 1;
+          return term(termKey as TermKey, { plural: kind === "terms" && !one });
         }
         if (name !== undefined && name in vars) return String(vars[name]);
         return match;

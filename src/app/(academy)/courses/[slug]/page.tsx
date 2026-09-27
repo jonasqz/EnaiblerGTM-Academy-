@@ -1,7 +1,17 @@
-import { Award, BookOpen, CircleCheck, Circle, Hammer, Languages, Timer } from "lucide-react";
+import {
+  Award,
+  BookOpen,
+  CircleCheck,
+  Circle,
+  Hammer,
+  Languages,
+  Timer,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { cohortDateLine } from "@/components/cohort-dates";
 import { continueUrl } from "@/components/entry-links";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
@@ -11,6 +21,7 @@ import { decodeEntryContext } from "@/core/entry/context";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
+import { learnerCohorts } from "@/server/cohorts";
 import { loadLearnerCourse } from "@/server/learning";
 import { getTenant, getTranslator } from "@/server/request";
 
@@ -53,6 +64,10 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
   const artifact = data.assignment
     ? localize(data.assignment.artifactName, data.locale, fallback)
     : null;
+  const [cohort] =
+    session && tenant.settings.features.cohorts
+      ? await learnerCohorts(getDb(), tenant.id, session.viewer.userId, [data.course.id])
+      : [];
 
   return (
     <article className="grid gap-8 lg:grid-cols-[1fr_20rem]">
@@ -82,6 +97,15 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
               {data.course.languages.map((l) => l.toUpperCase()).join(" · ")}
             </span>
           </p>
+          {cohort && (
+            <p className="inline-flex flex-wrap items-center gap-2 rounded-control bg-primary-soft px-3 py-2 text-sm">
+              <UsersRound aria-hidden size={16} />
+              <span className="font-semibold">{t.t("cohort.yours", { cohort: cohort.name })}</span>
+              {cohortDateLine(t, cohort.startsOn, cohort.endsOn) && (
+                <span>· {cohortDateLine(t, cohort.startsOn, cohort.endsOn)}</span>
+              )}
+            </p>
+          )}
         </header>
 
         {data.assignment && artifact && (

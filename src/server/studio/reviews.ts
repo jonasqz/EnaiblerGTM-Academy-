@@ -7,6 +7,7 @@ import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
 import { assignments, courses, enrollments, reviews, rubrics, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { mentorMaySee, mentorScope } from "@/server/cohorts";
 import { revokeCredential } from "@/server/credentials/issue";
 import { trackEvent } from "@/server/events";
 import { recordDecision } from "@/server/review/process-submission";
@@ -29,7 +30,14 @@ export interface QueueRow {
   ai: { percent: number; pass: boolean; reasons: string[]; audit: string | null } | null;
 }
 
-export async function listReviewQueue(db: Database, tenantId: string): Promise<QueueRow[]> {
+/** A mentor sees only their cohorts' work; everyone else with reviews.decide sees all. */
+export type ReviewScope = { mentorId: string } | undefined;
+
+export async function listReviewQueue(
+  db: Database,
+  tenantId: string,
+  scope?: ReviewScope,
+): Promise<QueueRow[]> {
   return withTenant(db, tenantId, async (tx) => {
     const rows = await tx
       .select({
@@ -45,6 +53,7 @@ export async function listReviewQueue(db: Database, tenantId: string): Promise<Q
       .from(submissions)
       .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
       .innerJoin(courses, eq(courses.id, assignments.courseId))
+      .where(scope ? mentorScope(scope.mentorId) : undefined)
       .orderBy(asc(submissions.submittedAt));
     const aiRows = rows.length
       ? await tx
@@ -95,18 +104,31 @@ export async function listReviewQueue(db: Database, tenantId: string): Promise<Q
 }
 
 /** Results held for a human decision (the Studio nav badge). */
-export async function countHeldSubmissions(db: Database, tenantId: string): Promise<number> {
+export async function countHeldSubmissions(
+  db: Database,
+  tenantId: string,
+  scope?: ReviewScope,
+): Promise<number> {
   const [row] = await withTenant(db, tenantId, (tx) =>
     tx
       .select({ n: sql<number>`count(*)::int` })
       .from(submissions)
-      .where(eq(submissions.status, "in_review")),
+      .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+      .where(
+        and(eq(submissions.status, "in_review"), scope ? mentorScope(scope.mentorId) : undefined),
+      ),
   );
   return row?.n ?? 0;
 }
 
-export async function loadReviewDetail(db: Database, tenantId: string, submissionId: string) {
+export async function loadReviewDetail(
+  db: Database,
+  tenantId: string,
+  submissionId: string,
+  scope?: ReviewScope,
+) {
   return withTenant(db, tenantId, async (tx) => {
+    if (scope && !(await mentorMaySee(tx, scope.mentorId, submissionId))) return null;
     const [submission] = await tx
       .select()
       .from(submissions)
@@ -157,8 +179,12 @@ export async function decideSubmission(
   reviewerId: string,
   submissionId: string,
   input: DecisionInput,
+  scope?: ReviewScope,
 ): Promise<DecisionResult> {
   return withTenant(db, tenant.id, async (tx) => {
+    if (scope && !(await mentorMaySee(tx, scope.mentorId, submissionId))) {
+      return { ok: false, error: "not_found" };
+    }
     const [submission] = await tx
       .select()
       .from(submissions)

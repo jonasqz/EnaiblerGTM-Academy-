@@ -15,7 +15,7 @@ import { SubmittedFiles } from "@/components/submitted-files";
 import { formFieldsFromSchema } from "@/core/assignments/submission-types";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
-import { requireCapability } from "@/server/access";
+import { requireCapability, reviewScopeOf } from "@/server/access";
 import { loadReviewDetail } from "@/server/studio/reviews";
 
 export const metadata: Metadata = { title: "Review" };
@@ -30,9 +30,10 @@ export default async function ReviewDetailPage({
   params,
 }: PageProps<"/studio/reviews/[submissionId]">) {
   const { submissionId } = await params;
-  const { tenant } = await requireCapability("reviews.decide", `/studio/reviews/${submissionId}`);
+  const session = await requireCapability("reviews.decide", `/studio/reviews/${submissionId}`);
+  const { tenant } = session;
   if (!z.uuid().safeParse(submissionId).success) notFound();
-  const detail = await loadReviewDetail(getDb(), tenant.id, submissionId);
+  const detail = await loadReviewDetail(getDb(), tenant.id, submissionId, reviewScopeOf(session));
   if (!detail) notFound();
   const { submission, rubric } = detail;
   const locale = isLocale(detail.locale) ? detail.locale : tenant.settings.default_locale;

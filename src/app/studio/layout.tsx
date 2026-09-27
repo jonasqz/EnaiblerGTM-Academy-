@@ -9,7 +9,7 @@ import { can } from "@/core/access/roles";
 import { themeToCssVariables } from "@/core/theme/css";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { getDb } from "@/db/client";
-import { requireCapability } from "@/server/access";
+import { requireCapability, reviewScopeOf } from "@/server/access";
 import { countHeldSubmissions } from "@/server/studio/reviews";
 
 export const metadata: Metadata = {
@@ -26,14 +26,23 @@ export const metadata: Metadata = {
 const STUDIO_THEME = themeToCssVariables(DEFAULT_THEME) as CSSProperties;
 
 export default async function StudioLayout({ children }: LayoutProps<"/studio">) {
-  const { tenant, roles } = await requireCapability("studio.view");
+  const session = await requireCapability("studio.view");
+  const { tenant, roles } = session;
   const reviewer = can(roles, "reviews.decide");
-  const waiting = reviewer ? await countHeldSubmissions(getDb(), tenant.id) : 0;
+  const waiting = reviewer
+    ? await countHeldSubmissions(getDb(), tenant.id, reviewScopeOf(session))
+    : 0;
+  const cohortsOn = tenant.settings.features.cohorts;
   const items: StudioNavItem[] = [
     { icon: "overview", href: "/studio", label: "Overview" },
-    { icon: "courses", href: "/studio/courses", label: "Courses" },
+    ...(can(roles, "courses.view")
+      ? [{ icon: "courses", href: "/studio/courses", label: "Courses" } as const]
+      : []),
     ...(can(roles, "courses.edit")
       ? [{ icon: "paths", href: "/studio/paths", label: "Paths & levels" } as const]
+      : []),
+    ...(cohortsOn && (can(roles, "cohorts.manage") || roles.includes("mentor"))
+      ? [{ icon: "cohorts", href: "/studio/cohorts", label: "Cohorts" } as const]
       : []),
     ...(reviewer
       ? [{ icon: "reviews", href: "/studio/reviews", label: "Reviews", count: waiting } as const]

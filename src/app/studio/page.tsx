@@ -27,6 +27,7 @@ import { localize } from "@/core/i18n/locales";
 import { sameJson } from "@/core/shared/json";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { getDb } from "@/db/client";
+import { MentorOverview } from "@/app/studio/mentor-overview";
 import { requireCapability } from "@/server/access";
 import { listCourses } from "@/server/studio/courses";
 import { studioOverview } from "@/server/studio/insights";
@@ -51,8 +52,11 @@ const FLOW_STEPS = [
 ] as const;
 
 export default async function StudioOverviewPage() {
-  const { tenant, roles } = await requireCapability("studio.view");
+  const session = await requireCapability("studio.view");
+  const { tenant, roles } = session;
   const db = getDb();
+  // Mentors work in their cohorts: their overview is their review queue and cohorts.
+  if (!can(roles, "courses.view")) return <MentorOverview session={session} />;
   const overview = await studioOverview(db, tenant.id);
   const courses = await listCourses(db, tenant.id);
   const queue = can(roles, "reviews.decide") ? await listReviewQueue(db, tenant.id) : [];

@@ -4,6 +4,8 @@ import { courseProgress, type LessonProgressMap } from "@/core/courses/lessons";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
 import {
+  cohortMembers,
+  cohorts,
   consents,
   courses,
   credentials,
@@ -194,6 +196,11 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
         })
         .from(consents)
         .where(eq(consents.userId, userId)),
+      cohorts: await tx
+        .select({ name: cohorts.name, joinedAt: cohortMembers.joinedAt })
+        .from(cohortMembers)
+        .innerJoin(cohorts, eq(cohorts.id, cohortMembers.cohortId))
+        .where(eq(cohortMembers.userId, userId)),
       mails: await tx
         .select({
           kind: notifications.kind,
@@ -254,6 +261,7 @@ export async function deleteMyData(
     await tx.delete(levelGrants).where(eq(levelGrants.userId, userId));
     await tx.delete(consents).where(eq(consents.userId, userId));
     await tx.delete(notifications).where(eq(notifications.userId, userId));
+    await tx.delete(cohortMembers).where(eq(cohortMembers.userId, userId));
     await tx.delete(learnerProfiles).where(eq(learnerProfiles.userId, userId));
     await tx.delete(files).where(eq(files.ownerUserId, userId));
     await tx.delete(memberships).where(eq(memberships.userId, userId));

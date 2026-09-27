@@ -13,6 +13,8 @@ export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
 export const CAPABILITIES = [
   "studio.view",
+  /** The course list and course pages (read); editing needs courses.edit. */
+  "courses.view",
   "courses.edit",
   "courses.publish",
   "reviews.decide",
@@ -21,16 +23,26 @@ export const CAPABILITIES = [
   "academy.manage",
   /** E-mail addresses of learners who agreed to hear from the academy. */
   "contacts.export",
+  /** Create cohorts, share their join links, assign mentors. */
+  "cohorts.manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
 const GRANTS: Record<MembershipRole, readonly Capability[]> = {
   learner: [],
-  // Cohort-scoped mentoring is phase 2.
-  mentor: [],
-  reviewer: ["studio.view", "reviews.decide", "people.view"],
+  // Mentors review, but only the work of their cohorts (see reviewsLimitedToCohorts).
+  mentor: ["studio.view", "reviews.decide"],
+  reviewer: ["studio.view", "courses.view", "reviews.decide", "people.view"],
   // Authors run the review queue for their courses too (brief §8, author tools).
-  author: ["studio.view", "courses.edit", "courses.publish", "reviews.decide", "people.view"],
+  author: [
+    "studio.view",
+    "courses.view",
+    "courses.edit",
+    "courses.publish",
+    "reviews.decide",
+    "people.view",
+    "cohorts.manage",
+  ],
   tenant_admin: CAPABILITIES,
 };
 
@@ -44,4 +56,16 @@ export function can(roles: readonly MembershipRole[], capability: Capability): b
 
 export function isMembershipRole(value: unknown): value is MembershipRole {
   return typeof value === "string" && (MEMBERSHIP_ROLES as readonly string[]).includes(value);
+}
+
+/**
+ * Mentors are cohort-scoped (brief §4, Membership): someone whose only
+ * reviewing role is "mentor" sees and decides the work of their cohorts'
+ * learners, nothing else.
+ */
+export function reviewsLimitedToCohorts(roles: readonly MembershipRole[]): boolean {
+  return (
+    roles.includes("mentor") &&
+    !roles.some((role) => role === "reviewer" || role === "author" || role === "tenant_admin")
+  );
 }

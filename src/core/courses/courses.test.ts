@@ -26,8 +26,10 @@ describe("roles", () => {
 
   it("lets authors build and publish courses and run the review queue", () => {
     expect([...capabilitiesOf(["author"])].sort()).toEqual([
+      "cohorts.manage",
       "courses.edit",
       "courses.publish",
+      "courses.view",
       "people.view",
       "reviews.decide",
       "studio.view",

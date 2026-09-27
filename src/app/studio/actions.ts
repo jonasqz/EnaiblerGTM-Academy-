@@ -17,7 +17,7 @@ import { isLocale, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
 import { slugify } from "@/core/shared/slug";
 import { getDb } from "@/db/client";
-import { requireCapability } from "@/server/access";
+import { requireCapability, reviewScopeOf } from "@/server/access";
 import {
   createCourse,
   loadCourseEditor,
@@ -348,10 +348,8 @@ const DECISION_ERRORS: Record<string, string> = {
 
 export async function decideReviewAction(_: FormState, formData: FormData): Promise<FormState> {
   const submissionId = z.uuid().parse(text(formData, "submissionId"));
-  const { tenant, viewer } = await requireCapability(
-    "reviews.decide",
-    `/studio/reviews/${submissionId}`,
-  );
+  const session = await requireCapability("reviews.decide", `/studio/reviews/${submissionId}`);
+  const { tenant, viewer } = session;
   const scores: Record<string, number> = {};
   const feedback: Record<string, string> = {};
   for (const [name, value] of formData.entries()) {
@@ -359,12 +357,19 @@ export async function decideReviewAction(_: FormState, formData: FormData): Prom
     if (name.startsWith("score.") && value !== "") scores[name.slice(6)] = Number(value);
     if (name.startsWith("feedback.")) feedback[name.slice(9)] = value.slice(0, 2000);
   }
-  const result = await decideSubmission(getDb(), tenant, viewer.userId, submissionId, {
-    scores,
-    feedback,
-    summary: text(formData, "summary").slice(0, 2000),
-    reason: text(formData, "reason").slice(0, 1000) || null,
-  });
+  const result = await decideSubmission(
+    getDb(),
+    tenant,
+    viewer.userId,
+    submissionId,
+    {
+      scores,
+      feedback,
+      summary: text(formData, "summary").slice(0, 2000),
+      reason: text(formData, "reason").slice(0, 1000) || null,
+    },
+    reviewScopeOf(session),
+  );
   if (!result.ok) {
     const message = result.error.startsWith("score:")
       ? `Score every criterion (missing: ${result.error.slice(6)}).`

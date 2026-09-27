@@ -24,7 +24,7 @@ const dates = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", ye
 
 /** Every course of the academy, drafts included, with what happens in each. */
 export default async function StudioCoursesPage({ searchParams }: PageProps<"/studio/courses">) {
-  const { tenant, roles } = await requireCapability("studio.view", "/studio/courses");
+  const { tenant, roles } = await requireCapability("courses.view", "/studio/courses");
   const { status } = await searchParams;
   const all = await listCourses(getDb(), tenant.id);
   const active = FILTERS.find((filter) => filter.status === status) ?? FILTERS[0]!;

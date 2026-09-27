@@ -141,6 +141,20 @@
       "when": 1790494976609,
       "tag": "0019_force_rls_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790496156503,
+      "tag": "0020_cohorts",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790496157416,
+      "tag": "0021_force_rls_cohorts",
+      "breakpoints": true
     }
   ]
 }

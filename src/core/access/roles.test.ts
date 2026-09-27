@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { can, capabilitiesOf } from "@/core/access/roles";
+import { can, capabilitiesOf, reviewsLimitedToCohorts } from "@/core/access/roles";
 
 describe("roles", () => {
   it("keeps learners out of the Studio", () => {
@@ -17,5 +17,14 @@ describe("roles", () => {
   it("lets reviewers decide but not edit courses", () => {
     expect(can(["reviewer"], "reviews.decide")).toBe(true);
     expect(can(["reviewer"], "courses.edit")).toBe(false);
+  });
+
+  it("lets mentors review their cohorts, and nothing else", () => {
+    expect(can(["mentor"], "reviews.decide")).toBe(true);
+    expect(can(["mentor"], "courses.view")).toBe(false);
+    expect(can(["mentor"], "people.view")).toBe(false);
+    expect(reviewsLimitedToCohorts(["mentor", "learner"])).toBe(true);
+    // A reviewer who also mentors a cohort keeps the full queue.
+    expect(reviewsLimitedToCohorts(["mentor", "reviewer"])).toBe(false);
   });
 });

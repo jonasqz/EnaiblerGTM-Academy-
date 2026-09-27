@@ -4,7 +4,12 @@ import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
-import { can, type Capability, type MembershipRole } from "@/core/access/roles";
+import {
+  can,
+  reviewsLimitedToCohorts,
+  type Capability,
+  type MembershipRole,
+} from "@/core/access/roles";
 import type { TenantContext } from "@/core/tenant/context";
 import { getDb } from "@/db/client";
 import { memberships } from "@/db/schema";
@@ -54,4 +59,9 @@ export async function requireViewer(next: string): Promise<Session> {
   const session = await getSession();
   if (!session) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
   return session;
+}
+
+/** Whose work a reviewer sees: mentors only their cohorts' (brief §4, Membership). */
+export function reviewScopeOf(session: Session): { mentorId: string } | undefined {
+  return reviewsLimitedToCohorts(session.roles) ? { mentorId: session.viewer.userId } : undefined;
 }

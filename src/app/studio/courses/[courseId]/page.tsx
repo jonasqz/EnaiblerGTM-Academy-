@@ -33,7 +33,7 @@ export default async function StudioCoursePage({
   params,
 }: PageProps<"/studio/courses/[courseId]">) {
   const { courseId } = await params;
-  const { tenant, roles } = await requireCapability("studio.view", `/studio/courses/${courseId}`);
+  const { tenant, roles } = await requireCapability("courses.view", `/studio/courses/${courseId}`);
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const stats = await courseStats(getDb(), tenant.id, courseId);

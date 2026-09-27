@@ -38,12 +38,12 @@ const en = {
   "home.step3Title": "Prove",
   "home.step3Body": "Earn a {term.credential} backed by your work and share it when you want to.",
   "home.youBuild": "You build: {artifact}",
-  "home.lessonCount": "{n} {terms.lesson}",
+  "home.lessonCount": "{n} {terms.lesson:n}",
   "home.inProgress": "In progress · {percent} %",
   "home.completed": "Completed",
 
   "course.continue": "Continue",
-  "course.progress": "{done} of {total} {terms.lesson} done",
+  "course.progress": "{done} of {total} {terms.lesson:total} done",
   "course.whatYouBuild": "What you build",
   "course.howReviewed": "How your work is reviewed",
   "course.howReviewedIntro": "Your work is scored on these criteria. You pass at {threshold} %.",
@@ -130,7 +130,7 @@ const en = {
   "me.deleteConfirm": "I understand that this cannot be undone",
   "me.deleteButton": "Delete my data",
   "me.yourPath": "Your {term.path}",
-  "me.pathProgress": "{done} of {total} {terms.course} done",
+  "me.pathProgress": "{done} of {total} {terms.course:total} done",
   "me.view": "View",
 
   "signIn.title": "Sign in to {academy}",
@@ -181,6 +181,18 @@ const en = {
   "openBadge.criteria":
     "Hand in “{artifact}” and pass a review against every criterion of the course rubric.",
   "openBadge.evidence": "The work passed a review against every criterion of the course rubric.",
+
+  "cohort.joinTitle": "Join “{cohort}”",
+  "cohort.joinBody":
+    "Take {course} together with your group. You learn at your own pace; your group's mentors review your work.",
+  "cohort.join": "Join and start",
+  "cohort.signInToJoin": "Sign in to join",
+  "cohort.invalid": "This join link is no longer valid.",
+  "cohort.invalidBody": "Ask whoever sent it for a new one.",
+  "cohort.yours": "Your group: {cohort}",
+  "cohort.startsOn": "Starts on {date}",
+  "cohort.runs": "{start} – {end}",
+  "cohort.until": "Until {date}",
 
   "consent.confirmTitle": "Confirm news from {academy}",
   "consent.confirmBody":
@@ -259,12 +271,12 @@ const de: Record<MessageKey, string> = {
   "home.step3Body":
     "Erhalte eine {term.credential}, die für deine Arbeit steht, und teile sie, wann du willst.",
   "home.youBuild": "Du baust: {artifact}",
-  "home.lessonCount": "{n} {terms.lesson}",
+  "home.lessonCount": "{n} {terms.lesson:n}",
   "home.inProgress": "Läuft · {percent} %",
   "home.completed": "Abgeschlossen",
 
   "course.continue": "Weiter",
-  "course.progress": "{done} von {total} {terms.lesson} erledigt",
+  "course.progress": "{done} von {total} {terms.lesson:total} erledigt",
   "course.whatYouBuild": "Was du baust",
   "course.howReviewed": "Wie deine Arbeit bewertet wird",
   "course.howReviewedIntro":
@@ -356,7 +368,7 @@ const de: Record<MessageKey, string> = {
   "me.deleteConfirm": "Ich verstehe, dass das nicht rückgängig gemacht werden kann",
   "me.deleteButton": "Meine Daten löschen",
   "me.yourPath": "Dein {term.path}",
-  "me.pathProgress": "{done} von {total} {terms.course} abgeschlossen",
+  "me.pathProgress": "{done} von {total} {terms.course:total} abgeschlossen",
   "me.view": "Ansehen",
 
   "signIn.title": "Bei {academy} anmelden",
@@ -411,6 +423,18 @@ const de: Record<MessageKey, string> = {
     "„{artifact}“ einreichen und die Bewertung in jedem Kriterium der Kurs-Rubrik bestehen.",
   "openBadge.evidence":
     "Die Arbeit hat die Bewertung in jedem Kriterium der Kurs-Rubrik bestanden.",
+
+  "cohort.joinTitle": "„{cohort}“ beitreten",
+  "cohort.joinBody":
+    "Mach {course} zusammen mit deiner Gruppe. Du lernst in deinem Tempo; die Mentorinnen und Mentoren der Gruppe bewerten deine Arbeit.",
+  "cohort.join": "Beitreten und starten",
+  "cohort.signInToJoin": "Zum Beitreten anmelden",
+  "cohort.invalid": "Dieser Link zum Beitreten gilt nicht mehr.",
+  "cohort.invalidBody": "Frag die Person, die ihn geschickt hat, nach einem neuen.",
+  "cohort.yours": "Deine Gruppe: {cohort}",
+  "cohort.startsOn": "Startet am {date}",
+  "cohort.runs": "{start} – {end}",
+  "cohort.until": "Bis {date}",
 
   "consent.confirmTitle": "Neuigkeiten von {academy} bestätigen",
   "consent.confirmBody":
