@@ -43,7 +43,8 @@ export interface LessonEditorProps {
   locale: Locale;
   title: string;
   markdown: string;
-  criteria: Array<{ id: string; label: string; description: string }>;
+  /** Null when the course asks for no work: nothing to teach towards, links kept as they are. */
+  criteria: Array<{ id: string; label: string; description: string }> | null;
   selected: string[];
   questions: CheckQuestion[];
   reference: {
@@ -287,40 +288,45 @@ export function LessonEditor(props: LessonEditorProps) {
 
       <CheckEditor questions={questions} onChange={setQuestions} />
 
-      <fieldset className="card-flat space-y-3 p-4">
-        <legend className="px-1 font-semibold">{t.t("lessons.editor.teaches")}</legend>
-        {props.criteria.length === 0 ? (
-          <p className="text-sm text-muted">{t.t("lessons.editor.noCriteria")}</p>
-        ) : (
-          <div className="grid gap-2 md:grid-cols-2">
-            {props.criteria.map((criterion) => (
-              <label
-                key={criterion.id}
-                className="flex gap-3 rounded-control border border-line p-3"
-              >
-                <input
-                  type="checkbox"
-                  name="criteria"
-                  value={criterion.id}
-                  checked={selected.includes(criterion.id)}
-                  onChange={(event) =>
-                    setSelected(
-                      event.target.checked
-                        ? [...selected, criterion.id]
-                        : selected.filter((id) => id !== criterion.id),
-                    )
-                  }
-                  className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
-                />
-                <span>
-                  <span className="block text-sm font-semibold">{criterion.label}</span>
-                  <span className="text-xs text-muted">{criterion.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        )}
-      </fieldset>
+      {props.criteria === null ? (
+        // A test-only course keeps the lesson's links for when it asks for work again.
+        selected.map((id) => <input key={id} type="hidden" name="criteria" value={id} />)
+      ) : (
+        <fieldset className="card-flat space-y-3 p-4">
+          <legend className="px-1 font-semibold">{t.t("lessons.editor.teaches")}</legend>
+          {props.criteria.length === 0 ? (
+            <p className="text-sm text-muted">{t.t("lessons.editor.noCriteria")}</p>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {props.criteria.map((criterion) => (
+                <label
+                  key={criterion.id}
+                  className="flex gap-3 rounded-control border border-line p-3"
+                >
+                  <input
+                    type="checkbox"
+                    name="criteria"
+                    value={criterion.id}
+                    checked={selected.includes(criterion.id)}
+                    onChange={(event) =>
+                      setSelected(
+                        event.target.checked
+                          ? [...selected, criterion.id]
+                          : selected.filter((id) => id !== criterion.id),
+                      )
+                    }
+                    className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">{criterion.label}</span>
+                    <span className="text-xs text-muted">{criterion.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {props.reference && (
         <details className="card-flat p-4">

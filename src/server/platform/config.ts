@@ -49,14 +49,23 @@ export function isPlatformHost(hostHeader: string | null | undefined): boolean {
 }
 
 /**
+ * APP_PROTOCOL, else https in production and http in development. Cookies
+ * are Secure exactly when this is https, like the session's (Better Auth).
+ * Read by name: the proxy and the worker use it.
+ */
+export function appProtocol(): "http" | "https" {
+  const configured = process.env.APP_PROTOCOL?.trim();
+  if (configured === "http" || configured === "https") return configured;
+  return process.env.NODE_ENV === "production" ? "https" : "http";
+}
+
+/**
  * Host (with the dev port in development) and origin of an academy domain.
  * Read by name: the worker links to academies in mails and has no env().
  */
 export function academyOrigin(domain: string): { host: string; origin: string } {
   const production = process.env.NODE_ENV === "production";
-  const configured = process.env.APP_PROTOCOL?.trim();
-  const protocol =
-    configured === "http" || configured === "https" ? configured : production ? "https" : "http";
+  const protocol = appProtocol();
   const port = Number(process.env.DEV_PORT?.trim() || 3000);
   const host = production ? domain : `${domain}:${port}`;
   return { host, origin: `${protocol}://${host}` };

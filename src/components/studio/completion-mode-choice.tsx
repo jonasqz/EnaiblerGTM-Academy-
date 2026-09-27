@@ -45,9 +45,10 @@ export function CompletionModeChoice(props: {
             />
             <span>
               <span className="block text-sm font-semibold">
-                {t.t(`courses.completion.${mode}`)}
+                {/* The name stays whole in a narrow card; the note wraps below it instead. */}
+                <span className="whitespace-nowrap">{t.t(`courses.completion.${mode}`)}</span>
                 {mode === "work" && (
-                  <span className="ml-2 text-xs font-normal text-muted">
+                  <span className="ml-2 inline-block text-xs font-normal text-muted">
                     {t.t("courses.completion.recommended")}
                   </span>
                 )}

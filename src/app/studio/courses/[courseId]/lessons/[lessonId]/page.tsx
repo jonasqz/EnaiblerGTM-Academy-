@@ -18,6 +18,7 @@ import { changedSourceOf } from "@/core/authoring/auto-update";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
+import { requiresWork } from "@/core/courses/completion";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
@@ -121,11 +122,15 @@ export default async function LessonEditorPage({
           locale={locale}
           title={lesson.title}
           markdown={markdownOf(lesson.blocks)}
-          criteria={(rubric?.criteria ?? []).map((criterion) => ({
-            id: criterion.id,
-            label: localize(criterion.label, locale),
-            description: localize(criterion.description, locale),
-          }))}
+          criteria={
+            requiresWork(data.course.completionMode)
+              ? (rubric?.criteria ?? []).map((criterion) => ({
+                  id: criterion.id,
+                  label: localize(criterion.label, locale),
+                  description: localize(criterion.description, locale),
+                }))
+              : null
+          }
           selected={lesson.criterionIds}
           questions={data.questions}
           academyTheme={themeToCssVariables(tenant.theme)}

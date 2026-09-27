@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, SUPPORTED_LOCALES, type Locale } from "@/core/i18n/locales";
 import { normalizeHost } from "@/core/tenant/context";
 import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/server/cookies";
-import { academyOrigin, isPlatformHost } from "@/server/platform/config";
+import { academyOrigin, appProtocol, isPlatformHost } from "@/server/platform/config";
 import { resolveTenant } from "@/server/tenant-resolver";
 
 const notFound = () =>
@@ -78,7 +78,8 @@ function withLanguage(
     path: "/",
     maxAge: LOCALE_COOKIE_MAX_AGE,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // Over plain http a Secure cookie is dropped: the choice would last one page.
+    secure: appProtocol() === "https",
   });
   return response;
 }

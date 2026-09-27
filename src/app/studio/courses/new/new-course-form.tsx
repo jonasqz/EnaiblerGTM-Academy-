@@ -197,7 +197,13 @@ export function NewCourseForm(props: {
                     {t.t(`courses.step.${step}`)}
                     {current && <span className="sr-only"> {t.t("courses.new.thisStep")}</span>}
                   </span>
-                  <span className="text-sm text-muted">{t.t(`courses.new.step.${step}`)}</span>
+                  <span className="text-sm text-muted">
+                    {t.t(
+                      step === "lessons" && mode === "test"
+                        ? "courses.new.step.lessonsTest"
+                        : `courses.new.step.${step}`,
+                    )}
+                  </span>
                 </span>
               </li>
             );
