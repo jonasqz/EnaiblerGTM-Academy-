@@ -48,20 +48,22 @@ In development, `<slug>.localhost` maps to the tenant with that slug, and new ac
 
 ## Commands
 
-| Command                                             | What it does                                                                                                                                          |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev` / `build` / `start`                   | Next.js                                                                                                                                               |
-| `npm run worker`                                    | pg-boss worker (jobs)                                                                                                                                 |
-| `npm run check`                                     | lint, typecheck and all tests                                                                                                                         |
-| `npm test -- --project unit`                        | Unit tests (no database needed)                                                                                                                       |
-| `npm run test:db`                                   | Database tests: set `TEST_DATABASE_URL` (app role) and `TEST_DATABASE_MIGRATION_URL` (owner) against a database prepared by `deploy/postgres/init.sh` |
-| `npm run db:generate`                               | Generate a migration from `src/db/schema`                                                                                                             |
-| `npm run db:migrate`                                | Apply migrations (schema owner)                                                                                                                       |
-| `npm run tenant:validate -- <file>`                 | Validate a tenant manifest (errors and warnings)                                                                                                      |
-| `npm run tenant:apply -- <file>`                    | Apply a tenant manifest to the database                                                                                                               |
-| `npm run role:grant -- <tenant> <email> <role>`     | Give someone a Studio role (`author`, `reviewer`, `mentor`, `tenant_admin`); `--revoke` removes it                                                    |
-| `npm run review:spike -- <folder> [--runs n]`       | AI review spike: agreement, stability, cost and latency on exemplars (needs `LLM_*`)                                                                  |
-| `npm run usage:report -- [--month YYYY-MM] [--csv]` | AI usage and provider cost per academy for a month (default: the last full month), as a table or CSV                                                  |
+| Command                                                      | What it does                                                                                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev` / `build` / `start`                            | Next.js                                                                                                                                               |
+| `npm run worker`                                             | pg-boss worker (jobs)                                                                                                                                 |
+| `npm run check`                                              | lint, typecheck and all tests                                                                                                                         |
+| `npm test -- --project unit`                                 | Unit tests (no database needed)                                                                                                                       |
+| `npm run test:db`                                            | Database tests: set `TEST_DATABASE_URL` (app role) and `TEST_DATABASE_MIGRATION_URL` (owner) against a database prepared by `deploy/postgres/init.sh` |
+| `npm run db:generate`                                        | Generate a migration from `src/db/schema`                                                                                                             |
+| `npm run db:migrate`                                         | Apply migrations (schema owner)                                                                                                                       |
+| `npm run tenant:validate -- <file>`                          | Validate a tenant manifest (errors and warnings)                                                                                                      |
+| `npm run tenant:apply -- <file>`                             | Apply a tenant manifest to the database                                                                                                               |
+| `npm run role:grant -- <tenant> <email> <role>`              | Give someone a Studio role (`author`, `reviewer`, `mentor`, `tenant_admin`); `--revoke` removes it                                                    |
+| `npm run review:spike -- <folder> [--runs n]`                | AI review spike: agreement, stability, cost and latency on exemplars (needs `LLM_*`)                                                                  |
+| `npm run usage:report -- [--month YYYY-MM] [--csv]`          | AI usage and provider cost per academy for a month (default: the last full month), as a table or CSV                                                  |
+| `npm run academy -- list\|suspend\|resume\|export\|delete …` | Operator tasks per academy: see all, suspend, export its data, delete it (docs/deployment.md §12)                                                     |
+| `npm run smoke -- --academy <url> [--platform <url>]`        | Checks a running deployment from the outside: health, pages, security headers, cookies, link previews, signup                                         |
 
 ## Layout
 

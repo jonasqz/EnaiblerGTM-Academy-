@@ -77,3 +77,68 @@ jobs:
           git status --porcelain drizzle
           test -z "$(git status --porcelain drizzle)"
       - run: npm run test:db
+
+  images:
+    name: Docker images boot and pass the smoke test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPASSWORD: postgres
+      OWNER_URL: postgres://enaibler_owner:owner@localhost:5432/enaibler
+      APP_URL: postgres://enaibler_app:app@localhost:5432/enaibler
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # The same recipe Coolify builds (docker-compose.prod.yml).
+      - name: Build the web and worker images
+        run: |
+          docker buildx build --target web --tag enaibler-web --load .
+          docker buildx build --target worker --tag enaibler-worker --load .
+      - name: Roles and database (same script as production)
+        run: ./deploy/postgres/init.sh
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          ENAIBLER_DB: enaibler
+          ENAIBLER_OWNER_PASSWORD: owner
+          ENAIBLER_APP_PASSWORD: app
+      - name: Migrations and the demo academy, from the worker image
+        run: |
+          docker run --rm --network host -e DATABASE_MIGRATION_URL="$OWNER_URL" \
+            enaibler-worker node --import tsx scripts/migrate.ts
+          docker run --rm --network host -e DATABASE_MIGRATION_URL="$OWNER_URL" -e DATABASE_URL="$APP_URL" \
+            enaibler-worker node --import tsx scripts/tenant-apply.ts config/tenants/demo.yaml
+      - name: Start the web image as in production
+        run: |
+          docker run -d --name web --network host \
+            -e DATABASE_URL="$APP_URL" \
+            -e BETTER_AUTH_SECRET=ci-only-secret-ci-only-secret-0123456789 \
+            -e DATA_ENCRYPTION_SECRET=ci-only-data-secret-0123456789abcdef \
+            -e APP_PROTOCOL=http \
+            -e PLATFORM_HOST=platform.localhost -e ACADEMY_DOMAIN=academies.localhost \
+            -e PLATFORM_TERMS_URL=https://example.com/terms -e PLATFORM_DPA_URL=https://example.com/dpa \
+            enaibler-web
+          for i in $(seq 1 30); do
+            curl -sf -H 'Host: demo.localhost' http://127.0.0.1:3000/api/health && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Smoke test
+        run: |
+          docker run --rm --network host enaibler-worker node --import tsx scripts/smoke.ts \
+            --academy http://demo.localhost --platform http://platform.localhost --connect 127.0.0.1:3000
+      - name: Web logs
+        if: failure()
+        run: docker logs web

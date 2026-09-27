@@ -162,7 +162,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 
 ## 10. Release checklist
 
-- CI is green: lint, types, unit tests, build, migrations and RLS tests.
+- CI is green: lint, types, unit tests, build, migrations and RLS tests, and the images boot and pass the smoke test.
 - Migrations are reviewed. Any new tenant table has RLS forced (see `CLAUDE.md`).
 - Manifest warnings are resolved for live academies: legal links and sender.
 - Before signup opens: enaibler's terms, DPA, privacy page and imprint are published, and a test academy has gone through §5, step 5.
@@ -170,6 +170,9 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
 - A course that ends with a final test goes through end to end: a failed attempt, a retake and the credential saying "Final Test passed".
+- Mail: the domain of `EMAIL_FROM_ADDRESS` has SPF, DKIM and a DMARC policy at the SMTP relay, and a magic link lands in the inbox (not spam) at Gmail, Outlook and GMX/Web.de.
+- Backups: Postgres and storage from the same night have been restored once into a scratch stack, and that stack starts.
+- After every deploy: `npm run smoke -- --academy https://<an academy> --platform https://<PLATFORM_HOST>` passes (health, pages, security headers, no tracking cookies, link previews, signup).
 
 ## 11. AI usage per academy
 
@@ -181,3 +184,18 @@ DATABASE_MIGRATION_URL=… node --import tsx scripts/usage-report.ts --month 202
 ```
 
 Months are calendar months in Berlin time; without `--month` the report covers the last full month. A cost column marked `*` had calls whose price the gateway did not know: give LiteLLM a price for that model. Self-hosted Whisper is recorded in minutes of audio at no per-call cost.
+
+## 12. Operator tasks per academy
+
+`npm run academy` works on one academy at a time, as `enaibler_owner` (`DATABASE_MIGRATION_URL`, and the `S3_*` variables for files). Run it from the worker container (`node --import tsx scripts/academy.ts …`) or a machine that reaches the database.
+
+```bash
+npm run academy -- list                                     # every academy: status, address, team, learners, courses
+npm run academy -- suspend <slug>                           # every address answers 404 within 30 seconds
+npm run academy -- resume <slug>
+npm run academy -- export <slug> <file.zip> [--with-files]  # every row (and file) of the academy, for the customer
+npm run academy -- delete <slug> --confirm <slug>           # irreversible: files, rows, and accounts no other academy knows
+```
+
+- **Suspend** for abuse or an unpaid account: learners, certificates and the Studio are unreachable, nothing is deleted.
+- **When a customer leaves** (DPA: return and deletion): export with files, hand the zip over through a secure channel, then delete. The export leaves out sessions and integration secrets, the mail outbox, the webhook log and the search index; `README.txt` in the zip explains the rest. Learners who also learn in another academy keep their account there.

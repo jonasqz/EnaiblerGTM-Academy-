@@ -185,6 +185,24 @@ export async function signedUploadUrl(
   );
 }
 
+/** Every object key under a tenant sub-prefix, page by page (an academy's export). */
+export async function* listUnderPrefix(
+  tenantId: string,
+  subPrefix: string,
+): AsyncGenerator<string> {
+  const prefix = `${tenantPrefix(tenantId)}${subPrefix}`;
+  assertTenantKey(tenantId, prefix);
+  const { client, bucket } = await ready();
+  let token: string | undefined;
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+    );
+    for (const item of page.Contents ?? []) if (item.Key) yield item.Key;
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+}
+
 /** Deletes everything under a tenant sub-prefix, e.g. a learner's submissions (data rights, brief §9). */
 export async function deleteUnderPrefix(tenantId: string, subPrefix: string): Promise<number> {
   const prefix = `${tenantPrefix(tenantId)}${subPrefix}`;

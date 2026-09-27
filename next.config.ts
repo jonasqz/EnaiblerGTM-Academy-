@@ -2,6 +2,19 @@ import type { NextConfig } from "next";
 
 import { FONT_LIBRARY } from "./src/core/theme/fonts";
 
+/**
+ * What every page may do, whoever frames it: no plugins, no foreign <base>,
+ * forms only post to the academy itself. `frame-ancestors` differs per path.
+ */
+function contentSecurityPolicy(frameAncestors: string): string {
+  return [
+    `frame-ancestors ${frameAncestors}`,
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
 const nextConfig: NextConfig = {
   // Self-contained server bundle for the Coolify container (see Dockerfile).
   output: "standalone",
@@ -17,13 +30,22 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // No framing by other sites (clickjacking), except the path picker below.
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "Content-Security-Policy", value: contentSecurityPolicy("'self'") },
+          // Browsers ignore it over plain http (local runs). Without includeSubDomains:
+          // other hosts under the same domain are not ours to force.
+          { key: "Strict-Transport-Security", value: "max-age=31536000" },
+          // The Studio's screen recorder needs the screen and the microphone; nothing needs more.
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=(), browsing-topics=()",
+          },
         ],
       },
       {
         // Later rules win for the same header: academies embed this on their websites.
         source: "/embed/:path*",
-        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
+        headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy("*") }],
       },
       // Pages whose address carries a token: the next page must not see it as referrer.
       ...["/sign-in/confirm", "/consent/confirm", "/join/:code", "/auth/:path*"].map((source) => ({
