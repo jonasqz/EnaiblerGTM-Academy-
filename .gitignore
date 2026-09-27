@@ -25,3 +25,6 @@ npm-debug.log*
 
 # review spike results
 /spikes/**/results/
+
+# Claude Code agent worktrees
+.claude/worktrees/
