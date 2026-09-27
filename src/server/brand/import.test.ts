@@ -57,9 +57,7 @@ describe("brand import", () => {
     expect(result).toMatchObject({ source: "acme.example", usedAi: false });
     expect(result.theme.colors.primary).toBe("#0f7b6c");
     expect(result.theme.fonts).toEqual({ display: "Merriweather", body: "Montserrat" });
-    expect(result.notes).toContain(
-      "Your site uses “Gotham”; closest open-source match: Montserrat.",
-    );
+    expect(result.notes).toContainEqual({ code: "font", site: "Gotham", font: "Montserrat" });
   });
 
   it("uses the model's refinement when it passes the same checks", async () => {
@@ -71,7 +69,20 @@ describe("brand import", () => {
     if (!result.ok) throw new Error(result.error);
     expect(result.usedAi).toBe(true);
     expect(result.theme.colors.surface).toBe("#f4f7f6");
-    expect(result.notes).toContain("Headings use a serif like your site.");
+    expect(result.notes).toContainEqual({
+      code: "model",
+      text: "Headings use a serif like your site.",
+    });
+  });
+
+  it("asks the model for notes in the Studio's language", async () => {
+    let system = "";
+    const llm: LlmCaller = async (options) => {
+      system = String(options.messages[0]?.content ?? "");
+      return fakeModel(goodAnswer)(options);
+    };
+    await importBrand("acme.example", { llm, model: "m", fetchText: fakeSite, locale: "de" });
+    expect(system).toContain("in German");
   });
 
   it("keeps the rule-based proposal when the model's theme is unreadable or off-list", async () => {

@@ -78,9 +78,7 @@ describe("theme proposal", () => {
     expect(theme.colors.ink).toBe("#1a1a2e");
     expect(theme.fonts).toEqual({ display: "Playfair Display", body: "Montserrat" });
     expect(theme).toMatchObject({ radius: "8px", border_width: "1px", visual_style: "soft" });
-    expect(notes).toContain(
-      "Your site uses “Proxima Nova”; closest open-source match: Montserrat.",
-    );
+    expect(notes).toContainEqual({ code: "font", site: "Proxima Nova", font: "Montserrat" });
     expect(
       themeContrastIssues(themeSchema.parse(theme)).filter((issue) => issue.severity === "error"),
     ).toEqual([]);
@@ -101,7 +99,7 @@ describe("theme proposal", () => {
   it("stays readable and sensible without any signals", () => {
     const { theme, notes } = proposeTheme(extractSignals(""));
     expect(theme.colors.primary).toBe("#3b5bdb");
-    expect(notes[0]).toMatch(/No distinct brand colour/);
+    expect(notes[0]).toEqual({ code: "no_brand_color" });
     expect(themeContrastIssues(themeSchema.parse(theme))).toEqual([]);
   });
 });

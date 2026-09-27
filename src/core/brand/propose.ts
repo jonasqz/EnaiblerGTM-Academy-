@@ -11,9 +11,13 @@ import { themeSchema, type ThemeInput } from "@/core/theme/schema";
  * the academy starts light, text meets WCAG contrast, fonts are ones we host.
  */
 
+/** What the proposal wants the customer to check, worded by the Studio in their language. */
+export type ProposalNote =
+  { code: "no_brand_color" } | { code: "dark_site" } | { code: "font"; site: string; font: string };
+
 export interface ThemeProposal {
   theme: ThemeInput;
-  notes: string[];
+  notes: ProposalNote[];
 }
 
 const DEFAULT_PRIMARY = "#3b5bdb";
@@ -46,7 +50,7 @@ function median(values: number[]): number | null {
 }
 
 export function proposeTheme(signals: BrandSignals): ThemeProposal {
-  const notes: string[] = [];
+  const notes: ProposalNote[] = [];
   const colors = signals.colors;
 
   // Brand colours: chromatic ones, strongest first, with distinct hues.
@@ -54,7 +58,7 @@ export function proposeTheme(signals: BrandSignals): ThemeProposal {
     .filter((color) => isChromatic(color.hex))
     .sort((a, b) => brandScore(b) - brandScore(a));
   const primary = chromatic[0]?.hex ?? DEFAULT_PRIMARY;
-  if (!chromatic[0]) notes.push("No distinct brand colour found: primary starts as enaibler blue.");
+  if (!chromatic[0]) notes.push({ code: "no_brand_color" });
   const accents: string[] = [];
   for (const color of chromatic.slice(1)) {
     if ([primary, ...accents].every((hex) => hueDistance(hex, color.hex) >= 25))
@@ -66,8 +70,7 @@ export function proposeTheme(signals: BrandSignals): ThemeProposal {
   const backgrounds = colors.filter((color) => color.roles.includes("background"));
   const light = backgrounds.find((color) => relativeLuminance(color.hex) > 0.8)?.hex;
   const darkSite = backgrounds[0] !== undefined && relativeLuminance(backgrounds[0].hex) < 0.2;
-  if (darkSite)
-    notes.push("Your site is dark; the academy starts light for long reading. Adjust if you like.");
+  if (darkSite) notes.push({ code: "dark_site" });
   let surface = light ?? "#f7f7f5";
   let card = "#ffffff";
   if (relativeLuminance(surface) > 0.97) surface = mixHex(primary, "#f6f6f4", 0.04);
@@ -95,9 +98,12 @@ export function proposeTheme(signals: BrandSignals): ThemeProposal {
     [display, displayFont],
     [body, bodyFont],
   ] as const) {
-    if (site && site.toLowerCase() !== ours.toLowerCase()) {
-      const note = `Your site uses “${site}”; closest open-source match: ${ours}.`;
-      if (!notes.includes(note)) notes.push(note);
+    if (
+      site &&
+      site.toLowerCase() !== ours.toLowerCase() &&
+      !notes.some((note) => note.code === "font" && note.site === site)
+    ) {
+      notes.push({ code: "font", site, font: ours });
     }
   }
 

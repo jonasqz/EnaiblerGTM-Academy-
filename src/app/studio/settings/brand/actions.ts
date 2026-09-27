@@ -5,7 +5,7 @@ import type { ThemeInput } from "@/core/theme/schema";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { fontFromUpload, logoFromUpload } from "@/server/brand/assets";
-import { importBrand } from "@/server/brand/import";
+import { importBrand, type BrandNote } from "@/server/brand/import";
 import { env } from "@/server/env";
 import { createLlmCaller } from "@/server/llm";
 import { rateLimit } from "@/server/rate-limit";
@@ -18,18 +18,18 @@ export type BrandImportState =
 
 const HOUR = 60 * 60_000;
 
-/**
- * The rule-based proposal notes its findings in English (core/brand/propose.ts);
- * the author reads them in the Studio's language. The model's own notes stay as written.
- */
-function noteText(t: StudioText, note: string): string {
-  if (note === "No distinct brand colour found: primary starts as enaibler blue.")
-    return t.t("brand.import.note.noBrandColor");
-  if (note === "Your site is dark; the academy starts light for long reading. Adjust if you like.")
-    return t.t("brand.import.note.darkSite");
-  const font = /^Your site uses “(.+)”; closest open-source match: (.+)\.$/.exec(note);
-  if (font) return t.t("brand.import.note.font", { site: font[1], font: font[2] });
-  return note;
+/** The rules report their notes by code; the model already wrote its own in the Studio's language. */
+function noteText(t: StudioText, note: BrandNote): string {
+  switch (note.code) {
+    case "no_brand_color":
+      return t.t("brand.import.note.noBrandColor");
+    case "dark_site":
+      return t.t("brand.import.note.darkSite");
+    case "font":
+      return t.t("brand.import.note.font", { site: note.site, font: note.font });
+    case "model":
+      return note.text;
+  }
 }
 
 /** Reads a brand from the academy's website; the result is only a proposal until saved. */
@@ -50,6 +50,7 @@ export async function importBrandAction(
   const result = await importBrand(typeof url === "string" ? url : "", {
     llm,
     model: LLM_BRAND_MODEL ?? LLM_REVIEW_MODEL,
+    locale: t.locale,
   });
   if (!result.ok) return { status: "error", message: t.t(`brand.import.error.${result.error}`) };
   return {
