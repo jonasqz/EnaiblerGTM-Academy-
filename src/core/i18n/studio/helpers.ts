@@ -1,6 +1,7 @@
 import { isJobError } from "@/core/authoring/job-errors";
 import type { WordingFinding } from "@/core/compliance/wording-lint";
 import type { PublishIssue } from "@/core/courses/publish-check";
+import type { CheckIssue, CheckIssueCode } from "@/core/questions/knowledge-check";
 import type { ManifestWarning } from "@/core/tenant/manifest";
 import { MIN_BUTTON_CONTRAST, MIN_TEXT_CONTRAST, type ContrastIssue } from "@/core/theme/contrast";
 import type { Locale } from "@/core/i18n/locales";
@@ -27,6 +28,29 @@ export function wordingText(t: StudioText, finding: WordingFinding): string {
     match: finding.match,
     where: t.t(`common.wording.where.${finding.context}`),
     hint: t.t(HINTS[finding.ruleId] ?? "common.wording.hint.certified"),
+  });
+}
+
+const CHECK_ISSUES: Record<CheckIssueCode, StudioKey> = {
+  unreadable: "lessons.check.error.unreadable",
+  too_many: "lessons.check.error.tooMany",
+  prompt_missing: "lessons.check.error.promptMissing",
+  prompt_long: "lessons.check.error.promptLong",
+  options_few: "lessons.check.error.optionsFew",
+  options_many: "lessons.check.error.optionsMany",
+  option_missing: "lessons.check.error.optionMissing",
+  option_long: "lessons.check.error.optionLong",
+  no_right_answer: "lessons.check.error.noRight",
+  explanation_long: "lessons.check.error.explanationLong",
+};
+
+/** Why a lesson's knowledge check could not be saved. */
+export function checkIssueText(t: StudioText, issue: CheckIssue): string {
+  return t.t(CHECK_ISSUES[issue.code], {
+    n: issue.question,
+    answer: issue.option,
+    min: issue.min,
+    max: issue.max,
   });
 }
 

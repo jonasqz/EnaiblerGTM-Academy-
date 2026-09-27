@@ -14,6 +14,9 @@ import {
 } from "@/core/assignments/submission-types";
 import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
 import { isLocale, type Locale } from "@/core/i18n/locales";
+import { checkIssueText } from "@/core/i18n/studio/helpers";
+import { parseCheckQuestions } from "@/core/questions/knowledge-check";
+import { questionTexts } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
 import { slugify } from "@/core/shared/slug";
 import { getDb } from "@/db/client";
@@ -283,11 +286,15 @@ export async function saveLessonAction(_: FormState, formData: FormData): Promis
   if (!editor) return { errors: [t.t("common.actions.lessonGone")] };
   const title = text(formData, "title");
   const markdown = String(formData.get("markdown") ?? "").replace(/\r\n/g, "\n");
+  // The editor always sends its knowledge check (JSON); a form without one leaves it as it is.
+  const check = formData.has("questions") ? parseCheckQuestions(text(formData, "questions")) : null;
   const errors: string[] = [];
   if (!title) errors.push(t.t("common.actions.lessonTitleRequired"));
   if (title.length > 160) errors.push(t.t("common.actions.lessonTitleLong"));
   if (markdown.length > 100_000) errors.push(t.t("common.actions.lessonLong"));
+  if (check && !check.ok) errors.push(...check.issues.map((issue) => checkIssueText(t, issue)));
   if (errors.length > 0) return { errors };
+  const questions = check?.ok ? check.questions : undefined;
 
   const known = new Set(
     editor.rubric
@@ -301,12 +308,17 @@ export async function saveLessonAction(_: FormState, formData: FormData): Promis
     title,
     markdown,
     criterionIds,
+    questions,
     userId: viewer.userId,
   });
   revalidatePath(`/studio/courses/${editor.course.id}`, "layout");
   const lint = wording(t, [
     [title, "lesson_text"],
     [markdown, "lesson_text"],
+    ...(questions ?? []).map((question): [string, "lesson_text"] => [
+      questionTexts(question).join("\n"),
+      "lesson_text",
+    ]),
   ]);
   return {
     ok: true,
