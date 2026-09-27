@@ -69,6 +69,7 @@ Environment variables (Coolify → Environment). Required ones are marked; every
 | `LLM_BRAND_MODEL`, `LLM_AUTHORING_MODEL`                                 | web, worker | Models for the brand import and for authoring (rubric drafts, interviews, lesson drafts); default: the review model                 |
 | `LLM_EMBEDDING_MODEL`                                                    | worker      | Embeddings for source retrieval (1024 dimensions). Without it, drafting retrieves by keywords.                                      |
 | `WHISPER_BASE_URL`, `WHISPER_MODEL`, `WHISPER_API_KEY`                   | worker      | Self-hosted transcription, see §8. Without it, recordings are not transcribed.                                                      |
+| `AI_MONTHLY_ALLOWANCE_USD`, `AI_UNPRICED_CALL_USD`                       | web, worker | Monthly AI allowance per academy in USD of provider cost (unset: no limit) and what an unpriced call counts (default 0.05), see §11 |
 | `PLATFORM_HOST`, `ACADEMY_DOMAIN`                                        | web, worker | Self-serve signup, see §5. Unset: academies from manifests only.                                                                    |
 | `PLATFORM_TERMS_URL`, `PLATFORM_DPA_URL`                                 | web         | enaibler's terms and DPA. Signup stays closed without both.                                                                         |
 | `PLATFORM_PRIVACY_URL`, `PLATFORM_IMPRINT_URL`                           | web         | Footer of the platform site                                                                                                         |
@@ -166,6 +167,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - Migrations are reviewed. Any new tenant table has RLS forced (see `CLAUDE.md`).
 - Manifest warnings are resolved for live academies: legal links and sender.
 - Before signup opens: enaibler's terms, DPA, privacy page and imprint are published, and a test academy has gone through §5, step 5.
+- Before signup opens: `AI_MONTHLY_ALLOWANCE_USD` is set on `web` and `worker` (§11), so no new academy can run up the provider bill.
 - Storage: the bucket exists, and a test hand-in with a PDF uploads and downloads.
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
@@ -181,3 +183,7 @@ DATABASE_MIGRATION_URL=… node --import tsx scripts/usage-report.ts --month 202
 ```
 
 Months are calendar months in Berlin time; without `--month` the report covers the last full month. A cost column marked `*` had calls whose price the gateway did not know: give LiteLLM a price for that model. Self-hosted Whisper is recorded in minutes of audio at no per-call cost.
+
+**Monthly allowance.** Until AI use is priced, each academy may spend a monthly allowance in US dollars of provider cost, counted per calendar month in Berlin time like the report. `AI_MONTHLY_ALLOWANCE_USD` on `web` and `worker` sets it for every academy (unset: no limit; `0`: no AI). One academy can get its own amount, no limit, or the default back: `setAiAllowance` in `src/server/ai-allowance.ts` writes `tenants.ai_allowance_micro_usd` (null is the default, -1 no limit) and reads it back with the month's spend. Academy admins cannot change it: it is in neither the manifest nor the Studio settings. Every model call checks it first, so the last call of a month can go a little over; a change applies from the next call.
+
+What counts is the cost LiteLLM reports. So that no model is free by accident, a call without a price counts at `AI_UNPRICED_CALL_USD` (default 0.05), and transcription on our own Whisper at 0.006 a minute of audio. Once the allowance is used up, hand-ins wait for a person (the review queue says why), authoring jobs stop with a message in the Studio, the brand import keeps its rule-based proposal, and learners notice nothing but a later reply. Academies see the share they used in Settings → Usage, and the Studio overview warns from 80 %. The report adds `counted` (what counts against the allowance), `allowance` and `used` for each academy, against the allowances as set today. It reads both variables like the app, so run it where they are set, for example on the `worker`.
