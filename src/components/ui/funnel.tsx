@@ -24,7 +24,10 @@ export function Funnel(props: {
       <ol className="space-y-3">
         {props.rows.map((row, index) => {
           const previous = index > 0 ? props.rows[index - 1]!.count : null;
-          const rate = previous ? Math.round((row.count / previous) * 100) : null;
+          const share = previous ? Math.round((row.count / previous) * 100) : null;
+          // Repeatable steps (several shares per certificate, views per share) can
+          // outnumber the step before; a "share" above 100 % would read as an error.
+          const rate = share !== null && share <= 100 ? share : null;
           return (
             <li
               key={row.label}
