@@ -14,6 +14,7 @@ import { rankChunks } from "@/core/authoring/text";
 import { lessonKeyFor } from "@/core/courses/lessons";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
+import type { JobError } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import {
   assignments,
@@ -235,7 +236,7 @@ export async function runLessonDraft(
   );
   if (!run || run.status === "done" || !isLocale(run.locale)) return;
   const locale: Locale = run.locale;
-  const fail = (error: string) =>
+  const fail = (error: JobError) =>
     withTenant(db, tenantId, (tx) =>
       tx
         .update(lessonDrafts)
@@ -243,7 +244,7 @@ export async function runLessonDraft(
         .where(eq(lessonDrafts.id, draftId)),
     );
   if (!deps.model) {
-    await fail("Drafting needs the AI gateway (LLM_BASE_URL).");
+    await fail("gateway_missing");
     return;
   }
 
@@ -268,7 +269,7 @@ export async function runLessonDraft(
     return course && assignment && rubricRow ? { course, assignment, rubricRow, existing } : null;
   });
   if (!context) {
-    await fail("The course has no assignment or rubric.");
+    await fail("no_assignment");
     return;
   }
   await withTenant(db, tenantId, (tx) =>
@@ -333,11 +334,11 @@ export async function runLessonDraft(
     }
   } catch (error) {
     if (!deps.finalAttempt) throw error;
-    await fail("The AI gateway did not answer. Try again in a moment.");
+    await fail("gateway_failed");
     return;
   }
   if (!parsed.ok) {
-    await fail("The drafts did not come out usable. Try again.");
+    await fail("invalid_drafts");
     return;
   }
   const drafted = parsed;

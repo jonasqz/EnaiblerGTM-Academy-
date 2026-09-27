@@ -173,7 +173,7 @@ describe.skipIf(!hasDatabase)("auto-update from sources", () => {
     ).toBe("failed");
     expect(await loadSource(dbs.app.db, tenant.id, sourceId)).toMatchObject({
       status: "ready",
-      error: "The page could not be loaded.",
+      error: "page_unreachable",
     });
     expect((await loadSource(dbs.app.db, tenant.id, sourceId))?.content).toContain("50 euros");
     expect((await lesson()).flaggedAt).toBeNull();

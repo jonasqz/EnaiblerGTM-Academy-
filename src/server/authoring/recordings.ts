@@ -14,6 +14,7 @@ import {
   type Topic,
 } from "@/core/authoring/transcript";
 import { isLocale, type Locale } from "@/core/i18n/locales";
+import { JobFailure, jobErrorCode } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import type { TranscriptSegment } from "@/db/schema/authoring";
 import type { AuthoringModel } from "@/server/authoring/model";
@@ -91,7 +92,7 @@ export async function transcribeRecording(
   if (!deps.whisper) {
     await updateSource(db, tenantId, sourceId, {
       status: "failed",
-      error: "Transcription is not set up on this server (WHISPER_BASE_URL).",
+      error: "whisper_missing",
     });
     return;
   }
@@ -99,7 +100,7 @@ export async function transcribeRecording(
   if (!record) {
     await updateSource(db, tenantId, sourceId, {
       status: "failed",
-      error: "The recording is missing.",
+      error: "file_missing",
     });
     return;
   }
@@ -112,7 +113,7 @@ export async function transcribeRecording(
     await extractAudio(input, audio);
     const locale = isLocale(source.locale) ? source.locale : null;
     const segments = await transcribe(deps.whisper, audio, locale);
-    if (segments.length === 0) throw new Error("No speech was recognised in the recording.");
+    if (segments.length === 0) throw new JobFailure("no_speech");
 
     const topics =
       (deps.model && locale ? await topicsFromModel(deps.model, segments, locale) : null) ??
@@ -131,7 +132,7 @@ export async function transcribeRecording(
     console.error("[authoring] transcription failed", error);
     await updateSource(db, tenantId, sourceId, {
       status: "failed",
-      error: (error instanceof Error ? error.message : "Transcription failed.").slice(0, 300),
+      error: jobErrorCode(error, "transcription_failed"),
     });
   } finally {
     await dir.cleanup();

@@ -1,3 +1,4 @@
+import { isJobError } from "@/core/authoring/job-errors";
 import type { WordingFinding } from "@/core/compliance/wording-lint";
 import type { PublishIssue } from "@/core/courses/publish-check";
 import type { Locale } from "@/core/i18n/locales";
@@ -105,4 +106,10 @@ export function studioUploadLabels(t: StudioText) {
       failed: t.t("common.upload.failed"),
     },
   };
+}
+
+/** A background job's stored error: a code in the team member's language, older rows as stored. */
+export function jobErrorText(t: StudioText, stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  return isJobError(stored) ? t.t(`common.jobError.${stored}`) : stored;
 }

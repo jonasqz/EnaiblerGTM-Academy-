@@ -109,8 +109,7 @@ export const en = {
   "courses.overview.publish.blocking.one": "{n} blocking issue left.",
   "courses.overview.publish.blocking.other": "{n} blocking issues left.",
   "courses.overview.review.title": "Review quality",
-  "courses.overview.review.intro":
-    "How far the AI review can be trusted for this course.",
+  "courses.overview.review.intro": "How far the AI review can be trusted for this course.",
   "courses.overview.review.aiReviews": "AI reviews",
   "courses.overview.review.agreement": "Agreement with human reviewers",
   "courses.overview.review.sample": "of {n} checked",

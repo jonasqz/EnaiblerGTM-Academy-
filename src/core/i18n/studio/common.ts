@@ -138,6 +138,24 @@ export const en = {
   "common.wording.hint.state":
     "Only use this for an actual state recognition, confirmed by counsel.",
 
+  // Why a background job gave up (core/authoring/job-errors.ts)
+  "common.jobError.gateway_missing": "This needs the AI gateway (LLM_BASE_URL).",
+  "common.jobError.gateway_failed": "The AI gateway did not answer. Try again in a moment.",
+  "common.jobError.invalid_review": "The AI gave no valid review.",
+  "common.jobError.invalid_drafts": "The drafts did not come out usable. Try again.",
+  "common.jobError.no_assignment": "The course has no assignment or rubric.",
+  "common.jobError.whisper_missing":
+    "Transcription is not set up on this server (WHISPER_BASE_URL).",
+  "common.jobError.file_missing": "The file is missing.",
+  "common.jobError.no_speech": "No speech was recognised in the recording.",
+  "common.jobError.transcription_failed": "The transcription failed.",
+  "common.jobError.address_blocked": "This address cannot be read from our servers.",
+  "common.jobError.not_a_page": "This address does not return a web page.",
+  "common.jobError.page_unreachable": "The page could not be loaded.",
+  "common.jobError.no_text_scan": "No readable text: the PDF may be a scan.",
+  "common.jobError.no_text": "No readable text found.",
+  "common.jobError.read_failed": "Reading the source failed.",
+
   // Publish checklist (core/courses/publish-check.ts)
   "common.publish.no_languages": "Choose at least one course language.",
   "common.publish.missing_title": "Add the course title in {language}.",
@@ -405,6 +423,24 @@ export const de: Record<keyof typeof en, string> = {
     "Nur für eine tatsächliche, anwaltlich geprüfte Akkreditierung verwenden.",
   "common.wording.hint.state":
     "Nur für eine tatsächliche, anwaltlich geprüfte staatliche Anerkennung verwenden.",
+
+  "common.jobError.gateway_missing": "Dafür braucht es das KI-Gateway (LLM_BASE_URL).",
+  "common.jobError.gateway_failed":
+    "Das KI-Gateway hat nicht geantwortet. Versuch es gleich noch einmal.",
+  "common.jobError.invalid_review": "Die KI hat keine gültige Bewertung geliefert.",
+  "common.jobError.invalid_drafts": "Die Entwürfe waren nicht brauchbar. Versuch es noch einmal.",
+  "common.jobError.no_assignment": "Der Kurs hat keine Aufgabe oder kein Bewertungsraster.",
+  "common.jobError.whisper_missing":
+    "Die Transkription ist auf diesem Server nicht eingerichtet (WHISPER_BASE_URL).",
+  "common.jobError.file_missing": "Die Datei fehlt.",
+  "common.jobError.no_speech": "In der Aufnahme wurde keine Sprache erkannt.",
+  "common.jobError.transcription_failed": "Die Transkription ist fehlgeschlagen.",
+  "common.jobError.address_blocked": "Diese Adresse können unsere Server nicht lesen.",
+  "common.jobError.not_a_page": "Unter dieser Adresse gibt es keine Webseite.",
+  "common.jobError.page_unreachable": "Die Seite konnte nicht geladen werden.",
+  "common.jobError.no_text_scan": "Kein lesbarer Text: Das PDF ist vielleicht ein Scan.",
+  "common.jobError.no_text": "Kein lesbarer Text gefunden.",
+  "common.jobError.read_failed": "Die Quelle konnte nicht gelesen werden.",
 
   "common.publish.no_languages": "Wähle mindestens eine Kurssprache.",
   "common.publish.missing_title": "Ergänze den Kurstitel auf {language}.",

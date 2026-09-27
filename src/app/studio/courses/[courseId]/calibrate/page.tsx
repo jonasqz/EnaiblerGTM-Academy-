@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { isLocale, localize } from "@/core/i18n/locales";
-import { STUDIO_MESSAGES, type StudioKey } from "@/core/i18n/studio/index";
+import { jobErrorText } from "@/core/i18n/studio/helpers";
 import type { StudioText } from "@/core/i18n/studio/translator";
 import { GOOD_AGREEMENT, readyToCalibrate, summarizeCalibration } from "@/core/review/calibration";
 import { rubricSchema, scoreRange } from "@/core/review/rubric";
@@ -37,21 +37,6 @@ const usd = (t: StudioText, microUsd: number) =>
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
-
-/**
- * The calibration job stores its errors in English, the same words as these
- * keys: the ones it knows are shown in the team member's language.
- */
-const JOB_ERRORS = [
-  "authoring.calibrate.error.gateway",
-  "authoring.calibrate.error.noAnswer",
-  "authoring.calibrate.error.invalid",
-] as const satisfies readonly StudioKey[];
-
-function jobError(t: StudioText, error: string | null | undefined) {
-  const key = JOB_ERRORS.find((candidate) => STUDIO_MESSAGES.en[candidate] === error);
-  return key ? t.t(key) : error;
-}
 
 /** "Calibrate the review" (brief §7, step 5). */
 export default async function CalibratePage({
@@ -187,7 +172,7 @@ export default async function CalibratePage({
           (run) => run.status === "failed" && run.createdAt > (latest?.createdAt ?? new Date(0)),
         ) && (
           <p className="text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-            {jobError(t, runs.find((run) => run.status === "failed")?.error)}
+            {jobErrorText(t, runs.find((run) => run.status === "failed")?.error)}
           </p>
         )}
       </section>
@@ -237,7 +222,7 @@ export default async function CalibratePage({
                             </Badge>
                           )}
                           {result?.error && (
-                            <Badge tone="warning">{jobError(t, result.error)}</Badge>
+                            <Badge tone="warning">{jobErrorText(t, result.error)}</Badge>
                           )}
                         </p>
                       </div>

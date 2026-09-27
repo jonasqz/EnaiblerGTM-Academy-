@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { recheckDue, sourceChangedReason } from "@/core/authoring/auto-update";
+import { JobFailure, jobErrorCode, PERMANENT_JOB_ERRORS } from "@/core/authoring/job-errors";
 import { chunkText, readableText } from "@/core/authoring/text";
 import type { Locale } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
@@ -229,7 +230,7 @@ export async function readSourceText(
   if (source.kind === "interview") return { text: source.content ?? "" };
   if (source.kind === "document") {
     const record = source.fileId ? await loadFile(db, tenantId, source.fileId) : null;
-    if (!record) throw new Error("The document is missing.");
+    if (!record) throw new JobFailure("file_missing");
     return { text: await documentText(await fileBytes(record), record.contentType) };
   }
   if (source.kind === "url" && source.url) {
@@ -239,12 +240,12 @@ export async function readSourceText(
       timeoutMs: 15_000,
     });
     if (!page.ok) {
-      throw new Error(
+      throw new JobFailure(
         page.reason === "blocked"
-          ? "This address cannot be read from our servers."
+          ? "address_blocked"
           : page.reason === "type"
-            ? "This address does not return a web page."
-            : "The page could not be loaded.",
+            ? "not_a_page"
+            : "page_unreachable",
       );
     }
     if (/text\/html|xhtml/i.test(page.contentType)) {
@@ -253,7 +254,8 @@ export async function readSourceText(
     }
     return { text: page.text.trim() };
   }
-  throw new Error("Recordings are transcribed, not read.");
+  // Recordings are transcribed (recordings.ts), never read as text.
+  throw new JobFailure("read_failed");
 }
 
 /** The `sources.extract` job: documents, web pages, interviews. */
@@ -268,26 +270,16 @@ export async function extractSource(
   await updateSource(db, tenantId, sourceId, { status: "processing", error: null });
   try {
     const { text, title } = await readSourceText(db, tenantId, source, options.fetchText);
-    if (!text.trim()) {
-      throw new Error(
-        source.kind === "document"
-          ? "No readable text: the PDF may be a scan."
-          : "No readable text found.",
-      );
-    }
+    if (!text.trim()) throw new JobFailure(source.kind === "document" ? "no_text_scan" : "no_text");
     if (title && source.kind === "url" && source.title === source.url) {
       await updateSource(db, tenantId, sourceId, { title: title.slice(0, 200) });
     }
     await storeSourceText(db, tenantId, sourceId, text.slice(0, 400_000));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Reading the source failed.";
-    if (
-      !options.finalAttempt &&
-      !/cannot be read|No readable|missing|does not return/.test(message)
-    ) {
-      throw error;
-    }
-    await updateSource(db, tenantId, sourceId, { status: "failed", error: message.slice(0, 300) });
+    const code = jobErrorCode(error, "read_failed");
+    if (!options.finalAttempt && !PERMANENT_JOB_ERRORS.has(code)) throw error;
+    if (!(error instanceof JobFailure)) console.error("[authoring] reading a source failed", error);
+    await updateSource(db, tenantId, sourceId, { status: "failed", error: code });
   }
 }
 
@@ -304,15 +296,14 @@ export async function recheckSource(
   if (!source || source.kind !== "url" || source.status !== "ready") return "skipped";
   try {
     const { text } = await readSourceText(db, tenantId, source, options.fetchText);
-    if (!text.trim()) throw new Error("No readable text found.");
+    if (!text.trim()) throw new JobFailure("no_text");
     const { changed } = await storeSourceText(db, tenantId, sourceId, text.slice(0, 400_000));
     return changed ? "changed" : "unchanged";
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The page could not be loaded.";
     await withTenant(db, tenantId, (tx) =>
       tx
         .update(sources)
-        .set({ checkedAt: new Date(), error: message.slice(0, 300) })
+        .set({ checkedAt: new Date(), error: jobErrorCode(error, "page_unreachable") })
         .where(eq(sources.id, sourceId)),
     );
     return "failed";

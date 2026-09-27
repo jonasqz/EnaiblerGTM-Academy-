@@ -89,7 +89,7 @@ export async function runCalibration(
         .where(eq(calibrationRuns.id, runId)),
     );
   if (!deps.llm) {
-    await finish({ status: "failed", error: "Calibration needs the AI gateway (LLM_BASE_URL)." });
+    await finish({ status: "failed", error: "gateway_missing" });
     return;
   }
   await withTenant(db, tenantId, (tx) =>
@@ -147,12 +147,12 @@ export async function runCalibration(
               ),
               summary: outcome.review.summary,
             }
-          : { ...base, error: "The AI gave no valid review." },
+          : { ...base, error: "invalid_review" },
       );
     }
   } catch (error) {
     if (!deps.finalAttempt) throw error;
-    await finish({ status: "failed", error: "The AI gateway did not answer. Try again." });
+    await finish({ status: "failed", error: "gateway_failed" });
     return;
   }
   const summary = summarizeCalibration(results);

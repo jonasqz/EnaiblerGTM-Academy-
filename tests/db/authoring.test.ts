@@ -237,7 +237,7 @@ describe.skipIf(!hasStorage)("authoring: sources → lessons", () => {
     });
     expect(await loadSource(dbs.app.db, tenant.id, blocked)).toMatchObject({
       status: "failed",
-      error: "This address cannot be read from our servers.",
+      error: "address_blocked",
     });
     await deleteSource(dbs.app.db, tenant.id, blocked);
   });
