@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 import { asc, eq } from "drizzle-orm";
@@ -5,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { TenantContext } from "@/core/tenant/context";
 import { usageMonth, type AiUsageKind } from "@/core/usage/ai-usage";
+import { usageReport } from "@/core/usage/report";
 import { aiUsage, assignments, courses, enrollments, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
@@ -274,6 +276,54 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
       expect(theirs.byCourse).toEqual([
         expect.objectContaining({ title: "Get paid on time", reviews: 1 }),
       ]);
+    });
+
+    it("reports cost per review and academy to the operator", async () => {
+      // Owner connection, as the script uses: FORCE ROW LEVEL SECURITY binds it too.
+      expect(await dbs.owner.db.select().from(aiUsage)).toEqual([]);
+      const academies = await Promise.all(
+        [academy, other].map(async (tenant) => ({
+          slug: tenant.slug,
+          name: tenant.settings.author_display_name,
+          kinds: await usageByKind(dbs.owner.db, tenant.id, "2026-09"),
+        })),
+      );
+      const report = usageReport("2026-09", academies);
+      expect(report.lines.map((line) => line.slug)).toEqual([academy.slug, other.slug]);
+      expect(report.lines[0]).toEqual({
+        slug: academy.slug,
+        name: academy.settings.author_display_name,
+        reviews: 5,
+        reviewCostMicroUsd: 6000,
+        costPerReviewMicroUsd: 1200,
+        authoringCalls: 6,
+        authoringCostMicroUsd: 7090,
+        transcriptionSeconds: 312,
+        totalCostMicroUsd: 13_090,
+        costIncomplete: true,
+      });
+      expect(report.lines[1]).toMatchObject({
+        reviews: 1,
+        authoringCalls: 2,
+        totalCostMicroUsd: 2000,
+        costIncomplete: false,
+      });
+    });
+
+    it("prints the operator's report on the command line", () => {
+      const report = (...args: string[]) =>
+        execFileSync("node_modules/.bin/tsx", ["scripts/usage-report.ts", ...args], {
+          encoding: "utf8",
+          stdio: "pipe",
+          env: { ...process.env, DATABASE_MIGRATION_URL: process.env.TEST_DATABASE_MIGRATION_URL },
+        });
+      expect(report("--month", "2026-09", "--csv").split("\n")).toContain(
+        `2026-09,${academy.slug},${academy.settings.author_display_name},5,0.0060,0.0012,6,0.0071,5.2,0.0131,true`,
+      );
+      expect(report("--month=2026-09")).toMatch(
+        new RegExp(`^${other.slug} .* 1 +0\\.0010 +0\\.0010 +2 +0\\.0010 +0\\.0 +0\\.0020$`, "m"),
+      );
+      expect(() => report("--month", "2026-13")).toThrow(/Usage: usage-report/);
     });
   });
 });
