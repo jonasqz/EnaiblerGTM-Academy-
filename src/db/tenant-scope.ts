@@ -31,3 +31,20 @@ export async function setTenantContext(tx: Transaction, tenantId: string): Promi
 function assertTenantId(tenantId: string): void {
   if (!UUID.test(tenantId)) throw new Error(`Invalid tenant id: ${tenantId}`);
 }
+
+/**
+ * Cross-academy, read-only context for one user's own rows (currently: their
+ * memberships). Used where a learner acts on their global account, e.g.
+ * deleting it only once no academy is left. Never combine with withTenant.
+ */
+export async function withUser<T>(
+  db: Database,
+  userId: string,
+  fn: (tx: Transaction) => Promise<T>,
+): Promise<T> {
+  if (!userId || userId.length > 200) throw new Error("Invalid user id");
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`);
+    return fn(tx);
+  });
+}

@@ -10,6 +10,8 @@ export function withContext(path: string, context: EntryContext): string {
   return `${path}${separator}ctx=${encodeEntryContext(context)}`;
 }
 
-export function continueUrl(context: EntryContext): string {
-  return withContext("/auth/continue", context);
+export function continueUrl(context: EntryContext, next?: string | null): string {
+  const url = withContext("/auth/continue", context);
+  if (!next) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`;
 }

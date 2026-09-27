@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { withContext } from "@/components/entry-links";
-import { decodeEntryContext, entryDestination } from "@/core/entry/context";
+import { decodeEntryContext, entryDestination, safeNextPath } from "@/core/entry/context";
 import { getDb } from "@/db/client";
 import { withTenant } from "@/db/tenant-scope";
 import { getViewer } from "@/server/auth";
@@ -17,9 +17,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tenant = await getTenant();
   const origin = await getOrigin();
   const entry = decodeEntryContext(request.nextUrl.searchParams.get("ctx")) ?? {};
+  const next = safeNextPath(request.nextUrl.searchParams.get("next"));
 
   const viewer = await getViewer(tenant);
-  if (!viewer) return NextResponse.redirect(new URL(withContext("/sign-in", entry), origin), 303);
+  if (!viewer) {
+    const signIn = withContext("/sign-in", entry);
+    const target = next
+      ? `${signIn}${signIn.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`
+      : signIn;
+    return NextResponse.redirect(new URL(target, origin), 303);
+  }
 
   const locale = await getLocale();
   const enrolled = await withTenant(getDb(), tenant.id, async (tx) => {
@@ -29,6 +36,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   });
 
   // A course that is not (or no longer) published: fall back to the path or home.
-  const destination = entryDestination(enrolled ? entry : { ...entry, course: undefined });
+  const destination = next ?? entryDestination(enrolled ? entry : { ...entry, course: undefined });
   return NextResponse.redirect(new URL(destination, origin), 303);
 }

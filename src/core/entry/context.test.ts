@@ -78,3 +78,32 @@ describe("entry context", () => {
     });
   });
 });
+
+describe("safeNextPath", () => {
+  it("allows known sections of the academy", async () => {
+    const { safeNextPath } = await import("@/core/entry/context");
+    expect(safeNextPath("/studio")).toBe("/studio");
+    expect(safeNextPath("/studio/courses/abc?tab=lessons")).toBe("/studio/courses/abc?tab=lessons");
+    expect(safeNextPath("/me")).toBe("/me");
+    expect(safeNextPath("/courses/validation-lab/learn/intro")).toBe(
+      "/courses/validation-lab/learn/intro",
+    );
+  });
+
+  it("drops everything else", async () => {
+    const { safeNextPath } = await import("@/core/entry/context");
+    for (const value of [
+      null,
+      "",
+      "https://evil.example/studio",
+      "//evil.example/studio",
+      "/\\evil.example",
+      "/api/auth/sign-out",
+      "/studio/../api",
+      '/me"><script>',
+      "/studiox",
+    ]) {
+      expect(safeNextPath(value), String(value)).toBeNull();
+    }
+  });
+});

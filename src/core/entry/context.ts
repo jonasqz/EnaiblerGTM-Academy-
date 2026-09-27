@@ -106,3 +106,20 @@ export function entryEventProperties(
   }
   return props;
 }
+
+const NEXT_SECTIONS = ["/studio", "/me", "/courses", "/paths"];
+
+/**
+ * Where to go after sign-in when it was not an entry link (e.g. /studio).
+ * Only same-origin paths under known sections; anything else is dropped.
+ */
+export function safeNextPath(value: string | null | undefined): string | null {
+  if (!value || value.length > 300) return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
+  if (/[\s<>"']/.test(value)) return null;
+  const path = value.split(/[?#]/)[0] ?? "";
+  if (path.split("/").some((segment) => segment === "..")) return null;
+  return NEXT_SECTIONS.some((section) => path === section || path.startsWith(`${section}/`))
+    ? value
+    : null;
+}

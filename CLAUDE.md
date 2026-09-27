@@ -32,6 +32,8 @@ The spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md). Read the rel
 - **Object storage.** Build keys with `src/core/storage/keys.ts`, which enforces the `tenants/<id>/` prefix.
 - **Background jobs** (pg-boss) carry `tenantId`, must be idempotent, and open their own `withTenant` transaction.
 - **Auth.** `authFor(tenant)` gives the academy's Better Auth instance. Use `getViewer(tenant)` for the signed-in user; it ignores sessions from other academies.
+- **Roles.** Capabilities come from membership roles (`src/core/access/roles.ts`). Studio pages and every Studio server action call `requireCapability(capability, next)` from `src/server/access.ts`; learner pages that need a session use `requireViewer(next)`. Grant roles with `npm run role:grant`.
+- **Learners in the Studio** appear under `learnerAlias()`. Show a name or e-mail address only for learners with a confirmed, unrevoked `lead_handoff` consent (see `src/server/studio/insights.ts`).
 
 ## Code conventions
 
@@ -47,6 +49,9 @@ The spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md). Read the rel
   - Utilities: `bg-primary`, `text-ink`, `bg-card`, `rounded-card`, `shadow-card`, `border-outline` (width), `border-line` (colour), `font-display`.
   - Component classes: `.card`, `.btn`, `.btn-primary`, `.btn-secondary`.
 - **Events:** record them with `trackEvent(tx, …)` inside the transaction of the action they describe, using names from `src/core/events/names.ts`. Skip bots (`isBot`) on public pages.
+- **Studio** (`src/app/studio`) is the author tool and English-only for now; learner-facing pages live in `src/app/(academy)` and stay DE/EN.
+- **Forms with server actions:** use `useActionForm` (`src/components/ui/use-action-form.ts`) when a form returns validation errors. React 19 resets `<form action={fn}>` after every action, which would wipe what the person typed. Plain one-button forms can keep `action={serverAction}`.
+- **Comparing JSON from the database:** `jsonb` does not keep key order, so compare with `sameJson` (`src/core/shared/json.ts`), never `JSON.stringify(a) === JSON.stringify(b)`.
 - **AI review:** pass/fail is computed from rubric scores (`scoreRubric`), never taken from the model. Bump `REVIEW_PROMPT_VERSION` on any prompt change.
 - Comments explain why, not what. Match the surrounding style.
 

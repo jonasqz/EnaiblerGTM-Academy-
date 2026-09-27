@@ -7,6 +7,8 @@ import { PgBoss, type Job } from "pg-boss";
 import { createDatabase, assertRlsEnforced } from "@/db/client";
 import { sendEmail } from "@/server/email/mailer";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
+import { createLlmCaller } from "@/server/llm";
+import { processSubmission } from "@/server/review/process-submission";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -34,8 +36,30 @@ await boss.work(QUEUES.email, { batchSize: 5 }, async (jobs: Job<JobPayloads["em
   for (const job of jobs) await sendEmail(job.data.email);
 });
 
-// Handlers for review, transcription, keyframes, lesson drafting and image
-// rendering land with their features; their jobs wait in the queue until then.
+// Without a gateway every submission goes to the human queue ("ai_unavailable").
+const llm = process.env.LLM_BASE_URL
+  ? createLlmCaller({ baseUrl: process.env.LLM_BASE_URL, apiKey: process.env.LLM_API_KEY })
+  : null;
+const reviewModel = process.env.LLM_REVIEW_MODEL ?? "review-default";
+const reviewRetries = QUEUE_OPTIONS[QUEUES.review].retryLimit ?? 0;
+if (!llm) console.warn("[worker] LLM_BASE_URL is not set: submissions wait for a human review");
+
+await boss.work(QUEUES.review, { batchSize: 1 }, async (jobs: Job<JobPayloads["review.run"]>[]) => {
+  for (const job of jobs) {
+    // On the last try a gateway failure holds the submission for a human
+    // instead of failing the job, so no learner waits on a dead job.
+    const outcome = await processSubmission(
+      db,
+      job.data,
+      { llm, model: reviewModel },
+      { finalAttempt: job.retryCount >= reviewRetries },
+    );
+    console.log(`[worker] review ${job.data.submissionId}: ${outcome.status}`);
+  }
+});
+
+// Handlers for transcription, keyframes, lesson drafting and image rendering
+// land with their features; their jobs wait in the queue until then.
 console.log(`[worker] ready: ${Object.keys(QUEUE_OPTIONS).join(", ")}`);
 
 let stopping = false;

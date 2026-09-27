@@ -66,7 +66,13 @@ For each academy:
 
 2. **Add the domain.** Add each domain from the manifest to the **`web` service's domains** in Coolify, with the container port: `https://academy.scaling-product.com:3000`. Traefik issues Let's Encrypt certificates. The tenant's DNS needs a CNAME or A record pointing at the server.
 3. **E-mail.** If the manifest sets `email_sender`, verify that sender domain with the SMTP relay (SPF and DKIM).
-4. **Check.** Open `https://<domain>/` and confirm the theme. Then run the entry link `https://<domain>/start?course=<slug>&utm_source=test` end to end.
+4. **Studio access.** Give the academy's team their roles from the worker image; they then sign in with a magic link and open `https://<domain>/studio`:
+
+   ```bash
+   node --import tsx scripts/grant-role.ts <slug> team@example.com tenant_admin   # or author, reviewer
+   ```
+
+5. **Check.** Open `https://<domain>/` and confirm the theme. Publish a course in the Studio, then run the entry link `https://<domain>/start?course=<slug>&utm_source=test` end to end, including a submission: with the worker running, the AI result (or the review queue, without `LLM_BASE_URL`) should follow within a minute.
 
 The app picks up manifest changes within about 30 seconds (tenant cache TTL). No redeploy is needed.
 

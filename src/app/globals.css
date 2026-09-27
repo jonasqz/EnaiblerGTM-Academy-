@@ -18,16 +18,34 @@
   --tenant-shadow: 0 6px 24px #191b2214;
   --tenant-shadow-x: 0px;
   --tenant-shadow-y: 6px;
+
+  /* Derived tokens: everything below follows the tenant's colours. */
+  --ui-muted: color-mix(in srgb, var(--tenant-ink) 68%, var(--tenant-surface));
+  --ui-subtle: color-mix(in srgb, var(--tenant-ink) 5%, var(--tenant-card));
+  --ui-primary-soft: color-mix(in srgb, var(--tenant-primary) 16%, var(--tenant-card));
+  --ui-control-radius: min(var(--tenant-radius), 10px);
+  /* 0 for square themes, a pill for rounded ones. */
+  --ui-pill-radius: calc(var(--tenant-radius) * 100);
+
+  /* Status colours are fixed, never themed, and always come with an icon + label. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
 }
 
 /* Tailwind utilities that resolve to the tenant tokens: bg-primary, text-ink,
-   rounded-card, shadow-card, border-outline (width), border-line (colour), font-display … */
+   text-muted, bg-subtle, rounded-card, shadow-card, border-outline (width),
+   border-line (colour), font-display … */
 @theme inline {
   --color-ink: var(--tenant-ink);
   --color-surface: var(--tenant-surface);
   --color-card: var(--tenant-card);
   --color-primary: var(--tenant-primary);
   --color-on-primary: var(--tenant-on-primary);
+  --color-primary-soft: var(--ui-primary-soft);
+  --color-muted: var(--ui-muted);
+  --color-subtle: var(--ui-subtle);
   --color-line: var(--tenant-border-color);
   --color-accent-1: var(--tenant-accent-1, var(--tenant-primary));
   --color-accent-2: var(--tenant-accent-2, var(--tenant-primary));
@@ -36,6 +54,7 @@
   --font-display: var(--tenant-font-display);
   --font-body: var(--tenant-font-body);
   --radius-card: var(--tenant-radius);
+  --radius-control: var(--ui-control-radius);
   --shadow-card: var(--tenant-shadow);
   --border-width-outline: var(--tenant-border-width);
 }
@@ -45,32 +64,72 @@
     outline: 3px solid var(--tenant-primary);
     outline-offset: 2px;
   }
+  ::selection {
+    background: var(--ui-primary-soft);
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
 }
 
 @layer components {
+  /* ---- Surfaces ---------------------------------------------------------- */
   .card {
     background: var(--tenant-card);
     border: var(--tenant-border-width) solid var(--tenant-border-color);
     border-radius: var(--tenant-radius);
     box-shadow: var(--tenant-shadow);
   }
+  .card-flat {
+    background: var(--tenant-card);
+    border: var(--tenant-border-width) solid var(--tenant-border-color);
+    border-radius: var(--tenant-radius);
+  }
+  .card-interactive {
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease;
+  }
+  :root[data-visual-style="soft"] .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--tenant-ink) 12%, transparent);
+  }
+  :root[data-visual-style="outlined"] .card-interactive:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--tenant-shadow-x) + 2px) calc(var(--tenant-shadow-y) + 2px) 0
+      var(--tenant-ink);
+  }
 
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+  }
+
+  /* ---- Buttons ----------------------------------------------------------- */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     min-height: 2.75rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.625rem 1.125rem;
     font-weight: 600;
+    line-height: 1.2;
     border: var(--tenant-border-width) solid var(--tenant-border-color);
-    border-radius: var(--tenant-radius);
+    border-radius: var(--ui-control-radius);
     transition:
       transform 120ms ease,
-      box-shadow 120ms ease;
+      box-shadow 120ms ease,
+      background-color 120ms ease;
   }
-  .btn:disabled {
-    opacity: 0.6;
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
     cursor: not-allowed;
   }
   .btn-primary {
@@ -82,16 +141,276 @@
     background: var(--tenant-card);
     color: var(--tenant-ink);
   }
+  .btn-ghost {
+    border-color: transparent;
+    background: transparent;
+    color: var(--tenant-ink);
+  }
+  .btn-ghost:hover {
+    background: var(--ui-subtle);
+  }
+  .btn-danger {
+    background: var(--tenant-card);
+    color: var(--status-critical);
+    border-color: color-mix(in srgb, var(--status-critical) 45%, transparent);
+  }
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+  }
 
   /* Interaction flavour per theme (theme.visual_style). */
-  :root[data-visual-style="soft"] .btn:not(:disabled):hover {
+  :root[data-visual-style="soft"] .btn:not(:disabled):not(.btn-ghost):hover {
     transform: translateY(-1px);
   }
-  :root[data-visual-style="outlined"] .btn:not(:disabled):hover {
+  :root[data-visual-style="outlined"] .btn:not(:disabled):not(.btn-ghost):hover {
     transform: translate(-1px, -1px);
   }
-  :root[data-visual-style="outlined"] .btn:not(:disabled):active {
+  :root[data-visual-style="outlined"] .btn-primary:not(:disabled):active {
     transform: translate(var(--tenant-shadow-x), var(--tenant-shadow-y));
     box-shadow: none;
+  }
+
+  /* ---- Forms ------------------------------------------------------------- */
+  .field {
+    display: grid;
+    gap: 0.375rem;
+  }
+  .label {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .hint {
+    font-size: 0.8125rem;
+    color: var(--ui-muted);
+  }
+  .input,
+  .textarea,
+  .select {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5625rem 0.75rem;
+    background: var(--tenant-card);
+    color: var(--tenant-ink);
+    border: var(--tenant-border-width) solid var(--tenant-border-color);
+    border-radius: var(--ui-control-radius);
+  }
+  .textarea {
+    min-height: 8rem;
+    line-height: 1.55;
+    resize: vertical;
+  }
+  .textarea-code {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.875rem;
+  }
+
+  /* ---- Badges (status = fixed colour + icon + label) ---------------------- */
+  .badge {
+    --badge-color: var(--ui-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--tenant-ink);
+    background: color-mix(in srgb, var(--badge-color) 14%, var(--tenant-card));
+    border: 1px solid color-mix(in srgb, var(--badge-color) 40%, transparent);
+    border-radius: var(--ui-pill-radius);
+  }
+  .badge svg {
+    color: var(--badge-color);
+  }
+  .badge[data-tone="good"] {
+    --badge-color: var(--status-good);
+  }
+  .badge[data-tone="warning"] {
+    --badge-color: var(--status-warning);
+  }
+  .badge[data-tone="serious"] {
+    --badge-color: var(--status-serious);
+  }
+  .badge[data-tone="critical"] {
+    --badge-color: var(--status-critical);
+  }
+  .badge[data-tone="info"] {
+    --badge-color: var(--tenant-primary);
+  }
+
+  /* ---- Progress meter: fill + a lighter step of the same hue -------------- */
+  .progress {
+    height: 0.5rem;
+    width: 100%;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--tenant-primary) 18%, var(--tenant-card));
+    border-radius: var(--ui-pill-radius);
+  }
+  .progress > span {
+    display: block;
+    height: 100%;
+    background: var(--tenant-primary);
+    border-radius: inherit;
+  }
+
+  /* ---- Tables ------------------------------------------------------------ */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--tenant-border-color);
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--tenant-ink) 8%, transparent);
+    vertical-align: middle;
+  }
+  .table tr:last-child td {
+    border-bottom: 0;
+  }
+  .table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Tabs -------------------------------------------------------------- */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--tenant-border-color);
+  }
+  .tabs a {
+    padding: 0.625rem 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--ui-muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tabs a:hover {
+    color: var(--tenant-ink);
+  }
+  .tabs a[aria-current="page"] {
+    color: var(--tenant-ink);
+    border-bottom-color: var(--tenant-primary);
+  }
+
+  /* ---- Lesson typography (rendered Markdown) ------------------------------ */
+  .prose-lesson {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .prose-lesson > * + * {
+    margin-top: 1em;
+  }
+  .prose-lesson h1,
+  .prose-lesson h2 {
+    font-family: var(--tenant-font-display);
+    line-height: 1.2;
+    margin-top: 1.6em;
+  }
+  .prose-lesson h1 {
+    font-size: 1.75rem;
+  }
+  .prose-lesson h2 {
+    font-size: 1.375rem;
+  }
+  .prose-lesson h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-top: 1.4em;
+  }
+  .prose-lesson ul {
+    list-style: disc;
+    padding-left: 1.25em;
+  }
+  .prose-lesson ol {
+    list-style: decimal;
+    padding-left: 1.25em;
+  }
+  .prose-lesson li + li {
+    margin-top: 0.35em;
+  }
+  .prose-lesson a {
+    text-decoration: underline;
+    text-decoration-color: var(--tenant-primary);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+  .prose-lesson blockquote {
+    padding: 0.25em 0 0.25em 1em;
+    border-left: 4px solid var(--tenant-primary);
+    color: var(--ui-muted);
+  }
+  .prose-lesson code {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    padding: 0.1em 0.35em;
+    background: var(--ui-subtle);
+    border-radius: 4px;
+  }
+  .prose-lesson pre {
+    padding: 1em;
+    overflow-x: auto;
+    background: var(--ui-subtle);
+    border-radius: var(--ui-control-radius);
+  }
+  .prose-lesson pre code {
+    padding: 0;
+    background: none;
+  }
+  .prose-lesson table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .prose-lesson th,
+  .prose-lesson td {
+    padding: 0.5em 0.75em;
+    border: 1px solid var(--tenant-border-color);
+    text-align: left;
+  }
+  .prose-lesson img {
+    max-width: 100%;
+    border-radius: var(--ui-control-radius);
+  }
+  .prose-lesson hr {
+    border: 0;
+    border-top: 1px solid var(--tenant-border-color);
+  }
+
+  /* ---- Charts (single series, one hue; values always as text) ------------- */
+  .bar {
+    height: 1.25rem;
+    min-width: 2px;
+    background: var(--tenant-primary);
+    /* square at the baseline, 4px rounded data end */
+    border-radius: 0 4px 4px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
   }
 }

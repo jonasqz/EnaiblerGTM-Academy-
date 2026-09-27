@@ -8,6 +8,9 @@ import { pgPolicy, timestamp } from "drizzle-orm/pg-core";
  */
 export const currentTenantId = sql`nullif(current_setting('app.tenant_id', true), '')::uuid`;
 
+/** User id of the current transaction, set only by `withUser()` (see db/tenant-scope.ts). */
+export const currentUserId = sql`nullif(current_setting('app.user_id', true), '')`;
+
 /**
  * Row-level security for tenant-scoped tables (defence in depth, brief §11):
  * rows are only visible and writable inside the matching tenant context, and

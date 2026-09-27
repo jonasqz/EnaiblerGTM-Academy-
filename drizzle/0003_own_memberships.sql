@@ -1,0 +1,1 @@
+CREATE POLICY "own_memberships" ON "memberships" AS PERMISSIVE FOR SELECT TO public USING (user_id = nullif(current_setting('app.user_id', true), ''));

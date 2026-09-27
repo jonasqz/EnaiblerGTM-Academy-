@@ -1,6 +1,16 @@
-import { foreignKey, pgEnum, pgTable, primaryKey, text, unique, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  foreignKey,
+  pgEnum,
+  pgPolicy,
+  pgTable,
+  primaryKey,
+  text,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
-import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
+import { createdAt, currentUserId, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { paths } from "@/db/schema/catalog";
 import { tenants } from "@/db/schema/tenancy";
@@ -34,6 +44,13 @@ export const memberships = pgTable(
       .on(table.tenantId, table.userId, table.role, table.cohortId)
       .nullsNotDistinct(),
     tenantIsolation(),
+    // Read-only view of one's own memberships across academies, only inside
+    // withUser() (account deletion must know whether other academies remain).
+    pgPolicy("own_memberships", {
+      as: "permissive",
+      for: "select",
+      using: sql`user_id = ${currentUserId}`,
+    }),
   ],
 ).enableRLS();
 

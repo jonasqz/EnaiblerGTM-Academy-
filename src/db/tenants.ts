@@ -69,6 +69,11 @@ export async function findTenantBySlug(db: Queryable, slug: string): Promise<Ten
   return loadContext(db, row);
 }
 
+export async function findTenantById(db: Queryable, id: string): Promise<TenantContext | null> {
+  const [row] = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
+  return loadContext(db, row);
+}
+
 export async function listTenantDomains(db: Queryable): Promise<string[]> {
   const rows = await db.select({ domain: tenantDomains.domain }).from(tenantDomains);
   return rows.map((row) => row.domain);

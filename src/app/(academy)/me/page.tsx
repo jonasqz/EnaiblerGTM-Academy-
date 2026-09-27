@@ -1,0 +1,219 @@
+import { Award, BookOpen, CircleCheck, Download, Globe, Lock } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import {
+  deleteMyDataAction,
+  saveContactOptInAction,
+  saveDisplayNameAction,
+} from "@/app/(academy)/me/actions";
+import { setCredentialVisibility } from "@/app/(academy)/verify/[publicId]/actions";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Progress } from "@/components/ui/progress";
+import { localize } from "@/core/i18n/locales";
+import { pathColor } from "@/core/theme/css";
+import { getDb } from "@/db/client";
+import { requireViewer } from "@/server/access";
+import { loadMe } from "@/server/profile";
+import { getTranslator } from "@/server/request";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t.t("me.title"), robots: { index: false } };
+}
+
+export default async function MePage() {
+  const { tenant, viewer } = await requireViewer("/me");
+  const t = await getTranslator();
+  const me = await loadMe(getDb(), tenant, viewer.userId);
+  const fallback = [tenant.settings.default_locale];
+  const academy = tenant.settings.author_display_name;
+  const named = Boolean(me.profile?.displayName);
+
+  return (
+    <div className="space-y-12">
+      <PageHeader eyebrow={viewer.email} title={t.t("me.title")} />
+
+      {me.path && (
+        <section className="card flex flex-wrap items-center gap-5 p-5">
+          <span
+            className="grid size-14 place-items-center rounded-control border-outline border-line font-display text-2xl"
+            style={{ background: pathColor(tenant.theme, 0, me.path.color) }}
+          >
+            {localize(me.path.title, t.locale, fallback).slice(0, 1)}
+          </span>
+          <div>
+            <p className="eyebrow">{t.t("me.yourPath")}</p>
+            <p className="font-display text-2xl">{localize(me.path.title, t.locale, fallback)}</p>
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-4" aria-labelledby="creds-heading">
+        <h2 id="creds-heading" className="font-display text-2xl">
+          {t.term("credential", { plural: true })}
+        </h2>
+        {me.credentials.length === 0 ? (
+          <EmptyState icon={Award} title={t.t("me.noCredentials")} />
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {me.credentials.map(({ credential }) => (
+              <li key={credential.id} className="card flex flex-col gap-3 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="eyebrow">{t.term("credential")}</p>
+                    <p className="font-display text-xl">
+                      {localize(credential.courseTitle, t.locale, fallback)}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {t.t("verify.artifact", { name: credential.artifactName })}
+                    </p>
+                  </div>
+                  {credential.visibility === "public" ? (
+                    <Badge tone="good" icon={Globe}>
+                      {t.t("me.public")}
+                    </Badge>
+                  ) : (
+                    <Badge icon={Lock}>{t.t("me.private")}</Badge>
+                  )}
+                </div>
+                <div className="mt-auto flex flex-wrap gap-2">
+                  <Link
+                    href={`/verify/${credential.publicId}`}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    {t.t("me.view")}
+                  </Link>
+                  <form action={setCredentialVisibility}>
+                    <input type="hidden" name="publicId" value={credential.publicId} />
+                    <input
+                      type="hidden"
+                      name="visibility"
+                      value={credential.visibility === "public" ? "private" : "public"}
+                    />
+                    <button
+                      type="submit"
+                      className="btn btn-ghost btn-sm"
+                      disabled={credential.visibility === "private" && !named}
+                      title={
+                        credential.visibility === "private" && !named
+                          ? t.t("me.nameMissing")
+                          : undefined
+                      }
+                    >
+                      {credential.visibility === "public"
+                        ? t.t("verify.makePrivate")
+                        : t.t("verify.makePublic")}
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-4" aria-labelledby="courses-heading">
+        <h2 id="courses-heading" className="font-display text-2xl">
+          {t.term("course", { plural: true })}
+        </h2>
+        {me.courses.length === 0 ? (
+          <EmptyState
+            icon={BookOpen}
+            title={t.t("me.noCourses")}
+            action={
+              <Link href="/#courses" className="btn btn-primary">
+                {t.t("home.browse")}
+              </Link>
+            }
+          />
+        ) : (
+          <ul className="card-flat divide-y divide-line">
+            {me.courses.map(({ course, enrollment, progress }) => (
+              <li key={course.id} className="flex flex-wrap items-center gap-4 p-4">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Link href={`/courses/${course.slug}`} className="font-semibold hover:underline">
+                    {localize(course.title, t.locale, fallback)}
+                  </Link>
+                  {!enrollment.completedAt && (
+                    <Progress
+                      value={progress.percent}
+                      label={t.t("course.progress", { done: progress.done, total: progress.total })}
+                      className="max-w-xs"
+                    />
+                  )}
+                </div>
+                {enrollment.completedAt ? (
+                  <Badge tone="good" icon={CircleCheck}>
+                    {t.t("home.completed")}
+                  </Badge>
+                ) : (
+                  <span className="text-sm text-muted">
+                    {t.t("course.progress", { done: progress.done, total: progress.total })}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <form action={saveDisplayNameAction} className="card-flat space-y-3 p-5">
+          <h2 className="font-semibold">{t.t("me.nameTitle")}</h2>
+          <p className="hint">{t.t("me.nameHint")}</p>
+          <div className="flex gap-2">
+            <input
+              name="displayName"
+              defaultValue={me.profile?.displayName ?? ""}
+              maxLength={120}
+              className="input"
+              autoComplete="name"
+            />
+            <button type="submit" className="btn btn-secondary">
+              {t.t("me.save")}
+            </button>
+          </div>
+        </form>
+
+        <form action={saveContactOptInAction} className="card-flat space-y-3 p-5">
+          <h2 className="font-semibold">{t.t("me.contactTitle", { academy })}</h2>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="optIn"
+              defaultChecked={me.contactOptIn}
+              className="mt-1 size-4"
+            />
+            <span className="text-sm">{t.t("me.contactLabel", { academy })}</span>
+          </label>
+          <p className="hint">{t.t("me.contactHint")}</p>
+          <button type="submit" className="btn btn-secondary btn-sm">
+            {t.t("me.save")}
+          </button>
+        </form>
+      </section>
+
+      <section id="data" className="card-flat space-y-4 p-5" aria-labelledby="data-heading">
+        <h2 id="data-heading" className="font-semibold">
+          {t.t("me.dataTitle")}
+        </h2>
+        <a href="/me/export" className="btn btn-secondary btn-sm">
+          <Download aria-hidden size={16} /> {t.t("me.export")}
+        </a>
+        <form action={deleteMyDataAction} className="space-y-3 border-t border-line pt-4">
+          <p className="text-sm text-muted">{t.t("me.deleteBody")}</p>
+          <label className="flex items-center gap-3 text-sm">
+            <input type="checkbox" name="confirm" required className="size-4" />
+            {t.t("me.deleteConfirm")}
+          </label>
+          <button type="submit" className="btn btn-danger btn-sm">
+            {t.t("me.deleteButton")}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
