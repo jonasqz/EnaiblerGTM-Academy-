@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import type { FormState } from "@/app/studio/actions";
 import { text } from "@/app/studio/form-data";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import {
@@ -15,55 +16,60 @@ import {
   removeMentor,
   updateCohort,
 } from "@/server/cohorts";
+import { getStudioText } from "@/server/studio-text";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function cohortInput(
+  t: StudioText,
   formData: FormData,
 ): { name: string; startsOn: string | null; endsOn: string | null } | string {
   const name = text(formData, "name").slice(0, 80);
   const startsOn = text(formData, "startsOn") || null;
   const endsOn = text(formData, "endsOn") || null;
-  if (!name) return "Give the cohort a name, e.g. “Autumn 2026”.";
+  if (!name) return t.t("team.cohorts.actions.nameRequired");
   if ((startsOn && !DATE.test(startsOn)) || (endsOn && !DATE.test(endsOn)))
-    return "Use valid dates.";
-  if (startsOn && endsOn && endsOn < startsOn) return "The end date is before the start date.";
+    return t.t("team.cohorts.actions.dates");
+  if (startsOn && endsOn && endsOn < startsOn) return t.t("team.cohorts.actions.endBeforeStart");
   return { name, startsOn, endsOn };
 }
 
 export async function createCohortAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant, viewer } = await requireCapability("cohorts.manage", "/studio/cohorts");
-  const input = cohortInput(formData);
+  const t = await getStudioText();
+  const input = cohortInput(t, formData);
   if (typeof input === "string") return { errors: [input] };
   const id = await createCohort(getDb(), tenant.id, {
     ...input,
     courseId: text(formData, "courseId"),
     createdBy: viewer.userId,
   });
-  if (!id) return { errors: ["Choose a course."] };
+  if (!id) return { errors: [t.t("team.cohorts.actions.chooseCourse")] };
   redirect(`/studio/cohorts/${id}?created=1`);
 }
 
 export async function updateCohortAction(_: FormState, formData: FormData): Promise<FormState> {
   const cohortId = text(formData, "cohortId");
   const { tenant } = await requireCapability("cohorts.manage", `/studio/cohorts/${cohortId}`);
-  const input = cohortInput(formData);
+  const t = await getStudioText();
+  const input = cohortInput(t, formData);
   if (typeof input === "string") return { errors: [input] };
   await updateCohort(getDb(), tenant.id, cohortId, {
     ...input,
     status: formData.get("status") === "closed" ? "closed" : "open",
   });
   revalidatePath(`/studio/cohorts/${cohortId}`);
-  return { ok: true, message: "Cohort saved." };
+  return { ok: true, message: t.t("team.cohorts.actions.saved") };
 }
 
 export async function addMentorAction(_: FormState, formData: FormData): Promise<FormState> {
   const cohortId = text(formData, "cohortId");
   const { tenant } = await requireCapability("cohorts.manage", `/studio/cohorts/${cohortId}`);
+  const t = await getStudioText();
   const added = await addMentor(getDb(), tenant.id, cohortId, text(formData, "email"));
-  if (!added) return { errors: ["Enter the mentor's e-mail address."] };
+  if (!added) return { errors: [t.t("team.cohorts.actions.mentorEmail")] };
   revalidatePath(`/studio/cohorts/${cohortId}`);
-  return { ok: true, message: "Mentor added. They sign in with this address." };
+  return { ok: true, message: t.t("team.cohorts.actions.mentorAdded") };
 }
 
 export async function removeMentorAction(formData: FormData): Promise<void> {

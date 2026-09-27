@@ -5,15 +5,10 @@ import { useState } from "react";
 
 import { decideReviewAction, type FormState } from "@/app/studio/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { scoreRubric, type Rubric } from "@/core/review/rubric";
-
-const SUBMIT_LABELS = {
-  decide: "Release to learner",
-  check: "Save the check",
-  change: "Change the decision",
-} as const;
 
 export interface DecisionCriterion {
   id: string;
@@ -35,6 +30,7 @@ export function DecisionForm(props: {
   /** decide: held, the learner waits · check: released, a spot check · change: a human already decided. */
   mode: "decide" | "check" | "change";
 }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(decideReviewAction, {});
   const [scores, setScores] = useState<Record<string, number>>(props.initialScores);
   const complete = props.criteria.every((criterion) => scores[criterion.id] !== undefined);
@@ -45,8 +41,7 @@ export function DecisionForm(props: {
     <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="submissionId" value={props.submissionId} />
       <p className="text-sm text-muted">
-        Feedback goes to the learner as written: write it in {props.learnerLanguage}. Pass or fail
-        follows from the scores.
+        {t.t("team.decision.intro", { language: props.learnerLanguage })}
       </p>
 
       {props.criteria.map((criterion) => (
@@ -82,21 +77,21 @@ export function DecisionForm(props: {
             })}
           </div>
           <label className="field">
-            <span className="text-sm font-semibold">Feedback on this criterion</span>
+            <span className="text-sm font-semibold">{t.t("team.decision.criterionFeedback")}</span>
             <textarea
               name={`feedback.${criterion.id}`}
               className="textarea min-h-0"
               rows={2}
               maxLength={2000}
               defaultValue={props.initialFeedback[criterion.id] ?? ""}
-              placeholder="One concrete improvement, quoting their work where you can."
+              placeholder={t.t("team.decision.criterionPlaceholder")}
             />
           </label>
         </fieldset>
       ))}
 
       <label className="field">
-        <span className="label">Summary for the learner</span>
+        <span className="label">{t.t("team.decision.summary")}</span>
         <textarea
           name="summary"
           className="textarea"
@@ -108,14 +103,14 @@ export function DecisionForm(props: {
 
       {disagrees && (
         <label className="field">
-          <span className="label">Why your verdict differs from the AI</span>
+          <span className="label">{t.t("team.decision.reason")}</span>
           <textarea
             name="reason"
             className="textarea"
             rows={2}
             required
             maxLength={1000}
-            placeholder="Kept for the audit trail and the agreement rate; the learner does not see it."
+            placeholder={t.t("team.decision.reasonPlaceholder")}
           />
         </label>
       )}
@@ -132,15 +127,19 @@ export function DecisionForm(props: {
                   <RotateCcw aria-hidden size={18} className="text-muted" />
                 )}
                 <span className="font-semibold tabular-nums">{result.percent} %</span>
-                <span>{result.pass ? "passes" : "needs revision"}</span>
-                <span className="text-muted">(pass at {props.rubric.pass_threshold} %)</span>
+                <span>
+                  {result.pass ? t.t("team.decision.passes") : t.t("team.review.needsRevision")}
+                </span>
+                <span className="text-muted">
+                  {t.t("team.decision.passAt", { threshold: props.rubric.pass_threshold })}
+                </span>
               </>
             ) : (
-              <span className="text-muted">Score every criterion.</span>
+              <span className="text-muted">{t.t("team.decision.scoreEvery")}</span>
             )}
           </p>
-          <SubmitButton pending={pending} pendingLabel="Saving…" disabled={!complete}>
-            {SUBMIT_LABELS[props.mode]}
+          <SubmitButton pending={pending} pendingLabel={t.t("common.saving")} disabled={!complete}>
+            {t.t(`team.decision.submit.${props.mode}`)}
           </SubmitButton>
         </div>
       </div>

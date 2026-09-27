@@ -6,8 +6,7 @@ import { z } from "zod";
 
 import { DecisionForm } from "@/app/studio/reviews/[submissionId]/decision-form";
 import { FeedbackView } from "@/components/feedback-view";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
-import { auditText, holdReasonText, timeAgo } from "@/core/i18n/studio/helpers";
+import { auditText, holdReasonText, languageName, timeAgo } from "@/core/i18n/studio/helpers";
 import { SubmissionStatusBadge } from "@/components/studio/status-badges";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
@@ -19,13 +18,10 @@ import { getStudioText } from "@/server/studio-text";
 import { requireCapability, reviewScopeOf } from "@/server/access";
 import { loadReviewDetail } from "@/server/studio/reviews";
 
-export const metadata: Metadata = { title: "Review" };
-
-const usd = new Intl.NumberFormat("en", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 4,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.review.title") };
+}
 
 export default async function ReviewDetailPage({
   params,
@@ -58,20 +54,20 @@ export default async function ReviewDetailPage({
         href="/studio/reviews"
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> Review queue
+        <ArrowLeft aria-hidden size={16} /> {t.t("team.review.back")}
       </Link>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="eyebrow">{localize(detail.course.title, tenant.settings.default_locale)}</p>
           <h1 className="font-display text-2xl leading-tight sm:text-3xl">
-            Attempt {submission.attemptNo}
+            {t.t("team.review.attempt", { n: submission.attemptNo })}
           </h1>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <SubmissionStatusBadge status={submission.status} />
             <span className="font-mono font-semibold text-ink">{detail.alias}</span>
-            <span>Handed in {timeAgo(t, submission.submittedAt)}</span>
-            <span>{LANGUAGE_NAMES[locale]}</span>
-            <span>Rubric version {detail.rubricVersion}</span>
+            <span>{t.t("team.review.handedIn", { when: timeAgo(t, submission.submittedAt) })}</span>
+            <span>{languageName(t, locale)}</span>
+            <span>{t.t("team.review.rubricVersion", { version: detail.rubricVersion })}</span>
           </p>
         </div>
       </header>
@@ -80,7 +76,7 @@ export default async function ReviewDetailPage({
         <div className="space-y-6">
           <section aria-labelledby="work-heading" className="card space-y-4 p-5 sm:p-6">
             <h2 id="work-heading" className="text-lg font-semibold">
-              The work
+              {t.t("team.review.work")}
             </h2>
             {submission.formData && (
               <dl className="space-y-3">
@@ -112,12 +108,12 @@ export default async function ReviewDetailPage({
               </div>
             )}
             {submission.files.length > 0 && (
-              <SubmittedFiles files={submission.files} label="Files" />
+              <SubmittedFiles files={submission.files} label={t.t("team.review.files")} />
             )}
             {submission.filesText && (
               <details className="rounded-control bg-subtle p-4">
                 <summary className="cursor-pointer text-sm font-semibold">
-                  Text read from the files (what the AI review saw)
+                  {t.t("team.review.filesText")}
                 </summary>
                 <pre className="mt-3 max-h-[36rem] overflow-y-auto whitespace-pre-wrap font-mono text-xs">
                   {submission.filesText}
@@ -130,10 +126,11 @@ export default async function ReviewDetailPage({
             <section aria-labelledby="ai-heading" className="card-flat space-y-4 p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 id="ai-heading" className="flex items-center gap-2 text-lg font-semibold">
-                  <Bot aria-hidden size={20} /> AI review
+                  <Bot aria-hidden size={20} /> {t.t("team.review.ai")}
                 </h2>
                 <p className="text-sm font-semibold tabular-nums">
-                  {ai.overall.percent} % · {ai.overall.pass ? "pass" : "needs revision"}
+                  {ai.overall.percent} % ·{" "}
+                  {ai.overall.pass ? t.t("team.reviews.pass") : t.t("team.review.needsRevision")}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -145,7 +142,7 @@ export default async function ReviewDetailPage({
                   ))}
                 {ai.routing?.release === true && (
                   <Badge tone="info">
-                    Released
+                    {t.t("team.review.released")}
                     {ai.routing.audit ? ` · ${auditText(t, ai.routing.audit)}` : ""}
                   </Badge>
                 )}
@@ -160,9 +157,15 @@ export default async function ReviewDetailPage({
               <p className="text-xs text-muted">
                 {[
                   ai.model,
-                  ai.promptVersion && `prompt ${ai.promptVersion}`,
-                  ai.tokensIn !== null && `${ai.tokensIn + (ai.tokensOut ?? 0)} tokens`,
-                  ai.costMicroUsd !== null && usd.format(ai.costMicroUsd / 1_000_000),
+                  ai.promptVersion && t.t("team.review.prompt", { version: ai.promptVersion }),
+                  ai.tokensIn !== null &&
+                    t.n("team.review.tokens", ai.tokensIn + (ai.tokensOut ?? 0)),
+                  ai.costMicroUsd !== null &&
+                    t.number(ai.costMicroUsd / 1_000_000, {
+                      style: "currency",
+                      currency: "USD",
+                      maximumFractionDigits: 4,
+                    }),
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -173,20 +176,25 @@ export default async function ReviewDetailPage({
           {humans.length > 0 && (
             <section aria-labelledby="human-heading" className="card-flat space-y-3 p-5 sm:p-6">
               <h2 id="human-heading" className="flex items-center gap-2 text-lg font-semibold">
-                <UserCheck aria-hidden size={20} /> Human decisions
+                <UserCheck aria-hidden size={20} /> {t.t("team.review.humans")}
               </h2>
               <ol className="space-y-3">
                 {humans.map((review) => (
                   <li key={review.id} className="rounded-control border border-line p-3 text-sm">
                     <p className="font-semibold tabular-nums">
-                      {review.overall.percent} % · {review.overall.pass ? "pass" : "needs revision"}
+                      {review.overall.percent} % ·{" "}
+                      {review.overall.pass
+                        ? t.t("team.reviews.pass")
+                        : t.t("team.review.needsRevision")}
                       <span className="font-normal text-muted">
                         {" "}
                         · {timeAgo(t, review.createdAt)}
                       </span>
                     </p>
                     {review.overrideReason && (
-                      <p className="mt-1 text-muted">Reason: {review.overrideReason}</p>
+                      <p className="mt-1 text-muted">
+                        {t.t("team.review.reason", { reason: review.overrideReason })}
+                      </p>
                     )}
                   </li>
                 ))}
@@ -197,11 +205,7 @@ export default async function ReviewDetailPage({
 
         <section aria-labelledby="decision-heading" className="space-y-3">
           <h2 id="decision-heading" className="text-lg font-semibold">
-            {mode === "change"
-              ? "Change the decision"
-              : mode === "check"
-                ? "Your spot check"
-                : "Your decision"}
+            {t.t(`team.review.heading.${mode}`)}
           </h2>
           <DecisionForm
             submissionId={submission.id}
@@ -223,7 +227,7 @@ export default async function ReviewDetailPage({
             )}
             initialSummary={base?.overall.summary ?? ""}
             aiPass={ai ? ai.overall.pass : null}
-            learnerLanguage={LANGUAGE_NAMES[locale]}
+            learnerLanguage={languageName(t, locale)}
             mode={mode}
           />
         </section>

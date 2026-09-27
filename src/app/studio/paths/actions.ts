@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import type { FormState } from "@/app/studio/actions";
 import { localized, text, wording } from "@/app/studio/form-data";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { hexColorSchema } from "@/core/theme/schema";
 import { levelSchemeSchema } from "@/core/levels/rules";
 import { getDb } from "@/db/client";
@@ -37,7 +38,7 @@ export async function createPathAction(_: FormState, formData: FormData): Promis
   const t = await getStudioText();
   const title = localized(formData, "title", tenant.settings.locales);
   const primary = title[tenant.settings.default_locale] ?? Object.values(title)[0];
-  if (!primary) return { errors: ["Give the path a name."] };
+  if (!primary) return { errors: [t.t("team.paths.actions.nameRequired")] };
   const lint = wording(t, [[title, "path_name"]]);
   if (lint.blocking) return { errors: lint.errors };
   const pathId = await createPath(getDb(), tenant.id, { title, slugFrom: primary });
@@ -52,12 +53,12 @@ export async function savePathAction(_: FormState, formData: FormData): Promise<
   const locales = tenant.settings.locales;
   const title = localized(formData, "title", locales);
   if (!title[tenant.settings.default_locale]) {
-    return { errors: [`Name the path in the academy's main language.`] };
+    return { errors: [t.t("team.paths.actions.nameMainLanguage")] };
   }
   const promise = localized(formData, "promise", locales);
   const color = text(formData, "color");
   if (color && !hexColorSchema.safeParse(color).success) {
-    return { errors: ["Colours are hex values like #dd7f6c."] };
+    return { errors: [t.t("team.paths.actions.colorFormat")] };
   }
   const lint = wording(t, [
     [title, "path_name"],
@@ -71,7 +72,7 @@ export async function savePathAction(_: FormState, formData: FormData): Promise<
     slug: text(formData, "slug") || title[tenant.settings.default_locale]!,
   });
   done(pathId);
-  return { ok: true, message: "Path saved.", warnings: lint.warnings };
+  return { ok: true, message: t.t("team.paths.actions.saved"), warnings: lint.warnings };
 }
 
 export async function setPathVisualAction(formData: FormData): Promise<void> {
@@ -136,6 +137,22 @@ export async function deletePathAction(formData: FormData): Promise<void> {
   redirect(result.ok ? "/studio/paths?deleted=1" : `/studio/paths/${pathId}?blocked=1`);
 }
 
+/**
+ * The level editor numbers levels itself, so what can go wrong is a missing
+ * name, an unusable minimum or too many levels. The schema's own messages
+ * are written for manifests, in English.
+ */
+function levelIssueText(t: StudioText, path: readonly PropertyKey[]): string {
+  const [index, field] = path;
+  if (typeof index === "number" && field === "name") {
+    return t.t("team.levels.error.name", { n: index + 1 });
+  }
+  if (typeof index === "number" && field === "rule") {
+    return t.t("team.levels.error.rule", { n: index + 1 });
+  }
+  return t.t("team.levels.error.max");
+}
+
 export async function saveLevelsAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant } = await requireCapability("courses.edit", "/studio/paths");
   const t = await getStudioText();
@@ -143,10 +160,14 @@ export async function saveLevelsAction(_: FormState, formData: FormData): Promis
   try {
     input = JSON.parse(text(formData, "levels"));
   } catch {
-    return { errors: ["The levels could not be read. Reload the page and try again."] };
+    return { errors: [t.t("team.paths.actions.levelsUnreadable")] };
   }
   const parsed = levelSchemeSchema.safeParse(input);
-  if (!parsed.success) return { errors: parsed.error.issues.map((issue) => issue.message) };
+  if (!parsed.success) {
+    return {
+      errors: [...new Set(parsed.error.issues.map((issue) => levelIssueText(t, issue.path)))],
+    };
+  }
   const lint = wording(
     t,
     parsed.data.map((level) => [level.name, "level_name"] as const),
@@ -154,7 +175,7 @@ export async function saveLevelsAction(_: FormState, formData: FormData): Promis
   if (lint.blocking) return { errors: lint.errors };
   await saveLevels(getDb(), tenant.id, parsed.data);
   done();
-  return { ok: true, message: "Levels saved." };
+  return { ok: true, message: t.t("team.paths.actions.levelsSaved") };
 }
 
 export async function grantLevelAction(formData: FormData): Promise<void> {

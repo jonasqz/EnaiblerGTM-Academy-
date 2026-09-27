@@ -17,7 +17,10 @@ import { requireCapability } from "@/server/access";
 import { listCohorts } from "@/server/cohorts";
 import { listCourses } from "@/server/studio/courses";
 
-export const metadata: Metadata = { title: "Cohorts" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.cohorts.title") };
+}
 
 /** Groups that take a course together, with a join link and mentors (brief §4, phase 2). */
 export default async function CohortsPage() {
@@ -33,22 +36,17 @@ export default async function CohortsPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Cohorts"
-        description="Groups that start a course together: they join with a link, see their dates, and their mentors review their work."
-      />
+      <PageHeader title={t.t("team.cohorts.title")} description={t.t("team.cohorts.description")} />
       {!tenant.settings.features.cohorts && (
-        <Notice tone="info" title="Cohorts are switched off">
-          Switch them on under Settings → Modules to show cohort dates to learners.
+        <Notice tone="info" title={t.t("team.cohorts.off")}>
+          {t.t("team.cohorts.offBody")}
         </Notice>
       )}
       {cohorts.length === 0 ? (
         <EmptyState
           icon={UsersRound}
-          title="No cohorts yet"
-          body={
-            manager ? "Create one for a course below." : "Once you mentor a cohort, it shows here."
-          }
+          title={t.t("overview.mentor.empty")}
+          body={manager ? t.t("team.cohorts.emptyManager") : t.t("overview.mentor.emptyBody")}
         />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
@@ -60,13 +58,12 @@ export default async function CohortsPage() {
               >
                 <span className="flex items-start justify-between gap-2">
                   <span className="eyebrow">{localize(row.courseTitle, locale)}</span>
-                  {row.cohort.status === "closed" && <Badge>Closed</Badge>}
+                  {row.cohort.status === "closed" && <Badge>{t.t("team.cohorts.closed")}</Badge>}
                 </span>
                 <span className="block text-lg font-semibold">{row.cohort.name}</span>
                 <span className="block text-sm text-muted">
-                  {cohortDates(t, row.cohort.startsOn, row.cohort.endsOn)} · {row.learners}{" "}
-                  {row.learners === 1 ? "learner" : "learners"} · {row.mentors}{" "}
-                  {row.mentors === 1 ? "mentor" : "mentors"}
+                  {cohortDates(t, row.cohort.startsOn, row.cohort.endsOn)} ·{" "}
+                  {t.n("common.learner", row.learners)} · {t.n("team.cohorts.mentors", row.mentors)}
                 </span>
               </Link>
             </li>
@@ -77,7 +74,7 @@ export default async function CohortsPage() {
         <NewCohortForm
           courses={courses.map((course) => ({
             id: course.id,
-            label: `${localize(course.title, locale)}${course.status === "published" ? "" : " (draft)"}`,
+            label: `${localize(course.title, locale)}${course.status === "published" ? "" : ` (${t.t("common.courseStatus.draft")})`}`,
           }))}
         />
       )}

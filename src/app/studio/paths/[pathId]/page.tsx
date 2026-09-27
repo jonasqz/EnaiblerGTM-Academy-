@@ -17,8 +17,12 @@ import { pathColor } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listStudioPaths, loadStudioPath } from "@/server/studio/paths";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Path" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.path.title") };
+}
 
 export default async function PathPage({
   params,
@@ -27,6 +31,7 @@ export default async function PathPage({
   const { pathId } = await params;
   const { blocked } = await searchParams;
   const { tenant } = await requireCapability("courses.edit", `/studio/paths/${pathId}`);
+  const t = await getStudioText();
   const data = await loadStudioPath(getDb(), tenant.id, pathId);
   if (!data) notFound();
   const { path, courseIds, allCourses } = data;
@@ -47,15 +52,14 @@ export default async function PathPage({
         href="/studio/paths"
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> Paths & levels
+        <ArrowLeft aria-hidden size={16} /> {t.t("team.paths.title")}
       </Link>
       <h1 className="font-display text-2xl leading-tight sm:text-3xl">
         {localize(path.title, locale)}
       </h1>
       {blocked === "1" && (
-        <Notice tone="warning" title="This path stays">
-          Learners have chosen it or earned credentials in it. Remove its courses or rename it
-          instead.
+        <Notice tone="warning" title={t.t("team.path.stays")}>
+          {t.t("team.path.staysBody")}
         </Notice>
       )}
 
@@ -72,12 +76,9 @@ export default async function PathPage({
       <section aria-labelledby="visual-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="visual-heading" className="text-lg font-semibold">
-            Picture
+            {t.t("team.path.picture")}
           </h2>
-          <p className="text-sm text-muted">
-            Shown on the path, in the catalogue and on certificates. SVG is best; we also render it
-            to PNG for shared certificate images.
-          </p>
+          <p className="text-sm text-muted">{t.t("team.path.pictureBody")}</p>
         </div>
         <div className="flex flex-wrap items-start gap-6">
           <div
@@ -93,7 +94,7 @@ export default async function PathPage({
               />
             ) : (
               <span className="text-sm font-semibold text-[var(--tenant-on-primary)]">
-                No picture
+                {t.t("team.path.noPicture")}
               </span>
             )}
           </div>
@@ -104,7 +105,7 @@ export default async function PathPage({
                 <input type="hidden" name="pathId" value={path.id} />
                 <input type="hidden" name="remove" value="1" />
                 <SubmitButton className="btn btn-ghost btn-sm">
-                  <X aria-hidden size={16} /> Remove picture
+                  <X aria-hidden size={16} /> {t.t("team.path.removePicture")}
                 </SubmitButton>
               </form>
             )}
@@ -115,15 +116,12 @@ export default async function PathPage({
       <section aria-labelledby="courses-heading" className="card-flat space-y-4 p-5 sm:p-6">
         <div>
           <h2 id="courses-heading" className="text-lg font-semibold">
-            Courses, in order
+            {t.t("team.path.courses")}
           </h2>
-          <p className="text-sm text-muted">
-            Learners on this path take them in this order; level rules count the courses completed
-            in it. Only published courses are visible to learners.
-          </p>
+          <p className="text-sm text-muted">{t.t("team.path.coursesBody")}</p>
         </div>
         {courseIds.length === 0 ? (
-          <p className="text-sm text-muted">No courses in this path yet.</p>
+          <p className="text-sm text-muted">{t.t("team.path.noCourses")}</p>
         ) : (
           <ol className="space-y-2">
             {courseIds.map((courseId, position) => (
@@ -138,9 +136,14 @@ export default async function PathPage({
                 />
                 {(
                   [
-                    ["up", ArrowUp, "Move up", position === 0],
-                    ["down", ArrowDown, "Move down", position === courseIds.length - 1],
-                    ["remove", Trash, "Remove from path", false],
+                    ["up", ArrowUp, t.t("team.paths.moveUp"), position === 0],
+                    [
+                      "down",
+                      ArrowDown,
+                      t.t("team.paths.moveDown"),
+                      position === courseIds.length - 1,
+                    ],
+                    ["remove", Trash, t.t("team.path.removeCourse"), false],
                   ] as const
                 ).map(([op, Icon, label, disabled]) => (
                   <form key={op} action={pathCourseAction}>
@@ -166,19 +169,21 @@ export default async function PathPage({
             <input type="hidden" name="op" value="add" />
             <div className="field min-w-56 flex-1">
               <label htmlFor="add-course" className="label">
-                Add a course
+                {t.t("team.path.addCourse")}
               </label>
               <select id="add-course" name="courseId" className="select">
                 {available.map((course) => (
                   <option key={course.id} value={course.id}>
                     {localize(course.title, locale)}
-                    {course.status !== "published" ? ` (${course.status})` : ""}
+                    {course.status !== "published"
+                      ? ` (${t.t(`common.courseStatus.${course.status}`)})`
+                      : ""}
                   </option>
                 ))}
               </select>
             </div>
             <SubmitButton className="btn btn-secondary">
-              <Plus aria-hidden size={16} /> Add
+              <Plus aria-hidden size={16} /> {t.t("common.add")}
             </SubmitButton>
           </form>
         )}
@@ -186,11 +191,8 @@ export default async function PathPage({
 
       <form action={deletePathAction}>
         <input type="hidden" name="pathId" value={path.id} />
-        <SubmitButton
-          className="btn btn-danger btn-sm"
-          confirm="Delete this path? Its courses stay; only the path goes."
-        >
-          <Trash aria-hidden size={16} /> Delete path
+        <SubmitButton className="btn btn-danger btn-sm" confirm={t.t("team.path.deleteConfirm")}>
+          <Trash aria-hidden size={16} /> {t.t("team.path.delete")}
         </SubmitButton>
       </form>
     </div>
