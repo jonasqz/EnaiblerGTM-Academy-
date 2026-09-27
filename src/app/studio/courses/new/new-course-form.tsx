@@ -55,48 +55,52 @@ export function NewCourseForm(props: {
           hint={<p className="hint">{t.t("courses.completion.hint")}</p>}
         />
 
-        {/* Only work has an artifact; a test-only course leaves these out entirely. */}
-        {work && (
-          <>
-            <div className="field">
-              <label htmlFor="artifactName" className="label">
-                {t.t("courses.new.artifact")}
-              </label>
-              <input
-                id="artifactName"
-                name="artifactName"
-                className="input"
-                required
-                maxLength={80}
-                placeholder={t.t("courses.new.artifactPlaceholder")}
-                aria-describedby="artifactName-hint"
-              />
-              <p id="artifactName-hint" className="hint">
-                {t.t("courses.new.artifactHint", { term: props.artifactTerm })}
-              </p>
-            </div>
+        {/*
+          Only work has an artifact. Hidden and disabled for a test, not removed:
+          disabled fields are neither required nor sent, and what was typed stays
+          for switching back.
+        */}
+        <div hidden={!work} className="space-y-6">
+          <div className="field">
+            <label htmlFor="artifactName" className="label">
+              {t.t("courses.new.artifact")}
+            </label>
+            <input
+              id="artifactName"
+              name="artifactName"
+              className="input"
+              required
+              disabled={!work}
+              maxLength={80}
+              placeholder={t.t("courses.new.artifactPlaceholder")}
+              aria-describedby="artifactName-hint"
+            />
+            <p id="artifactName-hint" className="hint">
+              {t.t("courses.new.artifactHint", { term: props.artifactTerm })}
+            </p>
+          </div>
 
-            <div className="field">
-              <label htmlFor="outcome" className="label">
-                {t.t("courses.new.outcome")}
-              </label>
-              <textarea
-                id="outcome"
-                name="outcome"
-                className="textarea"
-                required
-                minLength={20}
-                maxLength={4000}
-                rows={6}
-                placeholder={t.t("courses.new.outcomePlaceholder")}
-                aria-describedby="outcome-hint"
-              />
-              <p id="outcome-hint" className="hint">
-                {t.t("courses.new.outcomeHint")}
-              </p>
-            </div>
-          </>
-        )}
+          <div className="field">
+            <label htmlFor="outcome" className="label">
+              {t.t("courses.new.outcome")}
+            </label>
+            <textarea
+              id="outcome"
+              name="outcome"
+              className="textarea"
+              required
+              disabled={!work}
+              minLength={20}
+              maxLength={4000}
+              rows={6}
+              placeholder={t.t("courses.new.outcomePlaceholder")}
+              aria-describedby="outcome-hint"
+            />
+            <p id="outcome-hint" className="hint">
+              {t.t("courses.new.outcomeHint")}
+            </p>
+          </div>
+        </div>
 
         <div className="field">
           <label htmlFor="title" className="label">
