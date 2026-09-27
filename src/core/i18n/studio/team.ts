@@ -89,13 +89,6 @@ export const en = {
     "Confirmed by double opt-in (the learner clicked the link we mailed).",
   "team.people.contactHint": "Agreed that you may contact them about your offers.",
 
-  // Membership roles (core/access/roles.ts), wherever the Studio names one
-  "team.role.learner": "Learner",
-  "team.role.author": "Author",
-  "team.role.reviewer": "Reviewer",
-  "team.role.mentor": "Mentor",
-  "team.role.tenant_admin": "Admin",
-
   // Paths & levels
   "team.paths.title": "Paths & levels",
   "team.paths.description":
@@ -319,12 +312,6 @@ export const de: Record<keyof typeof en, string> = {
   "team.people.newsletterHint":
     "Per Double-Opt-in bestätigt (die lernende Person hat auf den Link in unserer E-Mail geklickt).",
   "team.people.contactHint": "Einverstanden, dass du sie zu deinen Angeboten kontaktierst.",
-
-  "team.role.learner": "Lernende",
-  "team.role.author": "Autor:in",
-  "team.role.reviewer": "Prüfer:in",
-  "team.role.mentor": "Mentor:in",
-  "team.role.tenant_admin": "Admin",
 
   "team.paths.title": "Lernpfade & Level",
   "team.paths.description":
