@@ -24,6 +24,7 @@ const en = {
     imprint: "Imprint",
     privacy: "Privacy",
     terms: "Terms",
+    dpa: "Data processing agreement",
     hosted: "Hosted in the EU",
   },
   cta: {
@@ -61,6 +62,7 @@ const de: SiteCommonCopy = {
     imprint: "Impressum",
     privacy: "Datenschutz",
     terms: "Nutzungsbedingungen",
+    dpa: "Auftragsverarbeitung (AVV)",
     hosted: "In der EU gehostet",
   },
   cta: {

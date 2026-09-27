@@ -1,5 +1,4 @@
 import { normalizeHost, type TenantContext } from "@/core/tenant/context";
-import { isProduction } from "@/server/env";
 
 /**
  * The platform site (self-serve signup) and where new academies live. One
@@ -10,8 +9,10 @@ export interface PlatformConfig {
   host: string;
   /** Academies get <slug>.<academyDomain>. */
   academyDomain: string;
+  /** The operator's own addresses for the legal pages; each replaces its built-in page. */
   links: { terms?: string; dpa?: string; privacy?: string; imprint?: string; demo?: string };
-  agreementVersion: string;
+  /** Recorded with accepted agreements; unset, a built-in page's date is its version. */
+  agreementVersion?: string;
 }
 
 /**
@@ -41,7 +42,7 @@ export function platformConfig(): PlatformConfig | null {
       // An academy visitors of the website can look around in.
       demo: trimmed(process.env.PLATFORM_DEMO_URL),
     },
-    agreementVersion: trimmed(process.env.PLATFORM_AGREEMENT_VERSION) ?? "2026-09",
+    agreementVersion: trimmed(process.env.PLATFORM_AGREEMENT_VERSION),
   };
 }
 
@@ -62,8 +63,9 @@ export function appProtocol(): "http" | "https" {
 }
 
 /**
- * Host (with the dev port in development) and origin of an academy domain.
- * Read by name: the worker links to academies in mails and has no env().
+ * Host (with the dev port in development) and origin of an academy domain,
+ * or of the platform host. Read by name: the worker links to academies in
+ * mails and has no env().
  */
 export function academyOrigin(domain: string): { host: string; origin: string } {
   const production = process.env.NODE_ENV === "production";
@@ -78,11 +80,7 @@ export function academyUrl(tenant: TenantContext, path: string): string {
   return `${academyOrigin(tenant.primaryDomain).origin}${path}`;
 }
 
-/**
- * Signup needs somewhere to create academies and, in production, the terms and
- * the data processing agreement people accept (they are recorded per academy).
- */
-export function signupOpen(config: PlatformConfig | null): config is PlatformConfig {
-  if (!config) return false;
-  return !isProduction() || Boolean(config.links.terms && config.links.dpa);
+/** The website's origin, e.g. https://enaibler.app; null when there is no platform host. */
+export function platformOrigin(config: PlatformConfig | null = platformConfig()): string | null {
+  return config ? academyOrigin(config.host).origin : null;
 }

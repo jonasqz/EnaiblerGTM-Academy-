@@ -4,8 +4,12 @@ import { SITE_COMMON } from "@/core/i18n/site/common";
 import { CREATE } from "@/core/i18n/site/create";
 import { HOME } from "@/core/i18n/site/home";
 import { HOW } from "@/core/i18n/site/how";
+import { LEGAL } from "@/core/i18n/site/legal";
 
-/* enaibler's website on the platform host: its pages and where they live. */
+/*
+ * enaibler's website on the platform host: its pages and where they live.
+ * The legal pages come from Markdown instead (core/platform/legal.ts).
+ */
 
 export const SITE_PAGES = ["home", "how", "consultancies", "software", "create"] as const;
 export type SitePage = (typeof SITE_PAGES)[number];
@@ -65,4 +69,5 @@ export const SITE_COPY = {
   consultancies: CONSULTANCIES,
   software: SOFTWARE,
   create: CREATE,
+  legal: LEGAL,
 } as const;
