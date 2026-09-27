@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { validateAiReview } from "@/core/review/ai-output";
+import { reviewQueueKind, type SubmissionStatus } from "@/core/review/outcome";
 import {
   computeAgreement,
   decideReviewRouting,
   sampleBucket,
   spotCheckRate,
+  type ReviewRouting,
 } from "@/core/review/policy";
 import { buildReviewPrompt } from "@/core/review/prompt";
 import { reviewPolicySchema, rubricSchema, scoreRubric, type Rubric } from "@/core/review/rubric";
@@ -192,6 +194,24 @@ describe("review routing", () => {
         { aiPass: true, humanPass: true },
       ]),
     ).toEqual({ rate: 0.75, sample: 4 });
+  });
+
+  it("knows which hand-ins wait for a person", () => {
+    const held = { release: false as const, reasons: ["near_threshold" as const] };
+    const sampled = { release: true as const, audit: "sampled" as const };
+    const released = { release: true as const, audit: null };
+    const kind = (
+      status: SubmissionStatus,
+      hasHumanReview: boolean,
+      aiRouting: ReviewRouting | null,
+    ) => reviewQueueKind({ status, hasHumanReview, aiRouting });
+    expect(kind("in_review", false, held)).toBe("decide");
+    // Held without any AI review (human-only course, AI unavailable).
+    expect(kind("in_review", false, null)).toBe("decide");
+    expect(kind("passed", false, sampled)).toBe("spot_check");
+    expect(kind("passed", true, sampled)).toBeNull();
+    expect(kind("needs_revision", false, released)).toBeNull();
+    expect(kind("submitted", false, null)).toBeNull();
   });
 });
 

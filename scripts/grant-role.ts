@@ -4,30 +4,20 @@
  *   npm run role:grant -- scaling-product team@scaling-product.com tenant_admin
  * An address that never signed in gets an account; the person then signs in
  * with a magic link as usual. Learner memberships are created on sign-in.
+ * Admins invite colleagues themselves in Studio → Settings → Team, which
+ * mails them; this is the operators' way in, and it mails nobody.
  */
-import { randomUUID } from "node:crypto";
-
-import { and, eq } from "drizzle-orm";
-
-import { isMembershipRole } from "@/core/access/roles";
+import { isTeamRole, teamEmail } from "@/core/access/team";
 import { createDatabase } from "@/db/client";
-import { memberships, user } from "@/db/schema";
-import { withTenant } from "@/db/tenant-scope";
 import { findTenantBySlug } from "@/db/tenants";
+import { ensureAccount, findAccount, grantRole, revokeRole } from "@/server/team";
 
 const args = process.argv.slice(2);
 const revoke = args.includes("--revoke");
 const [slug, rawEmail, role] = args.filter((arg) => !arg.startsWith("--"));
-const email = rawEmail?.trim().toLowerCase();
+const email = teamEmail(rawEmail ?? "");
 
-if (
-  !slug ||
-  !email ||
-  !role ||
-  !isMembershipRole(role) ||
-  role === "learner" ||
-  !email.includes("@")
-) {
+if (!slug || !email || !role || !isTeamRole(role)) {
   console.error(
     "Usage: role:grant [--revoke] <tenant-slug> <email> <author|reviewer|mentor|tenant_admin>",
   );
@@ -45,29 +35,23 @@ try {
   const tenant = await findTenantBySlug(db, slug);
   if (!tenant) throw new Error(`No academy with slug "${slug}"`);
 
-  let [account] = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
-  if (!account && !revoke) {
-    [account] = await db
-      .insert(user)
-      .values({ id: randomUUID(), name: "", email })
-      .returning({ id: user.id });
+  let userId = await findAccount(db, email);
+  if (!userId && !revoke) {
+    userId = (await ensureAccount(db, email)).userId;
     console.log(`· created an account for ${email}`);
   }
-  if (!account) throw new Error(`No account for ${email}`);
-  const userId = account.id;
+  if (!userId) throw new Error(`No account for ${email}`);
 
-  await withTenant(db, tenant.id, async (tx) => {
-    if (revoke) {
-      await tx
-        .delete(memberships)
-        .where(and(eq(memberships.userId, userId), eq(memberships.role, role)));
-    } else {
-      await tx
-        .insert(memberships)
-        .values({ tenantId: tenant.id, userId, role })
-        .onConflictDoNothing();
+  if (revoke) {
+    const result = await revokeRole(db, tenant.id, userId, role);
+    if (!result.ok) {
+      throw new Error(
+        `${email} is the last admin of ${tenant.slug}; make someone else admin first`,
+      );
     }
-  });
+  } else {
+    await grantRole(db, tenant.id, userId, role);
+  }
   console.log(
     `✓ ${email} ${revoke ? "no longer has" : "has"} the role ${role} in ${tenant.slug}. Studio: /studio`,
   );

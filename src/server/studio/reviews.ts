@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { learnerAlias } from "@/core/people/alias";
-import { effectiveOutcome } from "@/core/review/outcome";
+import { effectiveOutcome, reviewQueueKind } from "@/core/review/outcome";
 import { rubricSchema, scoreRange, scoreRubric } from "@/core/review/rubric";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
@@ -78,15 +78,16 @@ export async function listReviewQueue(
     for (const row of rows) {
       const ai = aiRows.find((review) => review.submissionId === row.submissionId);
       const routing = ai?.routing;
-      const held = row.status === "in_review";
-      const audit =
-        !held && !row.hasHuman && routing?.release === true && routing.audit !== null
-          ? routing.audit
-          : null;
-      if (!held && !audit) continue;
+      const kind = reviewQueueKind({
+        status: row.status,
+        hasHumanReview: row.hasHuman,
+        aiRouting: routing,
+      });
+      if (!kind) continue;
+      const audit = kind === "spot_check" && routing?.release === true ? routing.audit : null;
       queue.push({
         submissionId: row.submissionId,
-        kind: held ? "decide" : "spot_check",
+        kind,
         courseId: row.courseId,
         courseTitle: row.courseTitle,
         alias: learnerAlias(tenantId, row.userId),

@@ -143,7 +143,9 @@ describe.skipIf(!hasDatabase)("cohorts and mentors", () => {
       held.push(result.submissionId);
     }
 
-    expect(await addMentor(dbs.app.db, tenant.id, member!.id, "Mentor@Example.com")).toBe(true);
+    expect(
+      await addMentor(dbs.app.db, tenant.id, member!.id, "Mentor@Example.com", "en"),
+    ).toMatchObject({ ok: true });
     const [mentorship] = await withTenant(dbs.app.db, tenant.id, (tx) =>
       tx
         .select()

@@ -205,6 +205,8 @@ export const en = {
   "team.cohorts.actions.saved": "Cohort saved.",
   "team.cohorts.actions.mentorEmail": "Enter the mentor's e-mail address.",
   "team.cohorts.actions.mentorAdded": "Mentor added. They sign in with this address.",
+  "team.cohorts.actions.mentorInvited":
+    "Mentor added. An e-mail invites them to sign in with this address.",
 
   // One cohort
   "team.cohort.title": "Cohort",
@@ -268,6 +270,62 @@ export const en = {
   "team.leads.page": "Page {page} of {pages}",
   "team.leads.previous": "Previous",
   "team.leads.next": "Next",
+
+  // Team members: who works in the Studio (Settings → Team)
+  "team.members.tab": "Team",
+  "team.members.heading": "Team",
+  "team.members.intro":
+    "Everyone who works on {academy} in the Studio, and what they may do there. Learners are not listed here.",
+  "team.members.caption": "Team members and their roles",
+  "team.members.you": "you",
+  "team.members.role.tenant_admin": "Admin",
+  "team.members.role.author": "Author",
+  "team.members.role.reviewer": "Reviewer",
+  "team.members.role.mentor": "Mentor",
+  "team.members.roleHint.tenant_admin":
+    "Everything, plus settings, brand, domains, integrations, the team and the contact export.",
+  "team.members.roleHint.author":
+    "Builds and publishes courses, paths and cohorts; reviews hand-ins.",
+  "team.members.roleHint.reviewer": "Reviews hand-ins; sees courses and learners, changes neither.",
+  "team.members.mentorOf": "Mentor of {cohorts}",
+  "team.members.mentorWithoutCohort": "Mentor without a cohort",
+  "team.members.mentorsHint":
+    "Mentors review the work of one cohort: add them on the cohort’s page.",
+  "team.members.signedIn": "Signed in",
+  "team.members.notSignedIn": "Not signed in yet",
+  "team.members.invitedAt": "Invited {date}",
+  "team.members.editRoles": "Change roles",
+  "team.members.saveRoles": "Save roles",
+  "team.members.onlyAdmin":
+    "The academy’s only admin. Make someone else an admin before changing this.",
+  "team.members.remove": "Remove from team",
+  "team.members.removeConfirm":
+    "Remove {email} from the team? They lose their roles here, mentoring included. Their own learning stays.",
+  "team.members.resend": "Send invitation again",
+  "team.members.sending": "Sending…",
+  "team.members.invite.heading": "Invite someone",
+  "team.members.invite.intro":
+    "They get an e-mail from {academy} that names their roles, with a link to sign in. Up to {max} invitations a day.",
+  "team.members.invite.email": "E-mail address",
+  "team.members.invite.placeholder": "colleague@your-company.com",
+  "team.members.invite.roles": "Roles",
+  "team.members.invite.submit": "Send invitation",
+  "team.members.done.invited": "{email} is on the team. The invitation is on its way.",
+  "team.members.done.updated":
+    "{email} was already on the team: their roles are updated, without another e-mail.",
+  "team.members.done.roles": "Roles saved.",
+  "team.members.done.removed": "Removed from the team.",
+  "team.members.done.resent": "The invitation is on its way again.",
+  "team.members.error.email": "Enter a valid e-mail address.",
+  "team.members.error.no_roles": "Choose at least one role.",
+  "team.members.error.noRolesLeft": "Choose at least one role, or remove them from the team.",
+  "team.members.error.limit":
+    "{max} invitations went out in the last 24 hours. Try again tomorrow.",
+  "team.members.error.last_admin":
+    "An academy always keeps an admin. Make someone else an admin first.",
+  "team.members.error.not_found": "This person is no longer on the team.",
+  "team.members.error.forbidden": "Only admins change the team.",
+  "team.members.error.signed_in": "They have signed in already: no need for another invitation.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -471,6 +529,8 @@ export const de: Record<keyof typeof en, string> = {
   "team.cohorts.actions.mentorEmail": "Gib die E-Mail-Adresse der Mentor:in ein.",
   "team.cohorts.actions.mentorAdded":
     "Mentor:in hinzugefügt. Die Anmeldung läuft über diese Adresse.",
+  "team.cohorts.actions.mentorInvited":
+    "Mentor:in hinzugefügt. Eine E-Mail lädt die Person ein, sich mit dieser Adresse anzumelden.",
 
   "team.cohort.title": "Gruppe",
   "team.cohort.closed": "geschlossen",
@@ -535,4 +595,62 @@ export const de: Record<keyof typeof en, string> = {
   "team.leads.page": "Seite {page} von {pages}",
   "team.leads.previous": "Zurück",
   "team.leads.next": "Weiter",
+
+  "team.members.tab": "Team",
+  "team.members.heading": "Team",
+  "team.members.intro":
+    "Alle, die im Studio an {academy} arbeiten, und was sie dort dürfen. Lernende stehen nicht hier.",
+  "team.members.caption": "Teammitglieder und ihre Rollen",
+  "team.members.you": "du",
+  "team.members.role.tenant_admin": "Admin",
+  "team.members.role.author": "Autor:in",
+  "team.members.role.reviewer": "Prüfer:in",
+  "team.members.role.mentor": "Mentor:in",
+  "team.members.roleHint.tenant_admin":
+    "Alles, dazu Einstellungen, Marke, Domains, Integrationen, das Team und der Kontakt-Export.",
+  "team.members.roleHint.author":
+    "Baut und veröffentlicht Kurse, Lernpfade und Gruppen; bewertet Abgaben.",
+  "team.members.roleHint.reviewer":
+    "Bewertet Abgaben; sieht Kurse und Lernende, ohne etwas daran zu ändern.",
+  "team.members.mentorOf": "Mentor:in von {cohorts}",
+  "team.members.mentorWithoutCohort": "Mentor:in ohne Gruppe",
+  "team.members.mentorsHint":
+    "Mentor:innen bewerten die Arbeiten einer Gruppe: Du fügst sie auf der Seite der Gruppe hinzu.",
+  "team.members.signedIn": "Angemeldet",
+  "team.members.notSignedIn": "Noch nicht angemeldet",
+  "team.members.invitedAt": "Eingeladen am {date}",
+  "team.members.editRoles": "Rollen ändern",
+  "team.members.saveRoles": "Rollen speichern",
+  "team.members.onlyAdmin":
+    "Einziger Admin der Akademie. Mach zuerst eine andere Person zum Admin, um das zu ändern.",
+  "team.members.remove": "Aus dem Team entfernen",
+  "team.members.removeConfirm":
+    "{email} aus dem Team entfernen? Die Person verliert ihre Rollen hier, auch als Mentor:in. Ihr eigenes Lernen bleibt.",
+  "team.members.resend": "Einladung erneut senden",
+  "team.members.sending": "Wird gesendet…",
+  "team.members.invite.heading": "Jemanden einladen",
+  "team.members.invite.intro":
+    "Die Person bekommt eine E-Mail von {academy} mit ihren Rollen und einem Link zur Anmeldung. Bis zu {max} Einladungen am Tag.",
+  "team.members.invite.email": "E-Mail-Adresse",
+  "team.members.invite.placeholder": "kollegin@deine-firma.de",
+  "team.members.invite.roles": "Rollen",
+  "team.members.invite.submit": "Einladung senden",
+  "team.members.done.invited": "{email} ist im Team. Die Einladung ist unterwegs.",
+  "team.members.done.updated":
+    "{email} war schon im Team: Die Rollen sind aktualisiert, ohne neue E-Mail.",
+  "team.members.done.roles": "Rollen gespeichert.",
+  "team.members.done.removed": "Aus dem Team entfernt.",
+  "team.members.done.resent": "Die Einladung ist wieder unterwegs.",
+  "team.members.error.email": "Gib eine gültige E-Mail-Adresse ein.",
+  "team.members.error.no_roles": "Wähle mindestens eine Rolle.",
+  "team.members.error.noRolesLeft":
+    "Wähle mindestens eine Rolle oder entferne die Person aus dem Team.",
+  "team.members.error.limit":
+    "In den letzten 24 Stunden sind {max} Einladungen rausgegangen. Versuch es morgen wieder.",
+  "team.members.error.last_admin":
+    "Eine Akademie behält immer einen Admin. Mach zuerst eine andere Person zum Admin.",
+  "team.members.error.not_found": "Diese Person ist nicht mehr im Team.",
+  "team.members.error.forbidden": "Nur Admins ändern das Team.",
+  "team.members.error.signed_in":
+    "Die Person hat sich schon angemeldet: Eine neue Einladung braucht es nicht.",
 };

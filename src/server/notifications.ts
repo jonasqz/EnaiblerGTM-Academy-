@@ -1,11 +1,14 @@
 import { and, asc, desc, eq, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 
-import { localize } from "@/core/i18n/locales";
+import { TEAM_ROLES } from "@/core/access/team";
+import { isLocale, localize } from "@/core/i18n/locales";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
+import { createTranslator } from "@/core/i18n/translator";
 import {
   MAX_SEND_ATTEMPTS,
   REVIEW_MAIL_DELAY_SECONDS,
   retryDelaySeconds,
+  reviewAlertWaitsUntil,
   reviewMailDecision,
 } from "@/core/notifications/rules";
 import { effectiveOutcome } from "@/core/review/outcome";
@@ -25,16 +28,22 @@ import {
   user,
   type LevelUpPayload,
   type ReviewReadyPayload,
+  type ReviewWaitingPayload,
+  type TeamInvitePayload,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { senderFor, type OutgoingEmail, type SendEmail } from "@/server/email/mailer";
 import { renderNoticeEmail } from "@/server/email/templates/notice";
 import { academyUrl } from "@/server/platform/config";
+import { lastReviewAlertAt, stillWaitingFor } from "@/server/review/alerts";
+import { rolesOf } from "@/server/team";
 
 /*
- * Learner mail about their learning (brief §9, transactional): feedback is
- * ready, a level was reached. Queued in the transaction of the decision it
- * reports, so a rolled-back decision never mails; sent by the worker.
+ * Transactional mail (brief §9). Learners hear that feedback is ready or a
+ * level was reached; the team gets its invitations and hears about hand-ins
+ * waiting for review (server/team.ts, server/review/alerts.ts). Queued in the
+ * transaction of what it reports, so a rolled-back decision never mails;
+ * sent by the worker.
  */
 
 export async function queueReviewReady(
@@ -102,7 +111,8 @@ export async function markResultSeen(
   );
 }
 
-type Prepared = { mail: OutgoingEmail } | { skip: string };
+/** A mail to send, why none goes out, or when to try again. */
+type Prepared = { mail: OutgoingEmail } | { skip: string } | { later: Date };
 type NotificationRow = typeof notifications.$inferSelect;
 
 async function reviewReadyMail(
@@ -287,6 +297,104 @@ function outgoing(
   };
 }
 
+/**
+ * The invitation to the team, in the Studio language of the admin who sent
+ * it, which may be one the academy does not teach in. It names the academy
+ * and the roles the person has now, never who added them.
+ */
+async function teamInviteMail(
+  tx: Transaction,
+  tenant: TenantContext,
+  to: string,
+  userId: string,
+  payload: TeamInvitePayload,
+): Promise<Prepared> {
+  const roles = await rolesOf(tx, userId);
+  const teamRoles = TEAM_ROLES.filter((role) => roles.includes(role));
+  if (teamRoles.length === 0) return { skip: "not_on_team" };
+  const t = createTranslator({
+    locale: isLocale(payload.locale) ? payload.locale : tenant.settings.default_locale,
+    termOverrides: tenant.terminology,
+    messageOverrides: tenant.terminology.strings,
+  });
+  const academy = tenant.settings.author_display_name;
+  const rendered = await renderNoticeEmail({
+    tenant,
+    t,
+    subject: t.t("email.teamInvite.subject", { academy }),
+    heading: t.t("email.teamInvite.heading", { academy }),
+    paragraphs: [t.t("email.teamInvite.body", { academy }), t.t("email.teamInvite.roles")],
+    list: teamRoles.map((role) => t.t(`email.teamInvite.role.${role}`)),
+    // The academy's own sign-in (magic link), straight into the Studio afterwards.
+    button: {
+      label: t.t("email.teamInvite.button"),
+      url: academyUrl(tenant, "/sign-in?next=/studio"),
+    },
+    note: t.t("email.teamInvite.note", { academy }),
+    reason: t.t("email.teamInvite.reason", { academy }),
+  });
+  return { mail: outgoing(tenant, to, rendered) };
+}
+
+/** Most hand-ins one alert lists; the rest are counted. */
+const ALERT_LIST_MAX = 10;
+
+/**
+ * The hand-ins waiting for this team member, in one mail (at most one an
+ * hour). Learners appear by their alias only, and nothing of their work is
+ * in it. The Studio keeps no language per person, so it is written in the
+ * one they first signed in with, if the academy teaches in it.
+ */
+async function reviewWaitingMail(
+  tx: Transaction,
+  tenant: TenantContext,
+  to: string,
+  userId: string,
+  payload: ReviewWaitingPayload,
+): Promise<Prepared> {
+  const waiting = await stillWaitingFor(tx, tenant.id, userId, payload.submissionIds);
+  if (!waiting) return { skip: "not_reviewer" };
+  if (waiting.length === 0) return { skip: "decided" };
+  const later = reviewAlertWaitsUntil(new Date(), await lastReviewAlertAt(tx, userId));
+  if (later) return { later };
+
+  const [profile] = await tx
+    .select({ locale: learnerProfiles.locale })
+    .from(learnerProfiles)
+    .where(eq(learnerProfiles.userId, userId));
+  const t = tenantTranslator(tenant, profile?.locale);
+  const fallback = [tenant.settings.default_locale];
+  const academy = tenant.settings.author_display_name;
+  const subject =
+    waiting.length === 1
+      ? t.t("email.reviewWaiting.subjectOne")
+      : t.t("email.reviewWaiting.subject", { n: waiting.length });
+  const list = waiting.slice(0, ALERT_LIST_MAX).map((item) =>
+    t.t(item.kind === "decide" ? "email.reviewWaiting.decide" : "email.reviewWaiting.spotCheck", {
+      alias: item.alias,
+      course: localize(item.courseTitle, t.locale, fallback),
+    }),
+  );
+  if (waiting.length > ALERT_LIST_MAX) {
+    list.push(t.t("email.reviewWaiting.more", { n: waiting.length - ALERT_LIST_MAX }));
+  }
+  const rendered = await renderNoticeEmail({
+    tenant,
+    t,
+    subject,
+    heading: subject,
+    paragraphs: [t.t("email.reviewWaiting.body", { academy })],
+    list,
+    button: {
+      label: t.t("email.reviewWaiting.button"),
+      url: academyUrl(tenant, "/studio/reviews"),
+    },
+    note: t.t("email.reviewWaiting.note"),
+    reason: t.t("email.reviewWaiting.reason", { academy }),
+  });
+  return { mail: outgoing(tenant, to, rendered) };
+}
+
 async function prepare(
   tx: Transaction,
   tenant: TenantContext,
@@ -297,9 +405,28 @@ async function prepare(
     .from(user)
     .where(eq(user.id, row.userId));
   if (!account) return { skip: "gone" };
-  return row.kind === "review_ready"
-    ? reviewReadyMail(tx, tenant, account.email, row.payload as ReviewReadyPayload)
-    : levelUpMail(tx, tenant, account.email, row.userId, row.payload as LevelUpPayload);
+  switch (row.kind) {
+    case "review_ready":
+      return reviewReadyMail(tx, tenant, account.email, row.payload as ReviewReadyPayload);
+    case "level_up":
+      return levelUpMail(tx, tenant, account.email, row.userId, row.payload as LevelUpPayload);
+    case "team_invite":
+      return teamInviteMail(
+        tx,
+        tenant,
+        account.email,
+        row.userId,
+        row.payload as TeamInvitePayload,
+      );
+    case "review_waiting":
+      return reviewWaitingMail(
+        tx,
+        tenant,
+        account.email,
+        row.userId,
+        row.payload as ReviewWaitingPayload,
+      );
+  }
 }
 
 export interface DispatchResult {
@@ -342,6 +469,13 @@ export async function dispatchNotifications(
           await done({ status: "skipped", note: prepared.skip });
           return "skipped" as const;
         }
+        if ("later" in prepared) {
+          await tx
+            .update(notifications)
+            .set({ sendAfter: prepared.later })
+            .where(eq(notifications.id, row.id));
+          return "postponed" as const;
+        }
         await deps.send(prepared.mail);
         await done({ status: "sent", attempts: row.attempts + 1, note: null });
         return "sent" as const;
@@ -364,6 +498,7 @@ export async function dispatchNotifications(
       }
     });
     if (!outcome) break;
+    if (outcome === "postponed") continue;
     result[outcome]++;
     if (outcome === "failed") break;
   }

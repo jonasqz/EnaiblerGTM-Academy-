@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import type { FormState } from "@/app/studio/actions";
 import { text } from "@/app/studio/form-data";
+import { INVITATIONS_PER_DAY } from "@/core/access/team";
 import type { StudioText } from "@/core/i18n/studio/translator";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -66,10 +67,23 @@ export async function addMentorAction(_: FormState, formData: FormData): Promise
   const cohortId = text(formData, "cohortId");
   const { tenant } = await requireCapability("cohorts.manage", `/studio/cohorts/${cohortId}`);
   const t = await getStudioText();
-  const added = await addMentor(getDb(), tenant.id, cohortId, text(formData, "email"));
-  if (!added) return { errors: [t.t("team.cohorts.actions.mentorEmail")] };
+  const result = await addMentor(getDb(), tenant.id, cohortId, text(formData, "email"), t.locale);
+  if (!result.ok) {
+    return {
+      errors: [
+        result.error === "limit"
+          ? t.t("team.members.error.limit", { max: INVITATIONS_PER_DAY })
+          : t.t("team.cohorts.actions.mentorEmail"),
+      ],
+    };
+  }
   revalidatePath(`/studio/cohorts/${cohortId}`);
-  return { ok: true, message: t.t("team.cohorts.actions.mentorAdded") };
+  return {
+    ok: true,
+    message: t.t(
+      result.invited ? "team.cohorts.actions.mentorInvited" : "team.cohorts.actions.mentorAdded",
+    ),
+  };
 }
 
 export async function removeMentorAction(formData: FormData): Promise<void> {
