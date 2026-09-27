@@ -15,6 +15,7 @@ export const QUEUES = {
   filesCleanup: "files.cleanup",
   sourcesExtract: "sources.extract",
   calibration: "calibration.run",
+  domainsCheck: "domains.check",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -32,6 +33,8 @@ export interface JobPayloads {
   /** Documents, web pages and interviews: text → chunks (→ embeddings). */
   "sources.extract": { tenantId: string; sourceId: string };
   "calibration.run": { tenantId: string; runId: string };
+  /** Every ten minutes: DNS of the custom domains academies are waiting for. */
+  "domains.check": Record<string, never>;
 }
 
 export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
@@ -45,4 +48,5 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "files.cleanup": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
   "sources.extract": { retryLimit: 2, retryDelay: 30, expireInSeconds: 10 * 60 },
   "calibration.run": { retryLimit: 1, retryDelay: 60, expireInSeconds: 30 * 60 },
+  "domains.check": { retryLimit: 0, expireInSeconds: 10 * 60 },
 };

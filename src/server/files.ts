@@ -320,7 +320,9 @@ export async function attachFiles(
     )
     .returning();
   if (claimed.length !== new Set(input.ids).size) throw new Error("Unknown or already used upload");
-  return claimed;
+  // UPDATE … RETURNING has no order: keep the order the files were given in.
+  const position = new Map(input.ids.map((id, index) => [id, index]));
+  return claimed.sort((a, b) => position.get(a.id)! - position.get(b.id)!);
 }
 
 /** Removes files from storage, then their rows. */

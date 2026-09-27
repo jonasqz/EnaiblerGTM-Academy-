@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, jsonb, pgEnum, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import type { TenantSettings, Terminology } from "@/core/tenant/manifest";
 import type { ThemeInput } from "@/core/theme/schema";
@@ -36,6 +45,12 @@ export const tenantDomains = pgTable(
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     isPrimary: boolean("is_primary").notNull().default(false),
+    /**
+     * Set for custom domains an academy verified itself (by DNS): these get
+     * their certificates through the proxy config endpoint. Manifest and
+     * platform domains are set up by the operator.
+     */
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (table) => [

@@ -13,6 +13,8 @@ import { authoringModel } from "@/server/authoring/model";
 import { extractKeyframes, transcribeRecording } from "@/server/authoring/recordings";
 import { extractSource } from "@/server/authoring/sources";
 import { embeddingConfig, whisperConfig } from "@/server/authoring/speech";
+import { checkOpenClaims } from "@/server/domains/claims";
+import { systemDns } from "@/server/domains/dns";
 import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
@@ -59,6 +61,13 @@ await boss.work(QUEUES.notifications, async () => {
   }
 });
 await boss.schedule(QUEUES.notifications, "* * * * *");
+
+// Custom domains waiting for DNS: they go live without anyone pressing "check".
+await boss.work(QUEUES.domainsCheck, async () => {
+  const verified = await checkOpenClaims(db, systemDns);
+  if (verified > 0) console.log(`[worker] ${verified} custom domain(s) verified`);
+});
+await boss.schedule(QUEUES.domainsCheck, "*/10 * * * *");
 
 // Without a gateway every submission goes to the human queue ("ai_unavailable").
 const llm = process.env.LLM_BASE_URL

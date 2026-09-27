@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { isLocale, SUPPORTED_LOCALES, type Locale } from "@/core/i18n/locales";
+import { normalizeHost } from "@/core/tenant/context";
 import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/server/cookies";
-import { isPlatformHost } from "@/server/platform/config";
+import { academyOrigin, isPlatformHost } from "@/server/platform/config";
 import { resolveTenant } from "@/server/tenant-resolver";
 
 const notFound = () =>
@@ -36,6 +37,20 @@ export async function proxy(request: NextRequest) {
   if (!tenant || tenant.status !== "active") return notFound();
   if (pathname === "/platform" || pathname.startsWith("/platform/")) return notFound();
 
+  // One address per academy: its other domains (e.g. the platform address
+  // after a custom domain became the main one) redirect there.
+  const current = normalizeHost(host);
+  if (
+    current &&
+    current !== tenant.primaryDomain &&
+    tenant.settings.domains.includes(current) &&
+    (request.method === "GET" || request.method === "HEAD") &&
+    !pathname.startsWith("/api/")
+  ) {
+    const target = new URL(`${pathname}${search}`, academyOrigin(tenant.primaryDomain).origin);
+    return NextResponse.redirect(target, 308);
+  }
+
   return withLanguage(request, tenant.settings.locales, (headers) =>
     NextResponse.next({ request: { headers } }),
   );
@@ -60,7 +75,10 @@ function withLanguage(
 }
 
 export const config = {
-  // Health checks come in on internal host names; static assets need no tenant.
-  // Uploads resolve the academy themselves: the proxy would buffer their bodies.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|api/health|api/uploads).*)"],
+  // Health checks and the reverse proxy's internal calls come in on internal
+  // host names; static assets need no tenant. Uploads resolve the academy
+  // themselves: the proxy would buffer their bodies.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|api/health|api/uploads|api/internal).*)",
+  ],
 };

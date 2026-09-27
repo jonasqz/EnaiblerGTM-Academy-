@@ -113,6 +113,20 @@
       "when": 1790492377205,
       "tag": "0015_force_rls_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790494271367,
+      "tag": "0016_domain_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790494272375,
+      "tag": "0017_force_rls_domain_claims",
+      "breakpoints": true
     }
   ]
 }

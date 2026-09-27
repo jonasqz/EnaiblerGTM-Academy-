@@ -19,6 +19,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/studio/
         items={[
           { href: "/studio/settings", label: "Academy", exact: true },
           { href: "/studio/settings/brand", label: "Brand" },
+          { href: "/studio/settings/domains", label: "Domains" },
         ]}
       />
       {children}
