@@ -49,7 +49,7 @@ What enaibler guarantees at each step:
 1. **Entry:** zero-friction start from the tenant's own website (deep link or embed), carrying path, course, language and UTM context through sign-up.
 2. **Path:** an optional, ordered set of courses with an identity the learner chooses.
 3. **Lessons:** short, mobile-friendly, resumable.
-4. **Assignment:** exactly one required artifact per course.
+4. **Assignment:** exactly one required artifact per course — or a final multiple-choice test, or both, as the course's authors choose (§16).
 5. **Review:** feedback within minutes, per rubric criterion, with a clear path to pass.
 6. **Credential:** issued automatically, private until the learner makes it public.
 7. **Share:** one click to LinkedIn post and LinkedIn profile.
@@ -80,9 +80,9 @@ Every table carries `tenant_id`. All learner-facing text fields are localised (`
 | **Terminology** | overrides for keys like `path`, `artifact`, `level`, `credential` | Defaults: Track, Deliverable, Level, Certificate of Completion. Tenant 0: Character, Loot |
 | **Path** | title, promise, visual {svg, png}, color, course_ids (ordered) | Optional module |
 | **LevelScheme** | levels [{n, name, rule}] | Rule types: `courses_completed_in_path >= n`, `path_complete`, `manual_grant`. Optional module |
-| **Course** | slug, title, languages[], delivery_mode, status, version, est_minutes, assignment_id | `delivery_mode`: `free_async` \| `paid_live` \| `paid_async_approved` (see §9) |
+| **Course** | slug, title, languages[], delivery_mode, status, version, est_minutes, assignment_id, completion_mode | `delivery_mode`: `free_async` \| `paid_live` \| `paid_async_approved` (see §9). `completion_mode`: `work` \| `test` \| `work_and_test` (§16) |
 | **Lesson** | course_id, order, title, blocks (Markdown, image, video), locale, version history | |
-| **Assignment** | prompt, artifact_name, submission_types (file: pdf/image/md, template_form: JSON schema, url), rubric_id | Exactly one required per course |
+| **Assignment** | prompt, artifact_name, submission_types (file: pdf/image/md, template_form: JSON schema, url), rubric_id | At most one per course; required when the course ends with work (§16) |
 | **Rubric** | criteria [{id, label, description, weight, score_descriptors}], pass_threshold, exemplars[], review_policy | `review_policy`: mode (`ai_auto` \| `ai_then_human` \| `human_only`), spot_check_rate, escalate_on |
 | **Submission** | learner_id, assignment_id, attempt_no, files/form data, status | Status: submitted → in_review → needs_revision / passed / overridden |
 | **Review** | submission_id, reviewer_type (ai/human), per-criterion {score, evidence, feedback}, overall, model, prompt_version, cost | Human override keeps the AI review for audit |
@@ -245,6 +245,18 @@ If the build slips, tenant 0 may launch course 1 elsewhere; the credential impor
 4. Final tagline and positioning copy (landing page and brand guide still say "certified").
 5. Showcase privacy details: what exactly may be shown, and can the tenant see artifacts of private credentials?
 6. Pricing model once paid tiers exist (per learner, per tenant, per review volume).
+
+---
+
+## 16. Decisions after v2
+
+**2026-09-27 · How a course ends is the author's choice.** Real work reviewed against a rubric stays the default and the recommendation ("proof over points"). Authors may instead end a course with a **final multiple-choice test** (checked automatically, no AI cost), or ask for **both**. The Certificate of Completion is issued once every required part is passed, in either order, and says how it was earned ("Final Test passed" instead of an artifact name); it never claims work nobody handed in. Tests are graded on the server, learners never receive the answer key, retakes are allowed and authors decide whether learners see which questions they got wrong.
+
+**2026-09-27 · Knowledge checks.** Lessons can end with a few multiple-choice questions for practice: checked in the browser, not stored, never blocking progress, no AI.
+
+**2026-09-27 · AI usage is metered per academy.** Every model call (reviews, calibration, drafts, transcription, embeddings, brand import) is recorded with tokens and cost for the academy that caused it. Academies see their usage in the Studio; costs stay with the operator (`npm run usage:report`). AI review will get its own price tier (§15, decision 6); pricing itself is not built yet.
+
+**2026-09 · Object storage is SeaweedFS** (§15, decision 3), self-hosted on Coolify; the code speaks plain S3.
 
 ---
 
