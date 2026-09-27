@@ -138,9 +138,11 @@ export const en = {
   "authoring.calibrate.ai.fail": "AI: not pass ({percent} %)",
   "authoring.calibrate.aiScore": "{criterion}: AI {score}/{max}",
   "authoring.calibrate.yourScore": "you {score}",
+  "authoring.calibrate.aiSummary": "“{summary}”",
   "authoring.calibrate.remove": "Remove example",
   "authoring.calibrate.removeConfirm": "Remove this example?",
-  // What the calibration job stores when it fails (src/server/review/calibration.ts).
+  // The English must match what the calibration job stores when it fails
+  // (src/server/review/calibration.ts): the calibrate page finds the key by it.
   "authoring.calibrate.error.gateway": "Calibration needs the AI gateway (LLM_BASE_URL).",
   "authoring.calibrate.error.noAnswer": "The AI gateway did not answer. Try again.",
   "authoring.calibrate.error.invalid": "The AI gave no valid review.",
@@ -304,6 +306,7 @@ export const de: Record<keyof typeof en, string> = {
   "authoring.calibrate.ai.fail": "KI: nicht bestanden ({percent} %)",
   "authoring.calibrate.aiScore": "{criterion}: KI {score}/{max}",
   "authoring.calibrate.yourScore": "du {score}",
+  "authoring.calibrate.aiSummary": "„{summary}“",
   "authoring.calibrate.remove": "Beispiel entfernen",
   "authoring.calibrate.removeConfirm": "Dieses Beispiel entfernen?",
   "authoring.calibrate.error.gateway": "Die Kalibrierung braucht das KI-Gateway (LLM_BASE_URL).",
