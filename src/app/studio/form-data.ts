@@ -11,7 +11,9 @@ import type { StudioText } from "@/core/i18n/studio/translator";
 /** Trimmed text field of a form, "" when missing. */
 export function text(formData: FormData, name: string): string {
   const value = formData.get(name);
-  return typeof value === "string" ? value.trim() : "";
+  // Browsers send a textarea's line breaks as CRLF. Stored as LF, lengths match
+  // the textarea's own count (maxLength) and the text reads the same everywhere.
+  return typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim() : "";
 }
 
 /** A `name.<locale>` field per language, empty languages left out. */
