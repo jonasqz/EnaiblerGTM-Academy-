@@ -116,10 +116,23 @@ export default async function StudioCoursePage({
         aria-label={t.t("courses.overview.learners")}
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
-        <StatTile label={t.t("courses.overview.started")} value={stats.enrolled} />
-        <StatTile label={t.t("courses.overview.completed")} value={stats.completed} />
-        <StatTile label={t.t("courses.overview.waiting")} value={stats.pendingReviews} />
         <StatTile
+          locale={t.locale}
+          label={t.t("courses.overview.started")}
+          value={stats.enrolled}
+        />
+        <StatTile
+          locale={t.locale}
+          label={t.t("courses.overview.completed")}
+          value={stats.completed}
+        />
+        <StatTile
+          locale={t.locale}
+          label={t.t("courses.overview.waiting")}
+          value={stats.pendingReviews}
+        />
+        <StatTile
+          locale={t.locale}
           label={t.t("courses.overview.certificates")}
           value={stats.credentials}
           hint={t.t("courses.overview.public", { n: stats.publicCredentials })}

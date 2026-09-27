@@ -29,8 +29,8 @@ export async function MentorOverview(props: { session: Session }) {
         description={t.t("overview.mentor.description")}
       />
       <section aria-label={t.t("overview.totals")} className="grid grid-cols-2 gap-3">
-        <StatTile label={t.t("overview.mentor.cohorts")} value={cohorts.length} />
-        <StatTile label={t.t("overview.mentor.waiting")} value={queue.length} />
+        <StatTile locale={t.locale} label={t.t("overview.mentor.cohorts")} value={cohorts.length} />
+        <StatTile locale={t.locale} label={t.t("overview.mentor.waiting")} value={queue.length} />
       </section>
       {queue.length > 0 && (
         <Link href="/studio/reviews" className="btn btn-primary">

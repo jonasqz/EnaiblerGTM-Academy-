@@ -156,10 +156,23 @@ export default async function StudioOverviewPage() {
         aria-label={t.t("overview.totals")}
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
-        <StatTile label={t.t("overview.stat.learners")} value={overview.learners} />
-        <StatTile label={t.t("overview.stat.starts")} value={overview.enrollments} />
-        <StatTile label={t.t("overview.stat.completed")} value={overview.completions} />
         <StatTile
+          locale={t.locale}
+          label={t.t("overview.stat.learners")}
+          value={overview.learners}
+        />
+        <StatTile
+          locale={t.locale}
+          label={t.t("overview.stat.starts")}
+          value={overview.enrollments}
+        />
+        <StatTile
+          locale={t.locale}
+          label={t.t("overview.stat.completed")}
+          value={overview.completions}
+        />
+        <StatTile
+          locale={t.locale}
           label={t.t("overview.stat.certificates")}
           value={overview.credentials}
           hint={t.t("overview.stat.public", { n: overview.publicCredentials })}
