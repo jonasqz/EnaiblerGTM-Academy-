@@ -9,12 +9,14 @@ import {
   type ConsentState,
 } from "@/core/consent/marketing";
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
+import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
 import { consents, learnerProfiles, user } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { sendEmail, senderFor } from "@/server/email/mailer";
 import { renderNoticeEmail } from "@/server/email/templates/notice";
+import { reportError } from "@/server/observability/report";
 import { academyUrl } from "@/server/platform/config";
 import { queueWebhookEvent } from "@/server/webhooks";
 
@@ -154,6 +156,41 @@ export async function withdrawMarketingConsent(
       await queueWebhookEvent(tx, { tenantId, type: "marketing_consent_withdrawn", userId });
     }
   });
+}
+
+export type NewsOptIn = "sent" | "recently_sent" | "already_confirmed" | "failed";
+
+/**
+ * Starts the double opt-in for the academy's news, wherever the learner
+ * ticked the box (My learning, the sign-in form): stores the wording they
+ * agreed to, in their language, and mails the link. A mail that fails is
+ * reported and its request undone, so asking again sends at once.
+ */
+export async function startNewsOptIn(
+  db: Database,
+  tenant: TenantContext,
+  learner: { userId: string; email: string },
+  t: Translator,
+): Promise<NewsOptIn> {
+  const wording = t.t("me.newsLabel", { academy: tenant.settings.author_display_name });
+  const request = await requestMarketingConsent(db, tenant.id, learner.userId, wording);
+  if (request.status !== "confirmation_needed") return request.status;
+  try {
+    await sendMarketingConfirmation(tenant, {
+      to: learner.email,
+      token: request.token,
+      locale: t.locale,
+    });
+    return "sent";
+  } catch (error) {
+    await reportError(error, {
+      runtime: "web",
+      tenant: tenant.slug,
+      extra: { mail: "news_confirmation" },
+    });
+    await withdrawMarketingConsent(db, tenant.id, learner.userId);
+    return "failed";
+  }
 }
 
 export async function sendMarketingConfirmation(

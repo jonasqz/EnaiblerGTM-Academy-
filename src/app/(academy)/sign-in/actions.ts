@@ -16,7 +16,10 @@ import { clientIp, rateLimit } from "@/server/rate-limit";
 import { getTenant, getTranslator } from "@/server/request";
 
 export type SignInState =
-  { status: "idle" } | { status: "sent"; email: string } | { status: "error"; message: string };
+  | { status: "idle" }
+  /** `news`: the learner ticked the news box and gets a second mail to confirm it. */
+  | { status: "sent"; email: string; news: boolean }
+  | { status: "error"; message: string };
 
 const TEN_MINUTES = 10 * 60_000;
 
@@ -66,11 +69,18 @@ export async function requestMagicLink(
   }
 
   const entry = decodeEntryContext(String(formData.get("ctx") ?? "")) ?? {};
+  // The news box rides along in the link as the language its wording was read in
+  // (no cookie); the double opt-in starts once the link proves the address.
+  const news = formData.get("news") === "on";
   try {
     await authFor(tenant).api.signInMagicLink({
       body: {
         email: email.data,
-        callbackURL: continueUrl(entry, safeNextPath(String(formData.get("next") ?? ""))),
+        callbackURL: continueUrl(
+          entry,
+          safeNextPath(String(formData.get("next") ?? "")),
+          news ? t.locale : null,
+        ),
         errorCallbackURL: "/sign-in",
         metadata: { locale: t.locale },
       },
@@ -81,5 +91,5 @@ export async function requestMagicLink(
     console.error("[sign-in] magic link failed", error);
     return failure;
   }
-  return { status: "sent", email: email.data };
+  return { status: "sent", email: email.data, news };
 }

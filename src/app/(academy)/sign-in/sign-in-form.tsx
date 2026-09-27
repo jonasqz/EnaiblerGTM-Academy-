@@ -6,7 +6,15 @@ import { useActionForm } from "@/components/ui/use-action-form";
 export function SignInForm(props: {
   ctx: string | null;
   next: string | null;
-  labels: { email: string; submit: string; sending: string; sent: string };
+  labels: {
+    email: string;
+    submit: string;
+    sending: string;
+    sent: string;
+    /** The academy's newsletter wording, as on "My learning"; none for the Studio's sign-in. */
+    news: string | null;
+    newsNext: string;
+  };
 }) {
   const { state, pending, onSubmit } = useActionForm<SignInState>(requestMagicLink, {
     status: "idle",
@@ -14,9 +22,10 @@ export function SignInForm(props: {
 
   if (state.status === "sent") {
     return (
-      <p role="status" className="card p-5">
-        {props.labels.sent.replace("{email}", state.email)}
-      </p>
+      <div role="status" className="card space-y-2 p-5">
+        <p>{props.labels.sent.replace("{email}", state.email)}</p>
+        {state.news && <p className="text-sm text-muted">{props.labels.newsNext}</p>}
+      </div>
     );
   }
 
@@ -35,6 +44,12 @@ export function SignInForm(props: {
           className="w-full rounded-card border-outline border-line bg-card px-4 py-3"
         />
       </label>
+      {props.labels.news && (
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="news" className="mt-1 size-4 shrink-0" />
+          <span className="text-sm">{props.labels.news}</span>
+        </label>
+      )}
       {state.status === "error" && (
         <p role="alert" className="text-sm font-semibold">
           {state.message}

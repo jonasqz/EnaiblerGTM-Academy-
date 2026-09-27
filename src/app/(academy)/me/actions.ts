@@ -7,11 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { authFor } from "@/server/auth";
-import {
-  requestMarketingConsent,
-  sendMarketingConfirmation,
-  withdrawMarketingConsent,
-} from "@/server/consent";
+import { startNewsOptIn, withdrawMarketingConsent } from "@/server/consent";
 import { deleteMyData, setContactOptIn, setDisplayName } from "@/server/profile";
 import { getTranslator } from "@/server/request";
 
@@ -35,25 +31,8 @@ export async function saveContactOptInAction(formData: FormData): Promise<void> 
 export async function subscribeNewsAction(formData: FormData): Promise<void> {
   if (formData.get("agree") !== "on") redirect("/me#news");
   const { tenant, viewer } = await requireViewer("/me");
-  const t = await getTranslator();
-  // Store the exact wording the learner agreed to.
-  const wording = t.t("me.newsLabel", { academy: tenant.settings.author_display_name });
-  const request = await requestMarketingConsent(getDb(), tenant.id, viewer.userId, wording);
-  if (request.status === "confirmation_needed") {
-    try {
-      await sendMarketingConfirmation(tenant, {
-        to: viewer.email,
-        token: request.token,
-        locale: t.locale,
-      });
-    } catch (error) {
-      console.error("[consent] confirmation mail failed", error);
-      // Nothing was confirmed and no link arrived: back to the start, so a retry sends at once.
-      await withdrawMarketingConsent(getDb(), tenant.id, viewer.userId);
-      redirect("/me?news=failed#news");
-    }
-  }
-  redirect("/me?news=sent#news");
+  const started = await startNewsOptIn(getDb(), tenant, viewer, await getTranslator());
+  redirect(started === "failed" ? "/me?news=failed#news" : "/me?news=sent#news");
 }
 
 export async function unsubscribeNewsAction(): Promise<void> {
