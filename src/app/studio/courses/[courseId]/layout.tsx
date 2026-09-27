@@ -1,5 +1,5 @@
 import { ArrowLeft, ExternalLink, Eye } from "lucide-react";
-import type { Route } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -10,6 +10,22 @@ import { localize } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { getStudioText } from "@/server/studio-text";
+
+export async function generateMetadata({
+  params,
+}: Pick<LayoutProps<"/studio/courses/[courseId]">, "params">): Promise<Metadata> {
+  const { courseId } = await params;
+  const { tenant } = await requireCapability("courses.view", `/studio/courses/${courseId}`);
+  const editor = await getCourseEditor(tenant.id, courseId);
+  if (!editor) return {};
+  // The overview is titled by the course; its tabs by their own names, like every Studio page.
+  return {
+    title: {
+      default: localize(editor.course.title, tenant.settings.default_locale),
+      template: "%s · Studio",
+    },
+  };
+}
 
 /** Course editor shell: the build steps as tabs, in the order a course gets made. */
 export default async function StudioCourseLayout({

@@ -7,7 +7,8 @@ import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getStudioText();
-  return { title: t.t("settings.title") };
+  // A plain string would drop the Studio's "%s · Studio" for the tabs below.
+  return { title: { default: t.t("settings.title"), template: "%s · Studio" } };
 }
 
 export default async function SettingsLayout({ children }: LayoutProps<"/studio/settings">) {
