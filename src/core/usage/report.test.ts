@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { emptyTotals, type AiUsageKind, type KindUsage } from "@/core/usage/ai-usage";
-import { usageReport, usageReportCsv, usageReportTable } from "@/core/usage/report";
+import {
+  usageReport,
+  usageReportCsv,
+  usageReportLine,
+  usageReportTable,
+} from "@/core/usage/report";
 
 const usage = (kind: AiUsageKind, values: Partial<KindUsage>): KindUsage => ({
   kind,
@@ -10,8 +15,10 @@ const usage = (kind: AiUsageKind, values: Partial<KindUsage>): KindUsage => ({
   ...values,
 });
 
+const unlimited = { allowanceMicroUsd: null, spentMicroUsd: 0 };
+
 const september = usageReport("2026-09", [
-  { slug: "quiet", name: "Quiet Academy", kinds: [] },
+  { slug: "quiet", name: "Quiet Academy", kinds: [], allowance: unlimited },
   {
     slug: "acme",
     name: "Acme Academy",
@@ -23,6 +30,8 @@ const september = usageReport("2026-09", [
       usage("embedding", { calls: 3, items: 2, tokensIn: 9000, costMicroUsd: 90 }),
       usage("brand_import", { calls: 1, items: 1, costIncomplete: true }),
     ],
+    // As the allowance counts it: the costs, the unpriced brand import at $0.05 and 5.2 minutes of audio.
+    allowance: { allowanceMicroUsd: 200_000, spentMicroUsd: 137_290 },
   },
 ]);
 
@@ -41,12 +50,17 @@ describe("usage report", () => {
       transcriptionSeconds: 312,
       totalCostMicroUsd: 56_090,
       costIncomplete: true,
+      countedMicroUsd: 137_290,
+      allowanceMicroUsd: 200_000,
+      allowancePercent: 68,
     });
     expect(september.lines[1]).toMatchObject({
       reviews: 0,
       costPerReviewMicroUsd: null,
       totalCostMicroUsd: 0,
       costIncomplete: false,
+      allowanceMicroUsd: null,
+      allowancePercent: null,
     });
     expect(september.total).toMatchObject({
       name: "2 academies",
@@ -54,7 +68,23 @@ describe("usage report", () => {
       costPerReviewMicroUsd: 4_000,
       totalCostMicroUsd: 56_090,
       costIncomplete: true,
+      countedMicroUsd: 137_290,
+      allowanceMicroUsd: null,
+      allowancePercent: null,
     });
+  });
+
+  it("shows how far past its allowance an academy went", () => {
+    const over = usageReportLine({ slug: "busy", name: "Busy" }, [], {
+      allowanceMicroUsd: 100_000,
+      spentMicroUsd: 104_900,
+    });
+    expect(over.allowancePercent).toBe(104);
+    const none = usageReportLine({ slug: "off", name: "Off" }, [], {
+      allowanceMicroUsd: 0,
+      spentMicroUsd: 0,
+    });
+    expect(none.allowancePercent).toBe(100);
   });
 
   it("prints aligned columns with a total and marks costs that are lower bounds", () => {
@@ -67,23 +97,33 @@ describe("usage report", () => {
     expect(acme.indexOf("0.0160") + "0.0160".length).toBe(
       header.indexOf("review cost") + "review cost".length,
     );
-    expect(acme).toMatch(/ 0\.0040 .* 5\.2 +0\.0561 \*$/);
-    expect(quiet).toMatch(/ - .* 0\.0000$/);
-    expect(lines.find((line) => line.startsWith("total"))).toMatch(/2 academies +4 .*\*$/);
+    expect(acme).toMatch(/ 0\.0040 .* 5\.2 +0\.0561 +0\.1373 +0\.20 +68 % \*$/);
+    expect(quiet).toMatch(/ - .* 0\.0000 +0\.0000 +unlimited +-$/);
+    expect(lines.find((line) => line.startsWith("total"))).toMatch(
+      /2 academies +4 .* 0\.0561 +0\.1373 +\*$/,
+    );
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^counted: .*AI_UNPRICED_CALL_USD a call, 0\.006 a minute/),
+    );
     expect(lines.at(-1)).toMatch(/^\* Some calls had no reported price/);
   });
 
   it("writes CSV that no spreadsheet turns into a formula", () => {
     const csv = usageReportCsv(
       usageReport("2026-09", [
-        { slug: "x", name: '=HYPERLINK("https://evil.example")', kinds: [] },
-        { slug: "y", name: "Smith, Jones\nand Co", kinds: [] },
+        {
+          slug: "x",
+          name: '=HYPERLINK("https://evil.example")',
+          kinds: [],
+          allowance: { allowanceMicroUsd: 25_000_000, spentMicroUsd: 0 },
+        },
+        { slug: "y", name: "Smith, Jones\nand Co", kinds: [], allowance: unlimited },
       ]),
     );
     expect(csv.split("\n")).toEqual([
-      "month,academy,name,ai_reviews,review_cost_usd,cost_per_review_usd,authoring_calls,authoring_cost_usd,transcription_minutes,total_cost_usd,costs_incomplete",
-      `2026-09,x,"'=HYPERLINK(""https://evil.example"")",0,0.0000,,0,0.0000,0.0,0.0000,false`,
-      `2026-09,y,"Smith, Jones and Co",0,0.0000,,0,0.0000,0.0,0.0000,false`,
+      "month,academy,name,ai_reviews,review_cost_usd,cost_per_review_usd,authoring_calls,authoring_cost_usd,transcription_minutes,total_cost_usd,costs_incomplete,counted_usd,allowance_usd,allowance_used_percent",
+      `2026-09,x,"'=HYPERLINK(""https://evil.example"")",0,0.0000,,0,0.0000,0.0,0.0000,false,0.0000,25.00,0`,
+      `2026-09,y,"Smith, Jones and Co",0,0.0000,,0,0.0000,0.0,0.0000,false,0.0000,unlimited,`,
       "",
     ]);
   });
