@@ -95,6 +95,90 @@ export const en = {
   "team.role.reviewer": "Reviewer",
   "team.role.mentor": "Mentor",
   "team.role.tenant_admin": "Admin",
+
+  // Paths & levels
+  "team.paths.title": "Paths & levels",
+  "team.paths.description":
+    "Paths are ordered sets of courses with an identity learners choose (your academy calls them “{term}”). Levels reward progress along a path. Both are optional.",
+  "team.paths.settingsAdmins": "Settings (academy admins)",
+  "team.paths.deleted": "Path deleted",
+  "team.paths.off": "Paths are switched off",
+  "team.paths.offBody":
+    "Learners see a plain course catalogue. Switch paths on in {settings} when they are ready.",
+  "team.paths.heading": "Paths",
+  "team.paths.empty": "No paths yet",
+  "team.paths.emptyBody": "Start with two or three: each one a direction a learner can grow in.",
+  "team.paths.chosen.one": "{n} learner chose it",
+  "team.paths.chosen.other": "{n} learners chose it",
+  "team.paths.moveUp": "Move up",
+  "team.paths.moveDown": "Move down",
+  "team.paths.levels": "Levels",
+  "team.paths.levelsBody":
+    "A learner’s level counts per path. It appears on their certificates as “Level N · name”, so level names follow the same wording rules as course titles.",
+  "team.paths.levelsOff": "Levels are switched off",
+  "team.paths.levelsOffBody":
+    "You can prepare them here; learners see them once levels are on in {settings}.",
+  "team.paths.new": "New path",
+  "team.paths.newPlaceholder": "e.g. Builder",
+  "team.paths.add": "Add path",
+  "team.paths.nameIn": "Name ({language})",
+  "team.paths.actions.nameRequired": "Give the path a name.",
+  "team.paths.actions.nameMainLanguage": "Name the path in the academy's main language.",
+  "team.paths.actions.colorFormat": "Colours are hex values like #dd7f6c.",
+  "team.paths.actions.saved": "Path saved.",
+  "team.paths.actions.levelsUnreadable":
+    "The levels could not be read. Reload the page and try again.",
+  "team.paths.actions.levelsSaved": "Levels saved.",
+
+  // Level editor
+  "team.levels.rule.courses_completed_in_path": "Courses completed",
+  "team.levels.rule.path_complete": "Whole path completed",
+  "team.levels.rule.manual_grant": "Granted by the team",
+  "team.levels.empty": "No levels yet. Learners then only see their path.",
+  "team.levels.reachedWhen": "Reached when",
+  "team.levels.atLeast": "at least",
+  "team.levels.inPath": "in this path",
+  "team.levels.remove": "Remove level {n}",
+  "team.levels.add": "Add a level",
+  "team.levels.save": "Save levels",
+  "team.levels.error.name": "Level {n} needs a name.",
+  "team.levels.error.rule": "Level {n}: enter a whole number of courses.",
+  "team.levels.error.max": "Use at most 20 levels.",
+
+  // One path
+  "team.path.title": "Path",
+  "team.path.stays": "This path stays",
+  "team.path.staysBody":
+    "Learners have chosen it or earned credentials in it. Remove its courses or rename it instead.",
+  "team.path.picture": "Picture",
+  "team.path.pictureBody":
+    "Shown on the path, in the catalogue and on certificates. SVG is best; we also render it to PNG for shared certificate images.",
+  "team.path.noPicture": "No picture",
+  "team.path.removePicture": "Remove picture",
+  "team.path.courses": "Courses, in order",
+  "team.path.coursesBody":
+    "Learners on this path take them in this order; level rules count the courses completed in it. Only published courses are visible to learners.",
+  "team.path.noCourses": "No courses in this path yet.",
+  "team.path.removeCourse": "Remove from path",
+  "team.path.addCourse": "Add a course",
+  "team.path.deleteConfirm": "Delete this path? Its courses stay; only the path goes.",
+  "team.path.delete": "Delete path",
+  "team.path.promiseIn": "Promise ({language})",
+  "team.path.promisePlaceholder": "What learners on this path become able to do.",
+  "team.path.color": "Colour",
+  "team.path.pickColor": "Pick the colour",
+  "team.path.colorFromBrand": "{color} (from the brand)",
+  "team.path.address": "Address",
+  "team.path.addressHint":
+    "Used in /paths/… and entry links (?path=…). Changing it breaks old links.",
+  "team.path.save": "Save path",
+  "team.path.upload.choose": "Upload SVG or PNG",
+  "team.path.upload.tooLarge": "{name} is too large (up to 1 MB).",
+  "team.path.upload.type": "{name}: use SVG, PNG or WebP.",
+  "team.path.upload.invalid":
+    "{name} could not be used: SVGs must not contain scripts or links to other files.",
+  "team.path.upload.tooMany": "One picture per path.",
+  "team.path.applying": "Applying the picture…",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -188,4 +272,87 @@ export const de: Record<keyof typeof en, string> = {
   "team.role.reviewer": "Prüfer:in",
   "team.role.mentor": "Mentor:in",
   "team.role.tenant_admin": "Admin",
+
+  "team.paths.title": "Lernpfade & Level",
+  "team.paths.description":
+    "Lernpfade sind geordnete Folgen von Kursen mit einer eigenen Identität, für die sich Lernende entscheiden (deine Akademie nennt sie „{term}“). Level belohnen den Fortschritt auf einem Lernpfad. Beides ist optional.",
+  "team.paths.settingsAdmins": "Einstellungen (Admins der Akademie)",
+  "team.paths.deleted": "Lernpfad gelöscht",
+  "team.paths.off": "Lernpfade sind ausgeschaltet",
+  "team.paths.offBody":
+    "Lernende sehen einen einfachen Kurskatalog. Schalte Lernpfade in den {settings} ein, sobald sie bereit sind.",
+  "team.paths.heading": "Lernpfade",
+  "team.paths.empty": "Noch keine Lernpfade",
+  "team.paths.emptyBody":
+    "Fang mit zwei oder drei an: jeder eine Richtung, in die sich Lernende entwickeln können.",
+  "team.paths.chosen.one": "{n} lernende Person hat ihn gewählt",
+  "team.paths.chosen.other": "{n} Lernende haben ihn gewählt",
+  "team.paths.moveUp": "Nach oben",
+  "team.paths.moveDown": "Nach unten",
+  "team.paths.levels": "Level",
+  "team.paths.levelsBody":
+    "Das Level zählt je Lernpfad. Es steht auf den Abschlussbescheinigungen als „Level N · Name“, deshalb gelten für Level-Namen dieselben Formulierungsregeln wie für Kurstitel.",
+  "team.paths.levelsOff": "Level sind ausgeschaltet",
+  "team.paths.levelsOffBody":
+    "Du kannst sie hier vorbereiten; Lernende sehen sie, sobald Level in den {settings} eingeschaltet sind.",
+  "team.paths.new": "Neuer Lernpfad",
+  "team.paths.newPlaceholder": "z. B. Macher:in",
+  "team.paths.add": "Lernpfad hinzufügen",
+  "team.paths.nameIn": "Name ({language})",
+  "team.paths.actions.nameRequired": "Gib dem Lernpfad einen Namen.",
+  "team.paths.actions.nameMainLanguage": "Benenne den Lernpfad in der Hauptsprache der Akademie.",
+  "team.paths.actions.colorFormat": "Farben sind Hex-Werte wie #dd7f6c.",
+  "team.paths.actions.saved": "Lernpfad gespeichert.",
+  "team.paths.actions.levelsUnreadable":
+    "Die Level konnten nicht gelesen werden. Lade die Seite neu und versuch es noch einmal.",
+  "team.paths.actions.levelsSaved": "Level gespeichert.",
+
+  "team.levels.rule.courses_completed_in_path": "Abgeschlossene Kurse",
+  "team.levels.rule.path_complete": "Ganzer Lernpfad abgeschlossen",
+  "team.levels.rule.manual_grant": "Vom Team vergeben",
+  "team.levels.empty": "Noch keine Level. Lernende sehen dann nur ihren Lernpfad.",
+  "team.levels.reachedWhen": "Erreicht durch",
+  "team.levels.atLeast": "mindestens",
+  "team.levels.inPath": "in diesem Lernpfad",
+  "team.levels.remove": "Level {n} entfernen",
+  "team.levels.add": "Level hinzufügen",
+  "team.levels.save": "Level speichern",
+  "team.levels.error.name": "Level {n} braucht einen Namen.",
+  "team.levels.error.rule": "Level {n}: Gib eine ganze Zahl von Kursen an.",
+  "team.levels.error.max": "Du kannst höchstens 20 Level anlegen.",
+
+  "team.path.title": "Lernpfad",
+  "team.path.stays": "Dieser Lernpfad bleibt",
+  "team.path.staysBody":
+    "Lernende haben ihn gewählt oder darin Abschlussbescheinigungen erhalten. Entferne stattdessen seine Kurse oder benenne ihn um.",
+  "team.path.picture": "Bild",
+  "team.path.pictureBody":
+    "Erscheint auf dem Lernpfad, im Katalog und auf Abschlussbescheinigungen. SVG ist am besten; für geteilte Bilder der Abschlussbescheinigung erzeugen wir zusätzlich ein PNG.",
+  "team.path.noPicture": "Kein Bild",
+  "team.path.removePicture": "Bild entfernen",
+  "team.path.courses": "Kurse in Reihenfolge",
+  "team.path.coursesBody":
+    "Lernende auf diesem Lernpfad machen sie in dieser Reihenfolge; die Level-Regeln zählen die darin abgeschlossenen Kurse. Nur veröffentlichte Kurse sind für Lernende sichtbar.",
+  "team.path.noCourses": "Noch keine Kurse in diesem Lernpfad.",
+  "team.path.removeCourse": "Aus dem Lernpfad entfernen",
+  "team.path.addCourse": "Kurs hinzufügen",
+  "team.path.deleteConfirm":
+    "Diesen Lernpfad löschen? Seine Kurse bleiben, nur der Lernpfad wird entfernt.",
+  "team.path.delete": "Lernpfad löschen",
+  "team.path.promiseIn": "Versprechen ({language})",
+  "team.path.promisePlaceholder": "Was Lernende auf diesem Lernpfad danach können.",
+  "team.path.color": "Farbe",
+  "team.path.pickColor": "Farbe wählen",
+  "team.path.colorFromBrand": "{color} (aus der Marke)",
+  "team.path.address": "Adresse",
+  "team.path.addressHint":
+    "Steht in /paths/… und in Einstiegslinks (?path=…). Wenn du sie änderst, funktionieren alte Links nicht mehr.",
+  "team.path.save": "Lernpfad speichern",
+  "team.path.upload.choose": "SVG oder PNG hochladen",
+  "team.path.upload.tooLarge": "{name} ist zu groß (höchstens 1 MB).",
+  "team.path.upload.type": "{name}: Nutze SVG, PNG oder WebP.",
+  "team.path.upload.invalid":
+    "{name} lässt sich nicht verwenden: SVGs dürfen keine Skripte oder Links auf andere Dateien enthalten.",
+  "team.path.upload.tooMany": "Ein Bild pro Lernpfad.",
+  "team.path.applying": "Bild wird übernommen…",
 };

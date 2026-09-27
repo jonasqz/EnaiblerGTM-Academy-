@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Route as RouteIcon } from "lucide-react";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { movePathAction } from "@/app/studio/paths/actions";
 import { LevelsEditor } from "@/app/studio/paths/levels-editor";
@@ -15,52 +16,70 @@ import { pathColor } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listStudioPaths, loadLevels } from "@/server/studio/paths";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Paths & levels" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.paths.title") };
+}
+
+/** A translated sentence with the settings link where its {settings} placeholder is. */
+function withSettings(sentence: string, settings: ReactNode): ReactNode {
+  const [before, after] = sentence.split("{settings}");
+  return (
+    <>
+      {before}
+      {settings}
+      {after}
+    </>
+  );
+}
 
 /** Paths and levels (brief §4): optional modules, managed here or by manifest. */
 export default async function PathsPage({ searchParams }: PageProps<"/studio/paths">) {
   const { deleted } = await searchParams;
   const { tenant, roles } = await requireCapability("courses.edit", "/studio/paths");
+  const t = await getStudioText();
   const { settings, theme } = tenant;
   const [rows, levels] = await Promise.all([
     listStudioPaths(getDb(), tenant.id),
     loadLevels(getDb(), tenant.id),
   ]);
   const locale = settings.default_locale;
-  const terms = createTranslator({ locale: "en", termOverrides: tenant.terminology });
+  const terms = createTranslator({ locale: t.locale, termOverrides: tenant.terminology });
   const settingsLink = roles.includes("tenant_admin") ? (
     <Link href="/studio/settings" className="underline">
-      Settings
+      {t.t("common.nav.settings")}
     </Link>
   ) : (
-    "Settings (academy admins)"
+    t.t("team.paths.settingsAdmins")
   );
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Studio"
-        title="Paths & levels"
-        description={`Paths are ordered sets of courses with an identity learners choose (your academy calls them “${terms.term("path", { plural: true })}”). Levels reward progress along a path. Both are optional.`}
+        eyebrow={t.t("common.studio")}
+        title={t.t("team.paths.title")}
+        description={t.t("team.paths.description", {
+          term: terms.term("path", { plural: true }),
+        })}
       />
-      {deleted === "1" && <Notice tone="good" title="Path deleted" />}
+      {deleted === "1" && <Notice tone="good" title={t.t("team.paths.deleted")} />}
       {!settings.features.paths && (
-        <Notice tone="info" title="Paths are switched off">
-          Learners see a plain course catalogue. Switch paths on in {settingsLink} when they are
-          ready.
+        <Notice tone="info" title={t.t("team.paths.off")}>
+          {withSettings(t.t("team.paths.offBody"), settingsLink)}
         </Notice>
       )}
 
       <section aria-labelledby="paths-heading" className="space-y-4">
         <h2 id="paths-heading" className="text-lg font-semibold">
-          Paths
+          {t.t("team.paths.heading")}
         </h2>
         {rows.length === 0 ? (
           <EmptyState
             icon={RouteIcon}
-            title="No paths yet"
-            body="Start with two or three: each one a direction a learner can grow in."
+            title={t.t("team.paths.empty")}
+            body={t.t("team.paths.emptyBody")}
           />
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
@@ -94,8 +113,8 @@ export default async function PathsPage({ searchParams }: PageProps<"/studio/pat
                     </p>
                   )}
                   <p className="text-xs text-muted">
-                    {courses.length} {courses.length === 1 ? "course" : "courses"} · {learners}{" "}
-                    {learners === 1 ? "learner" : "learners"} chose it · /paths/{path.slug}
+                    {t.n("common.course", courses.length)} · {t.n("team.paths.chosen", learners)} ·
+                    /paths/{path.slug}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -105,7 +124,9 @@ export default async function PathsPage({ searchParams }: PageProps<"/studio/pat
                       <input type="hidden" name="direction" value={direction} />
                       <SubmitButton
                         className="btn btn-ghost btn-sm"
-                        title={direction === "up" ? "Move up" : "Move down"}
+                        title={
+                          direction === "up" ? t.t("team.paths.moveUp") : t.t("team.paths.moveDown")
+                        }
                         disabled={direction === "up" ? index === 0 : index === rows.length - 1}
                       >
                         {direction === "up" ? (
@@ -127,16 +148,13 @@ export default async function PathsPage({ searchParams }: PageProps<"/studio/pat
       <section aria-labelledby="levels-heading" className="space-y-4">
         <div>
           <h2 id="levels-heading" className="text-lg font-semibold">
-            Levels
+            {t.t("team.paths.levels")}
           </h2>
-          <p className="text-sm text-muted">
-            A learner&rsquo;s level counts per path. It appears on their certificates as “Level N ·
-            name”, so level names follow the same wording rules as course titles.
-          </p>
+          <p className="text-sm text-muted">{t.t("team.paths.levelsBody")}</p>
         </div>
         {!settings.features.levels && (
-          <Notice tone="info" title="Levels are switched off">
-            You can prepare them here; learners see them once levels are on in {settingsLink}.
+          <Notice tone="info" title={t.t("team.paths.levelsOff")}>
+            {withSettings(t.t("team.paths.levelsOffBody"), settingsLink)}
           </Notice>
         )}
         <LevelsEditor levels={levels} locales={[...settings.locales]} />
