@@ -44,7 +44,7 @@ function Media(props: { chapter: Chapter; locale: Locale; alts: HowCopy["alts"] 
           <PhoneFrame
             image={shot("lessonPhone", locale)}
             alt={alts.lesson}
-            className="relative z-10 -mt-24 ml-auto w-[42%] max-w-[210px] sm:-mt-32 lg:absolute lg:-right-6 lg:-bottom-16"
+            className="relative z-10 -mt-20 ml-auto w-[36%] max-w-[180px] sm:-mt-28 lg:absolute lg:-right-10 lg:-bottom-20"
           />
         </div>
       );
@@ -67,7 +67,7 @@ function Media(props: { chapter: Chapter; locale: Locale; alts: HowCopy["alts"] 
           <PhoneFrame
             image={shot("landingPhone", locale)}
             alt={alts.landing}
-            className="relative z-10 -mt-24 w-[42%] max-w-[210px] sm:-mt-32 lg:absolute lg:-bottom-16 lg:-left-8"
+            className="relative z-10 -mt-20 w-[36%] max-w-[180px] sm:-mt-28 lg:absolute lg:-bottom-20 lg:-left-12"
           />
         </div>
       );

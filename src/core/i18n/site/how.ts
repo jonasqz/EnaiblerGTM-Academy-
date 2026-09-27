@@ -115,7 +115,7 @@ const de: HowCopy = {
       "Bau eine Academy aus deinem Wissen, lass Lernende zeigen, was sie können, und mach aus jeder geteilten Abschlussbescheinigung neue Lernende und Leads.",
   },
   hero: {
-    eyebrow: "So funktioniert's",
+    eyebrow: "So funktioniert’s",
     title: "Von deinem Wissen zu deinem nächsten Kunden.",
     body: "Eine Academy auf enaibler läuft in vier Stufen. Du richtest sie einmal ein; den Rest erledigen die Lernenden, und ihre Arbeit bringt immer neue Menschen zu dir.",
   },

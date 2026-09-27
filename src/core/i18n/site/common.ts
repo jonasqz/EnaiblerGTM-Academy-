@@ -46,7 +46,7 @@ export type SiteCommonCopy = typeof en;
 const de: SiteCommonCopy = {
   nav: {
     label: "Hauptmenü",
-    how: "So funktioniert's",
+    how: "So funktioniert’s",
     consultancies: "Beratungen",
     software: "Softwareunternehmen",
     create: "Academy erstellen",
@@ -65,7 +65,7 @@ const de: SiteCommonCopy = {
   },
   cta: {
     create: "Academy erstellen",
-    how: "So funktioniert's",
+    how: "So funktioniert’s",
     demo: "Demo-Academy ansehen",
   },
   close: {
