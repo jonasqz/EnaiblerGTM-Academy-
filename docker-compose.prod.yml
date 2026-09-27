@@ -1,7 +1,8 @@
 # Coolify deployment (Docker Compose build pack), one stack per environment.
 # Postgres runs as a separate Coolify database resource (backups, restore);
-# set the variables below in Coolify. Tenant domains are added to the `web`
-# service in Coolify (Traefik + Let's Encrypt). See docs/deployment.md.
+# set the variables below in Coolify. Object storage (deploy/storage) is its own
+# resource too. Manifest domains are added to the `web` service in Coolify;
+# academies' own domains reach Traefik through its HTTP provider. See docs/deployment.md.
 services:
   migrate:
     build: { context: ., target: worker }
@@ -44,7 +45,20 @@ services:
       CUSTOM_DOMAIN_TARGET: ${CUSTOM_DOMAIN_TARGET:-}
       PROXY_CONFIG_TOKEN: ${PROXY_CONFIG_TOKEN:-}
       PROXY_SERVICE_URL: ${PROXY_SERVICE_URL:-}
+      PROXY_HTTP_ENTRYPOINT: ${PROXY_HTTP_ENTRYPOINT:-}
+      PROXY_HTTPS_ENTRYPOINT: ${PROXY_HTTPS_ENTRYPOINT:-}
       PROXY_CERT_RESOLVER: ${PROXY_CERT_RESOLVER:-}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+      # Cookieless page views and error reports (docs/deployment.md §8).
+      ANALYTICS_PROVIDER: ${ANALYTICS_PROVIDER:-}
+      ANALYTICS_SCRIPT_URL: ${ANALYTICS_SCRIPT_URL:-}
+      ANALYTICS_WEBSITE_ID: ${ANALYTICS_WEBSITE_ID:-}
+      ERROR_REPORTING_DSN: ${ERROR_REPORTING_DSN:-}
+      APP_RELEASE: ${APP_RELEASE:-}
+      APP_ENV: ${APP_ENV:-}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-}
+      LOG_FORMAT: ${LOG_FORMAT:-}
+      S3_REGION: ${S3_REGION:-}
     expose:
       - "3000"
     restart: unless-stopped
@@ -77,4 +91,9 @@ services:
       S3_BUCKET: ${S3_BUCKET:-}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_REGION: ${S3_REGION:-}
+      ERROR_REPORTING_DSN: ${ERROR_REPORTING_DSN:-}
+      APP_RELEASE: ${APP_RELEASE:-}
+      APP_ENV: ${APP_ENV:-}
+      LOG_FORMAT: ${LOG_FORMAT:-}
     restart: unless-stopped

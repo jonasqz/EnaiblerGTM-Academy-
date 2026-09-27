@@ -6,35 +6,35 @@ The product spec is [`docs/product-brief-v2.md`](docs/product-brief-v2.md) (Brie
 
 ## Status
 
-This repository holds the **October 2026 foundation** from the brief's build order (§13), most of the November work (the learner loop, the review pipeline and the Studio) and self-serve academies: customers sign up, get their academy at once and style it themselves.
+This repository covers the brief's MVP (§12) and phase 2: everything except payments. Phase 3 (payments for `paid_live`, team licences, expert academies) is not started; paid courses stay blocked (`src/core/compliance/delivery-mode.ts`).
 
-| Area                                         | State                                                                                                                                                                                                                                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tenant, theme, terminology and domain system | ✅ Declarative tenant manifests (`config/tenants/*.yaml`) validated by one generic schema. Tenant 0 (Appendix A) is pure config, and a test reads Appendix A straight from the brief.                                                                                         |
-| Data model with RLS                          | ✅ Drizzle schema for the §4 entities. Postgres RLS is enabled **and forced** on every tenant table, composite foreign keys block cross-tenant links, and tests run against real Postgres.                                                                                    |
-| Auth                                         | ✅ Better Auth magic links, one instance per academy (tenant-bound sessions, host-only cookies). A confirm step stops mail scanners from using up the link. `?next=` brings people back to where they were.                                                                   |
-| Deep-link entry                              | ✅ `/start?path&course&lang&utm_*` carries its context through sign-up in the URL, with no tracking cookie, and it is stored on the enrollment.                                                                                                                               |
-| Learner loop                                 | ✅ Catalogue, course page, lesson player with progress (resumable, per-language lessons linked by key), assignment with text, template-form and link hand-ins, feedback per criterion, revise and resubmit.                                                                   |
-| AI review                                    | ✅ `review.run` job: rubric-scored review through LiteLLM, §8 routing (spot checks, escalation near the threshold and on repeated fails), human fallback when the gateway fails, review queue with decisions and overrides with reason.                                       |
-| Credentials                                  | ✅ Issued on pass, revoked on a reversed decision, levels on paths. Verification page, OG image and card, LinkedIn share and add-to-profile, visibility toggle, CTA back into `/start`. Open Badges 3.0 builder and import schema.                                            |
-| Studio (authors and reviewers)               | ✅ Overview with funnel, every course incl. drafts, outcome-first create and edit (outcome, rubric editor, lessons with versions, coverage map, details, publish checklist, preview as learner), learners per course, people, reviews.                                        |
-| Self-serve academies                         | ✅ Customers create an academy on the platform site: name, address `<slug>.<ACADEMY_DOMAIN>`, work e-mail, languages, terms and DPA. It is a database write in the running deployment, never a deploy, and a magic link takes the first admin into the Studio.                |
-| Academy settings and brand                   | ✅ Studio → Settings: name, languages, website, legal pages, CTA. Brand editor with presets, colours, bundled fonts, shape, live preview and a contrast guard. "Import from your website" proposes a theme from the site's CSS, optionally refined by the model.              |
-| Learner data                                 | ✅ "My learning": certificates and their visibility, name on certificates, contact opt-in (lead handoff), JSON export, delete.                                                                                                                                                |
-| Jobs, storage, events                        | 🟡 pg-boss worker (e-mail and review handlers), tenant-prefixed S3 keys with signed URLs, product events and the funnel.                                                                                                                                                      |
-| Not started                                  | Custom domains for self-serve academies, logo and own-font upload, file uploads (PDF, images), AI drafting (rubric from an example, recording → Whisper → lessons), calibration against exemplars, path and level editing in the Studio, Studio in German, cohorts, payments. |
+| Area                                | State                                                                                                                                                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tenant, theme, terminology, domains | ✅ Declarative tenant manifests (`config/tenants/*.yaml`) validated by one generic schema; tenant 0 (Appendix A) is pure config, and a test reads Appendix A from the brief. Academies connect their own domain in the Studio (DNS proof, automatic certificates through the proxy).   |
+| Data model with RLS                 | ✅ Drizzle schema for the §4 entities. Postgres RLS is enabled **and forced** on every tenant table, composite foreign keys block cross-tenant links, and tests run against real Postgres.                                                                                             |
+| Auth                                | ✅ Better Auth magic links, one instance per academy (tenant-bound sessions, host-only cookies), a confirm step against mail scanners, rate limits per IP and per address.                                                                                                             |
+| Entry                               | ✅ Deep links `/start?path&course&lang&utm_*` carry their context through sign-up in the URL, no tracking cookie. An embeddable path picker (`/embed.js`) brings the academy onto the customer's website.                                                                              |
+| Learner loop                        | ✅ Catalogue, paths, course page, lesson player (resumable, per-language lessons linked by key), hand-ins as text, form, link, PDF or images, feedback per criterion, revise and resubmit, cohorts joined by link.                                                                     |
+| AI review                           | ✅ `review.run` job: rubric-scored review through LiteLLM, including PDFs and images, §8 routing (spot checks, escalation near the threshold and on repeated fails), human fallback, review queue with decisions and overrides, calibration against the author's exemplars.            |
+| Credentials                         | ✅ Issued on pass, revoked on a reversed decision, levels on paths. Verification page, OG image, LinkedIn share and add-to-profile, visibility toggle, CTA back into `/start`, a showcase with pictures, signed Open Badges 3.0 (VC-JWT) and an import from other platforms.           |
+| Authoring                           | ✅ Outcome first: rubric drafted from an example, sources (screen recordings → Whisper → steps with screenshots, documents, web pages, an interview), lessons drafted backwards from the rubric, coverage map, versions, preview, publish checklist. Changed web sources flag lessons. |
+| Studio                              | ✅ German and English. Overview with funnel, courses, paths and levels, cohorts with mentors, reviews, people and contacts, settings, brand (logo, own fonts, import from the website), domains, integrations (API keys, webhooks, embed code).                                        |
+| Self-serve academies                | ✅ Customers create an academy on the platform site; it is a database write in the running deployment, never a deploy, and a magic link takes the first admin into the Studio.                                                                                                         |
+| Mail, consent, learner data         | ✅ Review-ready and level-up mails from an outbox, marketing opt-in with double opt-in and a contact export, lead handoff opt-in, "My learning" with export and delete.                                                                                                                |
+| Jobs, storage, events, operations   | ✅ pg-boss worker (reviews, mail, webhooks, authoring, domain checks, retention), self-hosted S3 (SeaweedFS), product events and funnel, outbound webhooks, cookieless page views (Umami or Plausible), error reports to GlitchTip, JSON logs.                                         |
+| Not started                         | Payments, team licences and expert academies (brief phase 3).                                                                                                                                                                                                                          |
 
 ## Quickstart
 
 ```bash
 npm install
-docker compose up -d                  # Postgres 16 + pgvector (roles via deploy/postgres/init.sh) and Mailpit
+docker compose up -d                  # Postgres 16 + pgvector (roles via deploy/postgres/init.sh), SeaweedFS (S3) and Mailpit
 cp .env.example .env.local
 npm run db:migrate                    # as the schema owner (DATABASE_MIGRATION_URL)
 npm run tenant:apply -- config/tenants/demo.yaml config/tenants/scaling-product.yaml
 npm run role:grant -- demo you@example.com tenant_admin   # your way into the Studio
 npm run dev
-npm run worker                        # second terminal: reviews and e-mail
+npm run worker                        # second terminal: reviews, e-mail, webhooks, authoring
 ```
 
 Then open:
@@ -66,27 +66,35 @@ In development, `<slug>.localhost` maps to the tenant with that slug, and new ac
 ```
 config/tenants/      Tenant manifests: tenant 0 (Appendix A) and a local demo
 deploy/postgres/     Role and database setup (owner vs. app role, pgvector, pg-boss schema)
+deploy/storage/      Object storage (SeaweedFS) as its own Coolify resource
 docs/                Product brief v2, deployment runbook
 drizzle/             Migrations (generated, plus custom: pgvector, FORCE RLS)
+public/embed.js      Path picker loader for the academies' own websites
 scripts/             migrate, tenant-apply, grant-role, review-spike
 spikes/review/       Review spike inputs (rubric and exemplars); results/ is gitignored
 src/core/            Framework-free domain logic, unit tested: tenant manifest, theme and
-                     contrast, fonts, terminology, i18n, wording lint, delivery modes, levels,
-                     entry context, rubric, review policy and prompt, credentials, storage
-                     keys, roles, lesson progress, publish checklist, starter rubric,
-                     brand signals and proposal, academy addresses, public IP check
+                     contrast, fonts, terminology, i18n (learner and Studio catalogues), wording
+                     lint, delivery modes, levels, entry context, rubric, review policy and
+                     prompt, credentials and Open Badges, storage keys and file policy, roles,
+                     authoring (drafts, transcripts, auto-update), publish checklist, brand
+                     signals, domains, webhooks, consent, notifications, analytics, error events
 src/db/              Drizzle schema, client, withTenant(), tenant manifest persistence
-src/server/          Server code: tenant resolution, auth, access, email, events, storage, LLM,
-                     jobs, learning, review job, credentials, profile, studio queries,
-                     platform (academy signup), brand import and its guarded fetch
+src/server/          Server code: tenant resolution, auth, access, email, events, storage and
+                     files, LLM, jobs, learning, review job, credentials, authoring, cohorts,
+                     domains, webhooks, secrets, consent, profile, studio queries, platform
+                     signup, brand import and its guarded fetch, logs and error reports
 src/app/(academy)/   Learner-facing pages (tenant brand, DE/EN)
+src/app/embed/       The embeddable path picker (framed by other sites)
 src/app/platform/    Platform site on PLATFORM_HOST: create an academy (enaibler brand, DE/EN)
-src/app/studio/      Studio for authors, reviewers and admins (English for now)
+src/app/studio/      Studio for authors, reviewers, mentors and admins (DE/EN)
+src/app/api/         Uploads, credential import, client errors, health, proxy config
 src/components/      UI primitives (ui/), Studio pieces (studio/), header, footer, cards
+src/instrumentation.ts  Server error reporting (Next.js onRequestError)
 src/proxy.ts         Host → platform site or tenant (Next 16 proxy, Node runtime)
 src/worker/          pg-boss worker entry point
-tests/db/            Tests against real Postgres (RLS, manifests, funnel, the full learning loop,
-                     academy signup and settings)
+tests/db/            Tests against real Postgres (RLS, manifests, the learning loop, files,
+                     authoring, calibration, paths, mail, domains, credentials, cohorts,
+                     webhooks, auto-update, signup and settings)
 ```
 
 ## How it works
@@ -103,15 +111,27 @@ tests/db/            Tests against real Postgres (RLS, manifests, funnel, the fu
 
 **Auth.** `authFor(tenant)` builds a cached Better Auth instance per academy that only accepts that academy's hosts. Every session is stamped with the tenant it was created on, and `getViewer()` ignores sessions from other academies. The magic-link e-mail uses the tenant's template and sender and links to `/sign-in/confirm`. A form POST there calls Better Auth's verify endpoint, so link pre-fetchers do not use up the single-use token.
 
-**Entry and events.** `/start` parses the deep link, drops invalid values, and passes the context along as `?ctx=` through the course page, the sign-in form and the magic-link callback. `/auth/continue` then creates the membership, profile and enrollment and records `signup_completed` and `course_started` with the entry `utm_*` values. The only cookies are the session cookie and a language preference.
+**Entry and events.** `/start` parses the deep link, drops invalid values, and passes the context along as `?ctx=` through the course page, the sign-in form and the magic-link callback. `/auth/continue` then creates the membership, profile and enrollment and records `signup_completed` and `course_started` with the entry `utm_*` values. The only cookies are the session cookie and a language preference. The path picker (`/embed/paths`, placed on a website by `public/embed.js`) is the only page other sites may frame: it grows with its content, sets no cookie, and opens `/start` in a new tab with the embed code's language and `utm_*` values.
 
-**Credentials.** `/verify/<public_id>` shows public credentials to everyone and private ones only to their owner, with a visibility toggle. Everything else looks like "This credential is no longer available". Views, CTA clicks and LinkedIn shares are recorded as events; bots are ignored. Images are rendered with `next/og` from the tenant theme.
+**Credentials.** `/verify/<public_id>` shows public credentials to everyone and private ones only to their owner, with a visibility toggle. Everything else looks like "This credential is no longer available". Views, CTA clicks and LinkedIn shares are recorded as events; bots are ignored. Images are rendered with `next/og` from the tenant theme. Learners can add a showcase (a short text and up to three pictures), shown only while the page is public. `/verify/<id>/open-badge` hands the owner an Open Badges 3.0 credential as a VC-JWT, signed with the academy's own RSA key (sealed in the database, public key and issuer profile under `/issuer`); the subject is a pseudonym, never the e-mail address. Certificates from another platform come in through `POST /api/credentials/import` (API key) or a JSON file in the Studio, idempotently and with their original dates.
 
-**Studio and roles.** Memberships carry roles (`learner`, `author`, `reviewer`, `mentor`, `tenant_admin`); `src/core/access/roles.ts` maps them to capabilities (`studio.view`, `courses.edit`, `courses.publish`, `reviews.decide`, `people.view`, `academy.manage`) and every Studio page and action checks one with `requireCapability()`. Authors see every course with its numbers, drafts included. A course starts from its outcome (what learners build and what good looks like) and a starter rubric; lessons are written against the rubric criteria, and the coverage map shows which criterion is not taught yet. Lessons keep every version. The publish checklist blocks missing languages, texts, lessons and risky wording, and "Preview as learner" shows drafts in every language. Learners appear under a per-academy alias (`L-7K2Q`); names and e-mail addresses only for learners who opted in to be contacted.
+**Studio and roles.** The Studio speaks German or English (the team member's choice, independent of the academy's languages; words in `src/core/i18n/studio`). Memberships carry roles (`learner`, `author`, `reviewer`, `mentor`, `tenant_admin`); `src/core/access/roles.ts` maps them to capabilities (`studio.view`, `courses.edit`, `courses.publish`, `reviews.decide`, `people.view`, `academy.manage`) and every Studio page and action checks one with `requireCapability()`. Authors see every course with its numbers, drafts included. A course starts from its outcome (what learners build and what good looks like) and a starter rubric; lessons are written against the rubric criteria, and the coverage map shows which criterion is not taught yet. Lessons keep every version. The publish checklist blocks missing languages, texts, lessons and risky wording, and "Preview as learner" shows drafts in every language. Learners appear under a per-academy alias (`L-7K2Q`); names and e-mail addresses only for learners who opted in to be contacted. Mentors belong to a cohort and see and review only its learners.
 
 **Review job.** Submitting enqueues `review.run` inside the same transaction (job id = submission id, so duplicates are no-ops). The worker reads in one transaction, calls the model outside any transaction, then re-checks and writes in a second one. The routing decides: release (possibly as a spot check) or hold for a human. Released passes issue the credential. Human decisions are new review rows next to the AI review; a changed verdict needs a reason and feeds the agreement rate shown per course.
 
 **AI review.** `src/core/review` holds the rubric model, weighted scoring (pass/fail is computed here, never taken from the model), the §8 routing defaults (spot checks, escalation near the threshold and on the third failed attempt), the versioned prompt with a nonce-tagged data block, and output validation that checks quoted evidence against the submission. `src/server/review/run-ai-review.ts` calls LiteLLM with structured output and retries invalid output.
+
+**Files.** Uploads go to the app (`/api/uploads`, outside the tenant proxy so bodies are not buffered), never straight to the bucket. `src/core/files/policy.ts` says per purpose what a file may contain, how large it may be and who may read it back; types come from the content, not the name, and author metadata is stripped (images are re-encoded, PDFs lose their document info). Keys start with `tenants/<id>/`. Downloads (`/files/<id>`) check access on every request: only brand assets, path pictures and lesson media are public, and showcase pictures while their page is.
+
+**Authoring with AI.** Sources are read by the worker: documents and web pages to text, recordings through Whisper into steps with a screenshot at each step change, and an interview in which the AI asks the author targeted questions. Text is chunked and, with an embedding model, embedded for retrieval. "Draft lessons" writes lessons backwards from the rubric criteria and keeps which sources each lesson draws on; every AI run records model, prompt version, tokens and cost. Web page sources are read again every day; a changed page flags the lessons based on it until an author marks them as reviewed.
+
+**Mail and consent.** Mail to learners (feedback ready, a new level) is written to an outbox in the transaction of what it reports and sent by the worker with retries; whoever saw the result on the page gets no mail. Marketing mail needs a separate double opt-in, recorded with the wording shown; the academy exports its confirmed contacts as CSV. The lead-handoff opt-in ("may contact me") is a third, separate consent.
+
+**Own domains.** An academy claims a domain in the Studio and proves control with a TXT record; the worker checks DNS every ten minutes. Verified domains land in `tenant_domains`, the reverse proxy fetches routes and certificates from `/api/internal/proxy/*`, and the academy's other addresses redirect to its main one.
+
+**Integrations.** Webhooks: an event recorded with `trackEvent` also queues a delivery for every subscribed endpoint, in the same transaction; the worker signs it (HMAC-SHA256) and sends it through `safePost` with backoff over a day. Learners are a stable pseudonym; their e-mail address only goes out with their contact consent or in consent events. API keys (per academy, per scope, stored hashed) authenticate the credential import.
+
+**Operations.** Page views go to the operator's Umami or Plausible, sent by hand with the path only. Errors from requests (`src/instrumentation.ts`), from the worker's jobs and from browsers go to GlitchTip in the Sentry format, scrubbed of e-mail addresses, tokens and query strings. Server logs are JSON lines in production.
 
 ## Deployment
 
@@ -119,11 +139,11 @@ Coolify on EU servers: see [`docs/deployment.md`](docs/deployment.md). CI (`.git
 
 ## Known gaps and open items
 
-- **Own domains for self-serve academies:** they live on `<slug>.<ACADEMY_DOMAIN>`. Connecting a customer's domain is still an operator step (manifest domains plus Coolify).
+- **Payments** and everything that depends on them (paid courses, team licences, expert academies) are brief phase 3.
 - **Platform legal documents:** enaibler's terms, DPA, privacy page and imprint must exist before signup opens in production (`PLATFORM_*_URL`).
 - **Brand tokens:** `src/core/theme/enaibler-tokens.ts` has placeholder values. Replace them with the real `enaibler-tokens.ts`, which is not in this repository.
 - **Tenant 0 legal links** in `config/tenants/scaling-product.yaml` point to the home page. Validation warns about this until the exact pages are set.
 - **Wording:** `enaibler-landing.html` and the brand guide still say "certified" (brief Appendix B). They are not in this repository.
-- **German copy:** "Abschlussbescheinigung" (for "Certificate of Completion") and the use of "du" are proposals and need review, the former by counsel.
+- **German copy:** "Abschlussbescheinigung" (for "Certificate of Completion"), the use of "du" and the Studio's German are proposals and need review, the first by counsel.
 - **LinkedIn prefill:** LinkedIn does not guarantee the add-to-profile prefill, so click-test it before release.
-- **Open decisions** (brief §15): LLM provider, object storage choice, embedding size (1024 is a placeholder in `src/db/schema/authoring.ts`).
+- **Open decisions** (brief §15): LLM provider and embedding size (1024 is a placeholder in `src/db/schema/authoring.ts`). Object storage is decided: SeaweedFS (see `docs/deployment.md`).
