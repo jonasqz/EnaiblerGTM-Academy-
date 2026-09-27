@@ -473,8 +473,25 @@ describe.skipIf(!hasDatabase)("the academy's team", () => {
       const [cohort] = await withTenant(dbs.app.db, tenant.id, (tx) =>
         tx.select().from(cohorts).where(eq(cohorts.id, cohortId)),
       );
-      expect(await addMentor(dbs.app.db, tenant.id, cohortId, at("mentor"))).toBe(true);
+      // A mentor added on the cohort's page is invited like any colleague.
+      expect(await addMentor(dbs.app.db, tenant.id, cohortId, at("mentor"), "en")).toEqual({
+        ok: true,
+        invited: true,
+      });
       mentor = (await ensureAccount(dbs.app.db, at("mentor"))).userId;
+      // Mentoring a second cohort is no news: no second invitation.
+      const secondCohort = (await createCohort(dbs.app.db, tenant.id, {
+        courseId: course!.id,
+        name: "Winter 2027",
+        startsOn: null,
+        endsOn: null,
+        createdBy: admin,
+      }))!;
+      expect(await addMentor(dbs.app.db, tenant.id, secondCohort, at("mentor"), "en")).toEqual({
+        ok: true,
+        invited: false,
+      });
+      expect(await mailRows(mentor, "team_invite")).toHaveLength(1);
       await signIn(tenant, mentor);
 
       inCohort = await createUser(dbs.owner.db);
@@ -495,6 +512,10 @@ describe.skipIf(!hasDatabase)("the academy's team", () => {
           .update(notifications)
           .set({ processedAt: sql`processed_at - interval '2 hours'` })
           .where(and(eq(notifications.kind, "review_waiting"), eq(notifications.status, "sent"))),
+      );
+      const [invitation] = mailTo(at("mentor"));
+      expect(invitation!.text).toContain(
+        "Mentor: you review what the learners in your cohorts hand in.",
       );
     });
 

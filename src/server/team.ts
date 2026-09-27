@@ -267,6 +267,26 @@ export async function inviteToTeam(
   });
 }
 
+/**
+ * The account of someone joining the team for one job, a cohort's mentor,
+ * with the same invitation when they are new to the team (the caller adds
+ * the role in this transaction). Null once the day's invitations are used up.
+ */
+export async function accountForTeam(
+  tx: Transaction,
+  tenantId: string,
+  email: string,
+  locale: Locale,
+): Promise<{ userId: string; invited: boolean } | null> {
+  const existing = await findAccount(tx, email);
+  const onTeam = existing ? (await rolesOf(tx, existing)).some(isTeamRole) : false;
+  if (onTeam) return { userId: existing!, invited: false };
+  if (!mayInvite(await invitationsInLastDay(tx))) return null;
+  const userId = existing ?? (await ensureAccount(tx, email)).userId;
+  await queueInvitation(tx, tenantId, userId, locale);
+  return { userId, invited: true };
+}
+
 /** New academy-wide roles for someone on the team. */
 export async function changeTeamRoles(
   db: Database,

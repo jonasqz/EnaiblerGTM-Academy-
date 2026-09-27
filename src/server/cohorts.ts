@@ -1,7 +1,6 @@
-import { randomUUID } from "node:crypto";
-
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
+import { teamEmail } from "@/core/access/team";
 import { generatePublicId } from "@/core/credentials/public-id";
 import type { EntryContext } from "@/core/entry/context";
 import type { Locale } from "@/core/i18n/locales";
@@ -18,6 +17,7 @@ import {
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { ensureEnrollment, ensureLearner } from "@/server/learners";
+import { accountForTeam } from "@/server/team";
 
 /*
  * Cohorts (brief §4, phase 2): a group taking a course together, joined by
@@ -165,31 +165,36 @@ export async function loadCohort(db: Database, tenantId: string, cohortId: strin
   });
 }
 
-/** Adds a mentor by e-mail; they sign in with it like everyone else. */
+export type AddMentorResult =
+  { ok: true; invited: boolean } | { ok: false; error: "email" | "not_found" | "limit" };
+
+/**
+ * Adds a mentor by e-mail; they sign in with it like everyone else. Someone
+ * new to the team gets the invitation the Team page sends, in `locale`.
+ */
 export async function addMentor(
   db: Database,
   tenantId: string,
   cohortId: string,
   email: string,
-): Promise<boolean> {
-  const address = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return false;
+  locale: Locale,
+): Promise<AddMentorResult> {
+  const address = teamEmail(email);
+  if (!address) return { ok: false, error: "email" };
+  if (!/^[0-9a-f-]{36}$/i.test(cohortId)) return { ok: false, error: "not_found" };
   return withTenant(db, tenantId, async (tx) => {
     const [cohort] = await tx
       .select({ id: cohorts.id })
       .from(cohorts)
       .where(eq(cohorts.id, cohortId));
-    if (!cohort) return false;
-    await tx
-      .insert(user)
-      .values({ id: randomUUID(), name: "", email: address, emailVerified: false })
-      .onConflictDoNothing({ target: user.email });
-    const [account] = await tx.select({ id: user.id }).from(user).where(eq(user.email, address));
+    if (!cohort) return { ok: false, error: "not_found" };
+    const joining = await accountForTeam(tx, tenantId, address, locale);
+    if (!joining) return { ok: false, error: "limit" };
     await tx
       .insert(memberships)
-      .values({ tenantId, userId: account!.id, role: "mentor", cohortId })
+      .values({ tenantId, userId: joining.userId, role: "mentor", cohortId })
       .onConflictDoNothing();
-    return true;
+    return { ok: true, invited: joining.invited };
   });
 }
 

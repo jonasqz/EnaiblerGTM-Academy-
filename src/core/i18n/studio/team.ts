@@ -205,6 +205,8 @@ export const en = {
   "team.cohorts.actions.saved": "Cohort saved.",
   "team.cohorts.actions.mentorEmail": "Enter the mentor's e-mail address.",
   "team.cohorts.actions.mentorAdded": "Mentor added. They sign in with this address.",
+  "team.cohorts.actions.mentorInvited":
+    "Mentor added. An e-mail invites them to sign in with this address.",
 
   // One cohort
   "team.cohort.title": "Cohort",
@@ -527,6 +529,8 @@ export const de: Record<keyof typeof en, string> = {
   "team.cohorts.actions.mentorEmail": "Gib die E-Mail-Adresse der Mentor:in ein.",
   "team.cohorts.actions.mentorAdded":
     "Mentor:in hinzugefügt. Die Anmeldung läuft über diese Adresse.",
+  "team.cohorts.actions.mentorInvited":
+    "Mentor:in hinzugefügt. Eine E-Mail lädt die Person ein, sich mit dieser Adresse anzumelden.",
 
   "team.cohort.title": "Gruppe",
   "team.cohort.closed": "geschlossen",
