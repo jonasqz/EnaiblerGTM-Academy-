@@ -143,6 +143,8 @@ For each academy:
 
 The app picks up manifest changes within about 30 seconds (tenant cache TTL). No redeploy is needed.
 
+A course shell in a manifest may say how the course ends: `completion: work` (the default), `test` or `work_and_test`. Re-applying a manifest changes it only where the key is present, so a choice authors made in the Studio stays; the assignment or the final test is set up in the Studio.
+
 ## 8. Surrounding services (each its own Coolify resource)
 
 - **LiteLLM** gateway. Configure the EU-region or zero-retention provider (open decision #1) and model prices, so that the cost of every review, draft and calibration run is logged (`cost_micro_usd`). Run `npm run review:spike` against it to measure agreement, stability, cost and latency on real exemplars.
@@ -166,3 +168,15 @@ The app picks up manifest changes within about 30 seconds (tenant cache TTL). No
 - Storage: the bucket exists, and a test hand-in with a PDF uploads and downloads.
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
+- A course that ends with a final test goes through end to end: a failed attempt, a retake and the credential saying "Final Test passed".
+
+## 11. AI usage per academy
+
+Every model call is recorded for the academy that caused it (`ai_usage`), with the cost LiteLLM reports. Academies see their amounts in Studio → Settings → Usage; the operator sees what they cost:
+
+```bash
+DATABASE_MIGRATION_URL=… node --import tsx scripts/usage-report.ts --month 2026-09          # table
+DATABASE_MIGRATION_URL=… node --import tsx scripts/usage-report.ts --month 2026-09 --csv    # for a spreadsheet
+```
+
+Months are calendar months in Berlin time; without `--month` the report covers the last full month. A cost column marked `*` had calls whose price the gateway did not know: give LiteLLM a price for that model. Self-hosted Whisper is recorded in minutes of audio at no per-call cost.

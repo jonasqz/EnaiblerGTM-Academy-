@@ -84,6 +84,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
           questionN: t.t("test.questionN"),
           chooseAll: t.t("test.chooseAll"),
           answerMissing: t.t("test.answerMissing"),
+          answersMissing: t.t("test.answersMissing"),
           submit: t.t("test.submit"),
           submitting: t.t("test.submitting"),
           lastAttempt: t.t("test.lastAttempt"),

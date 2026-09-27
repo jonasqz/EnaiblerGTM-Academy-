@@ -17,6 +17,8 @@ export interface TestLabels {
   questionN: string;
   chooseAll: string;
   answerMissing: string;
+  /** For questions with several right answers. */
+  answersMissing: string;
   submit: string;
   submitting: string;
   lastAttempt: string;
@@ -250,7 +252,7 @@ export function TestForm(props: {
                       className="mt-2 text-sm font-semibold"
                       style={{ color: "var(--status-critical)" }}
                     >
-                      {labels.answerMissing}
+                      {question.several ? labels.answersMissing : labels.answerMissing}
                     </p>
                   )}
                   <div className="mt-3 grid gap-2">
