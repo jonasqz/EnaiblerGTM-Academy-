@@ -15,7 +15,7 @@ import {
 import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
 import { COMPLETION_MODES, requiresWork } from "@/core/courses/completion";
 import { isLocale, type Locale } from "@/core/i18n/locales";
-import { checkIssueText } from "@/core/i18n/studio/helpers";
+import { checkIssueText, publishIssueText } from "@/core/i18n/studio/helpers";
 import { parseCheckQuestions } from "@/core/questions/knowledge-check";
 import { questionTexts } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
@@ -24,6 +24,7 @@ import { getDb } from "@/db/client";
 import { requireCapability, reviewScopeOf } from "@/server/access";
 import {
   createCourse,
+  endingIssues,
   loadCourseEditor,
   publishCourse,
   unpublishCourse,
@@ -156,6 +157,23 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
     [summary, "course_description"],
   ]);
   if (lint.blocking) return { errors: lint.errors, warnings: lint.warnings };
+
+  const editor = await loadCourseEditor(getDb(), tenant.id, courseId);
+  if (!editor) return { errors: [t.t("common.actions.courseGone")] };
+  if (
+    editor.course.status === "published" &&
+    completionMode.data !== editor.course.completionMode
+  ) {
+    const missing = endingIssues(editor, completionMode.data);
+    if (missing.length > 0) {
+      return {
+        errors: [
+          t.t("courses.completion.liveNotReady"),
+          ...missing.map((issue) => publishIssueText(t, issue)),
+        ],
+      };
+    }
+  }
 
   const change = await updateCourseSettings(getDb(), tenant, courseId, {
     title,

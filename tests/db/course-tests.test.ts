@@ -20,10 +20,13 @@ import { withTenant } from "@/db/tenant-scope";
 import { applyTenantManifest, findTenantById } from "@/db/tenants";
 import {
   createCourse,
+  endingIssues,
   loadCourseEditor,
+  prepareWork,
   publishCourse,
   setCompletionMode,
   updateCourseSettings,
+  updateOutcome,
 } from "@/server/studio/courses";
 import { courseLearners, courseStats } from "@/server/studio/insights";
 import { saveCourseTest } from "@/server/studio/tests";
@@ -339,6 +342,40 @@ describe.skipIf(!hasDatabase)("final tests and how a course ends, in the Studio"
     expect(blocked.ok).toBe(false);
     expect(blocked.errors.map((issue) => issue.code)).toEqual(["no_test"]);
     expect((await partsOf(empty)).course.status).toBe("draft");
+  });
+
+  it("lets a live course switch only to an ending whose parts are ready", async () => {
+    const courseId = await newCourse("test");
+    const editor = async () => (await loadCourseEditor(dbs.app.db, tenant.id, courseId))!;
+    // Nothing to hand in yet: the work would be missing, and so would the test's questions.
+    expect(endingIssues(await editor(), "work_and_test").map((issue) => issue.code)).toEqual([
+      "no_assignment",
+      "no_rubric",
+      "no_test",
+    ]);
+    await saveCourseTest(dbs.app.db, tenant.id, courseId, {
+      questions: [1, 2, 3, 4, 5].map(question),
+      passPercent: 80,
+      showMistakes: true,
+    });
+
+    // Preparing the work leaves the course's ending as it is.
+    expect(await prepareWork(dbs.app.db, tenant.id, courseId)).toBe(true);
+    expect(await prepareWork(dbs.app.db, tenant.id, courseId)).toBe(false);
+    const prepared = await editor();
+    expect(prepared.course.completionMode).toBe("test");
+    expect(endingIssues(prepared, "work_and_test").map((issue) => issue.code)).toEqual([
+      "missing_assignment_text",
+    ]);
+
+    await updateOutcome(dbs.app.db, tenant.id, courseId, {
+      prompt: { en: "Write the reminder sequence you will send." },
+      artifactName: { en: "Reminder playbook" },
+      submissionTypes: prepared.assignment!.submissionTypes,
+      rubric: prepared.rubric!.definition,
+    });
+    expect(endingIssues(await editor(), "work_and_test")).toEqual([]);
+    expect(endingIssues(await editor(), "test")).toEqual([]);
   });
 
   it("shows the Studio how learners do on the test", async () => {

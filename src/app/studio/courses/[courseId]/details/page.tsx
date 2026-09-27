@@ -5,6 +5,7 @@ import { DetailsForm } from "@/app/studio/courses/[courseId]/details/details-for
 import { isLocale } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { endingIssues } from "@/server/studio/courses";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,9 +38,10 @@ export default async function DetailsPage({
         completionMode={course.completionMode}
         published={course.publishedAt !== null}
         aiReview={tenant.settings.features.ai_review}
-        emptyParts={{
-          work: !editor.assignment || Object.keys(editor.assignment.prompt).length === 0,
-          test: !editor.test || editor.test.questions.length === 0,
+        live={course.status === "published"}
+        ready={{
+          work: endingIssues(editor, "work").length === 0,
+          test: endingIssues(editor, "test").length === 0,
         }}
       />
     </div>

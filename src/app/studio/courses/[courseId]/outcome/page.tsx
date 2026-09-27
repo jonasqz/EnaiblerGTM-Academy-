@@ -32,13 +32,12 @@ export default async function OutcomePage({
   const t = await getStudioText();
   const work = requiresWork(editor.course.completionMode);
   if (!editor.assignment || !editor.rubric) {
-    // Courses from a manifest start without an assignment; a test-only course needs none.
-    if (!work) notFound();
+    // Courses from a manifest start without an assignment; a test-only course may prepare one.
     return (
       <EmptyState
         icon={Hammer}
-        title={t.t("authoring.outcome.missing.title")}
-        body={t.t("authoring.outcome.missing.body")}
+        title={t.t(work ? "authoring.outcome.missing.title" : "authoring.outcome.prepare.title")}
+        body={t.t(work ? "authoring.outcome.missing.body" : "authoring.outcome.prepare.body")}
         action={
           <form action={setUpOutcomeAction}>
             <input type="hidden" name="courseId" value={editor.course.id} />

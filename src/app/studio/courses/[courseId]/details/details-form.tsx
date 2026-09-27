@@ -1,5 +1,7 @@
 "use client";
 
+import type { Route } from "next";
+import Link from "next/link";
 import { useState } from "react";
 
 import { saveDetailsAction, type FormState } from "@/app/studio/actions";
@@ -33,9 +35,11 @@ export interface DetailsFormProps {
   completionMode: CompletionMode;
   /** Learners may be on their way: a new ending applies to those who have not finished. */
   published: boolean;
+  /** Published right now: it only switches to an ending whose parts are ready. */
+  live: boolean;
   aiReview: boolean;
-  /** Parts not written yet (no assignment text, no questions), which a new ending would show. */
-  emptyParts: { work: boolean; test: boolean };
+  /** Whether the work and the test are ready for learners (no checklist errors). */
+  ready: { work: boolean; test: boolean };
 }
 
 export function DetailsForm(props: DetailsFormProps) {
@@ -48,9 +52,11 @@ export function DetailsForm(props: DetailsFormProps) {
     if (result.ok && isCompletionMode(saved)) setSavedMode(saved);
     return result;
   }, {});
-  const addsEmpty =
-    (requiresWork(completionMode) && !requiresWork(savedMode) && props.emptyParts.work) ||
-    (requiresTest(completionMode) && !requiresTest(savedMode) && props.emptyParts.test);
+  // What the chosen ending adds and is not ready yet: a live course cannot switch until it is.
+  const unready = {
+    work: requiresWork(completionMode) && !requiresWork(savedMode) && !props.ready.work,
+    test: requiresTest(completionMode) && !requiresTest(savedMode) && !props.ready.test,
+  };
   // Show fields for every language the academy offers; only checked ones are saved.
   const locales = props.academyLocales;
 
@@ -108,11 +114,35 @@ export function DetailsForm(props: DetailsFormProps) {
           onChange={setCompletionMode}
           aiReview={props.aiReview}
         />
-        {props.published && completionMode !== savedMode && (
-          <Notice tone="warning" title={t.t("courses.completion.liveTitle")}>
-            {t.t("courses.completion.liveBody")}
-            {addsEmpty && ` ${t.t("courses.completion.liveEmpty")}`}
+        {props.live && (unready.work || unready.test) ? (
+          <Notice tone="critical" title={t.t("courses.completion.notReadyTitle")}>
+            <p>{t.t("courses.completion.notReadyBody")}</p>
+            <p className="mt-2 flex flex-wrap gap-2">
+              {unready.work && (
+                <Link
+                  href={`/studio/courses/${props.courseId}/outcome` as Route}
+                  className="btn btn-secondary btn-sm"
+                >
+                  {t.t("courses.completion.prepareWork")}
+                </Link>
+              )}
+              {unready.test && (
+                <Link
+                  href={`/studio/courses/${props.courseId}/test` as Route}
+                  className="btn btn-secondary btn-sm"
+                >
+                  {t.t("courses.completion.prepareTest")}
+                </Link>
+              )}
+            </p>
           </Notice>
+        ) : (
+          props.published &&
+          completionMode !== savedMode && (
+            <Notice tone="warning" title={t.t("courses.completion.liveTitle")}>
+              {t.t("courses.completion.liveBody")}
+            </Notice>
+          )
         )}
       </section>
 

@@ -168,6 +168,9 @@ export const en = {
   "authoring.outcome.missing.body":
     "This course was set up without one, for example from the academy's configuration. Add it with a starter rubric, then describe what learners build.",
   "authoring.outcome.missing.add": "Add the assignment",
+  "authoring.outcome.prepare.title": "Prepare the work",
+  "authoring.outcome.prepare.body":
+    "This course ends with the final test alone. To end it with real work too, set up the assignment and rubric here first; learners see nothing of it until you choose it in Details.",
   "authoring.outcome.notUsed.title": "Learners do not hand in work",
   "authoring.outcome.notUsed.body":
     "The course ends with the final test only. The assignment and the rubric are kept in case you choose work again in Details.",
@@ -338,6 +341,9 @@ export const de: Record<keyof typeof en, string> = {
   "authoring.outcome.missing.body":
     "Dieser Kurs wurde ohne angelegt, zum Beispiel über die Konfiguration der Akademie. Leg sie mit einer Vorlage für das Bewertungsraster an und beschreib dann, was Lernende bauen.",
   "authoring.outcome.missing.add": "Aufgabe anlegen",
+  "authoring.outcome.prepare.title": "Die Arbeit vorbereiten",
+  "authoring.outcome.prepare.body":
+    "Dieser Kurs endet nur mit dem Abschlusstest. Soll er auch mit einer echten Arbeit enden, richte Aufgabe und Bewertungsraster zuerst hier ein; Lernende sehen davon nichts, bis du es in den Details wählst.",
   "authoring.outcome.notUsed.title": "Lernende reichen keine Arbeit ein",
   "authoring.outcome.notUsed.body":
     "Der Kurs endet nur mit dem Abschlusstest. Aufgabe und Bewertungsraster bleiben erhalten, falls du in den Details wieder eine Arbeit wählst.",

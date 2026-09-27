@@ -49,10 +49,11 @@ export default async function StudioCourseLayout({
     { href: base as Route, label: t.t("courses.tab.overview"), exact: true },
     ...(canEdit
       ? [
-          ...(work
+          // A part the course has but does not use keeps its tab: it may be prepared for a switch.
+          ...(work || editor.assignment
             ? [{ href: `${base}/outcome` as Route, label: t.t("courses.tab.outcome") }]
             : []),
-          ...(test
+          ...(test || editor.test
             ? [
                 {
                   href: `${base}/test` as Route,

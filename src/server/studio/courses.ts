@@ -7,7 +7,12 @@ import {
   type PlatformCapabilities,
 } from "@/core/compliance/delivery-mode";
 import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
-import { checkCoursePublishable, type PublishCheck } from "@/core/courses/publish-check";
+import {
+  checkCoursePublishable,
+  type PublishCheck,
+  type PublishIssue,
+  type PublishIssueCode,
+} from "@/core/courses/publish-check";
 import { starterRubric } from "@/core/courses/starter-rubric";
 import { isLocale, SUPPORTED_LOCALES, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import { rubricSchema, type Rubric } from "@/core/review/rubric";
@@ -196,6 +201,42 @@ export async function createCourse(
     });
     return course!.id;
   });
+}
+
+/**
+ * Sets up the work (assignment and starter rubric) without changing how the
+ * course ends, so a live test-only course can switch to it once it is ready.
+ */
+export async function prepareWork(
+  db: Database,
+  tenantId: string,
+  courseId: string,
+): Promise<boolean> {
+  return withTenant(db, tenantId, async (tx) => {
+    const [course] = await tx.select().from(courses).where(eq(courses.id, courseId)).for("update");
+    if (!course) throw new Error("Course not found");
+    return (await addMissingParts(tx, tenantId, course, "work")).assignment;
+  });
+}
+
+const ENDING_ISSUES: ReadonlySet<PublishIssueCode> = new Set([
+  "no_assignment",
+  "missing_assignment_text",
+  "no_rubric",
+  "no_test",
+  "missing_test_text",
+]);
+
+/**
+ * What the course still lacks to end this way: the checklist's errors about
+ * the work and the test. A live course only switches to an ending with none,
+ * so no learner on their way meets an empty test or an assignment without a task.
+ */
+export function endingIssues(editor: CourseEditor, mode: CompletionMode): PublishIssue[] {
+  return publishCheckFor({
+    ...editor,
+    course: { ...editor.course, completionMode: mode },
+  }).errors.filter((issue) => ENDING_ISSUES.has(issue.code));
 }
 
 /** What changing how a course ends did besides the change itself. */
