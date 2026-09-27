@@ -3,9 +3,10 @@
 import { Minus, Plus, Trash } from "lucide-react";
 import { useId } from "react";
 
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { criterionIdFrom } from "@/core/authoring/rubric-draft";
 import { SUPPORTED_LOCALES, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 import type { Exemplar, ReviewMode, ReviewPolicy, Rubric } from "@/core/review/rubric";
 
 /*
@@ -103,23 +104,7 @@ export function withSavedIds(draft: RubricDraft, primary: Locale): RubricDraft {
   };
 }
 
-const MODES: Array<{ mode: ReviewMode; title: string; body: string }> = [
-  {
-    mode: "ai_auto",
-    title: "AI decides, humans spot-check",
-    body: "Results reach learners at once. The first passes and then a sample go to the review queue; results near the threshold and repeated fails wait for a human.",
-  },
-  {
-    mode: "ai_then_human",
-    title: "AI drafts, a human confirms",
-    body: "Every result waits in the review queue with the AI scores filled in.",
-  },
-  {
-    mode: "human_only",
-    title: "Humans only",
-    body: "No AI review. Every submission goes to the review queue.",
-  },
-];
+const MODES: readonly ReviewMode[] = ["ai_auto", "ai_then_human", "human_only"];
 
 let counter = 0;
 const newKey = () => `new-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -130,6 +115,7 @@ export function RubricEditor(props: {
   languages: readonly Locale[];
 }) {
   const { draft, onChange, languages } = props;
+  const t = useStudioText();
   const uid = useId();
   const totalWeight =
     draft.criteria.reduce((sum, criterion) => sum + (criterion.weight || 0), 0) || 1;
@@ -167,7 +153,7 @@ export function RubricEditor(props: {
       <div className="grid gap-4 md:grid-cols-[12rem_1fr]">
         <div className="field">
           <label htmlFor={`${uid}-threshold`} className="label">
-            Pass at
+            {t.t("authoring.rubric.passAt")}
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -186,31 +172,33 @@ export function RubricEditor(props: {
             <span className="font-semibold">%</span>
           </div>
           <p id={`${uid}-threshold-hint`} className="hint">
-            Of the weighted score across all criteria.
+            {t.t("authoring.rubric.passAtHint")}
           </p>
         </div>
         <fieldset className="field">
-          <legend className="label mb-1.5">Who decides</legend>
+          <legend className="label mb-1.5">{t.t("authoring.rubric.whoDecides")}</legend>
           <div className="grid gap-2 lg:grid-cols-3">
-            {MODES.map((option) => (
+            {MODES.map((mode) => (
               <label
-                key={option.mode}
+                key={mode}
                 className={`flex gap-3 rounded-control border p-3 ${
-                  draft.policy.mode === option.mode
-                    ? "border-primary bg-primary-soft"
-                    : "border-line"
+                  draft.policy.mode === mode ? "border-primary bg-primary-soft" : "border-line"
                 }`}
               >
                 <input
                   type="radio"
                   name={`${uid}-mode`}
                   className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
-                  checked={draft.policy.mode === option.mode}
-                  onChange={() => setPolicy({ mode: option.mode })}
+                  checked={draft.policy.mode === mode}
+                  onChange={() => setPolicy({ mode })}
                 />
                 <span>
-                  <span className="block text-sm font-semibold">{option.title}</span>
-                  <span className="text-xs text-muted">{option.body}</span>
+                  <span className="block text-sm font-semibold">
+                    {t.t(`authoring.rubric.mode.${mode}.title`)}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {t.t(`authoring.rubric.mode.${mode}.body`)}
+                  </span>
                 </span>
               </label>
             ))}
@@ -225,7 +213,7 @@ export function RubricEditor(props: {
             <li key={criterion.key} className="rounded-card border border-line bg-card p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <p className="font-semibold">
-                  Criterion {index + 1}
+                  {t.t("authoring.rubric.criterion", { n: index + 1 })}
                   {criterion.id && (
                     <span className="ml-2 font-mono text-xs font-normal text-muted">
                       {criterion.id}
@@ -234,7 +222,7 @@ export function RubricEditor(props: {
                 </p>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-sm">
-                    Weight
+                    {t.t("authoring.rubric.weight")}
                     <input
                       type="number"
                       min={0.5}
@@ -245,19 +233,17 @@ export function RubricEditor(props: {
                       onChange={(event) => update(index, { weight: Number(event.target.value) })}
                     />
                   </label>
-                  <span className="text-sm text-muted tabular-nums">{share} % of score</span>
+                  <span className="text-sm text-muted tabular-nums">
+                    {t.t("authoring.rubric.share", { share })}
+                  </span>
                   {draft.criteria.length > 1 && (
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      title="Remove criterion"
-                      aria-label={`Remove criterion ${index + 1}`}
+                      title={t.t("authoring.rubric.removeCriterion")}
+                      aria-label={t.t("authoring.rubric.removeCriterionLabel", { n: index + 1 })}
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            "Remove this criterion? Lessons that teach it lose the link, earlier reviews keep their scores.",
-                          )
-                        ) {
+                        if (window.confirm(t.t("authoring.rubric.removeCriterionConfirm"))) {
                           onChange({
                             ...draft,
                             criteria: draft.criteria.filter((_, i) => i !== index),
@@ -276,14 +262,17 @@ export function RubricEditor(props: {
                   <div key={locale} className="space-y-2">
                     <label className="field">
                       <span className="text-sm font-semibold">
-                        Name <span className="text-muted">({LANGUAGE_NAMES[locale]})</span>
+                        {t.t("authoring.rubric.name")}{" "}
+                        <span className="text-muted">({languageName(t, locale)})</span>
                       </span>
                       <input
                         className="input"
                         required={position === 0}
                         maxLength={80}
                         value={criterion.label[locale] ?? ""}
-                        placeholder={position === 0 ? "e.g. Evidence" : undefined}
+                        placeholder={
+                          position === 0 ? t.t("authoring.rubric.namePlaceholder") : undefined
+                        }
                         onChange={(event) =>
                           update(index, {
                             label: { ...criterion.label, [locale]: event.target.value },
@@ -293,8 +282,8 @@ export function RubricEditor(props: {
                     </label>
                     <label className="field">
                       <span className="text-sm font-semibold">
-                        What the reviewer looks for{" "}
-                        <span className="text-muted">({LANGUAGE_NAMES[locale]})</span>
+                        {t.t("authoring.rubric.looksFor")}{" "}
+                        <span className="text-muted">({languageName(t, locale)})</span>
                       </span>
                       <textarea
                         className="textarea min-h-0"
@@ -314,17 +303,17 @@ export function RubricEditor(props: {
               </div>
 
               <div className="mt-4">
-                <p className="text-sm font-semibold">Score levels</p>
+                <p className="text-sm font-semibold">{t.t("authoring.rubric.levels")}</p>
                 <div className="table-wrap">
                   <table className="table mt-1">
                     <thead>
                       <tr>
                         <th scope="col" className="w-16">
-                          Score
+                          {t.t("authoring.rubric.score")}
                         </th>
                         {languages.map((locale) => (
                           <th key={locale} scope="col">
-                            {LANGUAGE_NAMES[locale]}
+                            {languageName(t, locale)}
                           </th>
                         ))}
                       </tr>
@@ -337,7 +326,10 @@ export function RubricEditor(props: {
                             <td key={locale} className="py-1.5">
                               <input
                                 className="input py-1"
-                                aria-label={`Score ${level.score}, ${LANGUAGE_NAMES[locale]}`}
+                                aria-label={t.t("authoring.rubric.levelLabel", {
+                                  score: level.score,
+                                  language: languageName(t, locale),
+                                })}
                                 required={position === 0}
                                 maxLength={300}
                                 value={level.description[locale] ?? ""}
@@ -381,7 +373,7 @@ export function RubricEditor(props: {
                         })
                       }
                     >
-                      <Plus aria-hidden size={16} /> Add a level
+                      <Plus aria-hidden size={16} /> {t.t("authoring.rubric.addLevel")}
                     </button>
                   )}
                   {criterion.levels.length > 2 && (
@@ -390,7 +382,7 @@ export function RubricEditor(props: {
                       className="btn btn-ghost btn-sm"
                       onClick={() => update(index, { levels: criterion.levels.slice(0, -1) })}
                     >
-                      <Minus aria-hidden size={16} /> Remove the top level
+                      <Minus aria-hidden size={16} /> {t.t("authoring.rubric.removeTopLevel")}
                     </button>
                   )}
                 </div>
@@ -402,46 +394,45 @@ export function RubricEditor(props: {
 
       {draft.criteria.length < 12 && (
         <button type="button" className="btn btn-secondary" onClick={addCriterion}>
-          <Plus aria-hidden size={18} /> Add a criterion
+          <Plus aria-hidden size={18} /> {t.t("authoring.rubric.addCriterion")}
         </button>
       )}
 
       <details className="rounded-card border border-line p-4">
-        <summary className="cursor-pointer font-semibold">Spot checks and escalation</summary>
-        <p className="mt-2 text-sm text-muted">
-          Defaults follow the brief: every AI pass is checked until the first 20, then a sample.
-          Change them once you have data.
-        </p>
+        <summary className="cursor-pointer font-semibold">
+          {t.t("authoring.rubric.spotChecks")}
+        </summary>
+        <p className="mt-2 text-sm text-muted">{t.t("authoring.rubric.spotChecksBody")}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <NumberField
-            label="Check every pass until pass no."
+            label={t.t("authoring.rubric.initialChecks")}
             value={draft.policy.initial_full_check_passes}
             min={0}
             onChange={(value) => setPolicy({ initial_full_check_passes: value ?? 0 })}
           />
           <NumberField
-            label="Then spot-check (%)"
+            label={t.t("authoring.rubric.spotCheckRate")}
             value={Math.round(draft.policy.spot_check_rate * 100)}
             min={0}
             max={100}
             onChange={(value) => setPolicy({ spot_check_rate: (value ?? 0) / 100 })}
           />
           <NumberField
-            label="Once AI and humans agree (%)"
+            label={t.t("authoring.rubric.agreementAt")}
             value={Math.round(draft.policy.reduce_when_agreement_at_least * 100)}
             min={0}
             max={100}
             onChange={(value) => setPolicy({ reduce_when_agreement_at_least: (value ?? 0) / 100 })}
           />
           <NumberField
-            label="… lower the spot checks to (%)"
+            label={t.t("authoring.rubric.reducedRate")}
             value={Math.round(draft.policy.reduced_spot_check_rate * 100)}
             min={0}
             max={100}
             onChange={(value) => setPolicy({ reduced_spot_check_rate: (value ?? 0) / 100 })}
           />
           <NumberField
-            label="Hold results within ± points of the threshold"
+            label={t.t("authoring.rubric.nearThreshold")}
             value={draft.policy.escalate_on.near_threshold_margin}
             min={0}
             max={50}
@@ -449,7 +440,7 @@ export function RubricEditor(props: {
             onChange={(value) => setEscalation({ near_threshold_margin: value })}
           />
           <NumberField
-            label="Hold failed results from attempt no."
+            label={t.t("authoring.rubric.failedAttempt")}
             value={draft.policy.escalate_on.failed_attempt}
             min={1}
             optional
@@ -469,6 +460,7 @@ function NumberField(props: {
   optional?: boolean;
   onChange: (value: number | null) => void;
 }) {
+  const t = useStudioText();
   const id = useId();
   return (
     <div className="field">
@@ -482,7 +474,7 @@ function NumberField(props: {
         min={props.min}
         max={props.max}
         value={props.value ?? ""}
-        placeholder={props.optional ? "Off" : undefined}
+        placeholder={props.optional ? t.t("authoring.rubric.off") : undefined}
         onChange={(event) =>
           props.onChange(
             event.target.value === "" ? (props.optional ? null : 0) : Number(event.target.value),
