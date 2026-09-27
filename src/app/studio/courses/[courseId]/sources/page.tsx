@@ -23,33 +23,37 @@ import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatClock } from "@/core/authoring/transcript";
 import { isLocale } from "@/core/i18n/locales";
+import type { StudioKey } from "@/core/i18n/studio/index";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listSources } from "@/server/authoring/sources";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Sources" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("lessons.sources.title") };
+}
 
 const ICONS = { recording: Video, document: FileText, url: Globe, interview: MessageSquareQuote };
-const when = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
 
-const CHECKED: Record<string, { tone: "good" | "warning" | "critical" | "info"; title: string }> = {
-  changed: {
-    tone: "warning",
-    title: "The page changed. Lessons written from it are flagged for review.",
-  },
-  unchanged: { tone: "good", title: "No change since the last check." },
-  failed: { tone: "critical", title: "The page could not be read. The text read before is kept." },
-  skipped: { tone: "info", title: "Only web pages that were read successfully can be checked." },
-  limit: { tone: "critical", title: "Too many checks this hour. Try again later." },
+const CHECKED: Record<
+  string,
+  { tone: "good" | "warning" | "critical" | "info"; title: StudioKey }
+> = {
+  changed: { tone: "warning", title: "lessons.sources.checked.changed" },
+  unchanged: { tone: "good", title: "lessons.sources.checked.unchanged" },
+  failed: { tone: "critical", title: "lessons.sources.checked.failed" },
+  skipped: { tone: "info", title: "lessons.sources.checked.skipped" },
+  limit: { tone: "critical", title: "lessons.sources.checked.limit" },
 };
 
 const KIND_LABELS = {
-  recording: "Recording",
-  document: "Document",
-  url: "Web page",
-  interview: "Interview",
-};
+  recording: "lessons.sources.kind.recording",
+  document: "lessons.sources.kind.document",
+  url: "lessons.sources.kind.url",
+  interview: "lessons.sources.kind.interview",
+} satisfies Record<keyof typeof ICONS, StudioKey>;
 
 export default async function SourcesPage({
   params,
@@ -63,24 +67,28 @@ export default async function SourcesPage({
   const rows = await listSources(getDb(), tenant.id, courseId);
   const busy = rows.some((row) => row.status === "pending" || row.status === "processing");
   const ready = rows.filter((row) => row.status === "ready").length;
+  const t = await getStudioText();
+  // The Lessons link sits inside the sentence, wherever the language puts it.
+  const [draftingBefore, draftingAfter] = (
+    ready > 0 ? t.n("lessons.sources.draftingReady", ready) : t.t("lessons.sources.drafting")
+  ).split("{lessons}");
 
   return (
     <div className="space-y-6">
       <AutoRefresh active={busy} />
       <div className="max-w-3xl space-y-1">
-        <h2 className="text-xl font-semibold">Sources</h2>
+        <h2 className="text-xl font-semibold">{t.t("lessons.sources.title")}</h2>
         <p className="text-muted">
-          What the AI drafts your lessons from: screen recordings with narration, documents, your
-          web pages and an interview with you. Drafting starts on the{" "}
+          {t.t("lessons.sources.intro")} {draftingBefore}
           <Link href={`/studio/courses/${courseId}/lessons` as Route} className="underline">
-            Lessons
-          </Link>{" "}
-          tab{ready > 0 ? ` and uses the ${ready} ready source${ready === 1 ? "" : "s"}` : ""}.
+            {t.t("lessons.list.title")}
+          </Link>
+          {draftingAfter}
         </p>
       </div>
-      {interview === "1" && <Notice tone="good" title="Interview saved as a source" />}
+      {interview === "1" && <Notice tone="good" title={t.t("lessons.sources.interviewSaved")} />}
       {typeof checked === "string" && CHECKED[checked] && (
-        <Notice tone={CHECKED[checked].tone} title={CHECKED[checked].title} />
+        <Notice tone={CHECKED[checked].tone} title={t.t(CHECKED[checked].title)} />
       )}
 
       <AddSource courseId={courseId} languages={editor.course.languages.filter(isLocale)} />
@@ -88,8 +96,8 @@ export default async function SourcesPage({
       {rows.length === 0 ? (
         <EmptyState
           icon={Library}
-          title="No sources yet"
-          body="Lessons can be drafted without sources too, but they will be generic. A ten-minute recording of you doing the work is the best source."
+          title={t.t("lessons.sources.empty")}
+          body={t.t("lessons.sources.emptyBody")}
         />
       ) : (
         <ul className="space-y-3">
@@ -111,20 +119,30 @@ export default async function SourcesPage({
                   </Link>
                   <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                     <SourceStatusBadge status={row.status} />
-                    <span>{KIND_LABELS[row.kind]}</span>
+                    <span>{t.t(KIND_LABELS[row.kind])}</span>
                     {topics > 0 && (
                       <span>
-                        {topics} step{topics === 1 ? "" : "s"}
+                        {t.n("lessons.sources.steps", topics)}
                         {duration ? ` · ${formatClock(duration)}` : ""}
                       </span>
                     )}
                     {row.kind !== "recording" && row.contentLength > 0 && (
-                      <span>{Math.round(row.contentLength / 6).toLocaleString("en")} words</span>
+                      <span>{t.n("lessons.sources.words", Math.round(row.contentLength / 6))}</span>
                     )}
                     {row.kind === "url" && row.checkedAt && (
-                      <span>Checked daily · last {when.format(row.checkedAt)}</span>
+                      <span>
+                        {t.t("lessons.sources.checkedDaily", {
+                          date: t.date(row.checkedAt, "dateTime"),
+                        })}
+                      </span>
                     )}
-                    {row.changedAt && <span>Changed {when.format(row.changedAt)}</span>}
+                    {row.changedAt && (
+                      <span>
+                        {t.t("lessons.sources.changed", {
+                          date: t.date(row.changedAt, "dateTime"),
+                        })}
+                      </span>
+                    )}
                   </p>
                   {row.error && (
                     <p
@@ -139,8 +157,11 @@ export default async function SourcesPage({
                   <form action={recheckSourceAction}>
                     <input type="hidden" name="courseId" value={courseId} />
                     <input type="hidden" name="sourceId" value={row.id} />
-                    <SubmitButton className="btn btn-ghost btn-sm" pendingLabel="Checking…">
-                      <RefreshCw aria-hidden size={16} /> Check now
+                    <SubmitButton
+                      className="btn btn-ghost btn-sm"
+                      pendingLabel={t.t("lessons.sources.checking")}
+                    >
+                      <RefreshCw aria-hidden size={16} /> {t.t("lessons.sources.checkNow")}
                     </SubmitButton>
                   </form>
                 )}
@@ -149,8 +170,8 @@ export default async function SourcesPage({
                   <input type="hidden" name="sourceId" value={row.id} />
                   <SubmitButton
                     className="btn btn-ghost btn-sm"
-                    title={`Delete ${row.title}`}
-                    confirm="Delete this source? Lessons already written stay as they are."
+                    title={t.t("lessons.sources.delete", { title: row.title })}
+                    confirm={t.t("lessons.sources.deleteConfirm")}
                   >
                     <Trash aria-hidden size={16} />
                   </SubmitButton>

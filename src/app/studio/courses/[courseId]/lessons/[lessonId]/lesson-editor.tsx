@@ -5,28 +5,30 @@ import { useEffect, useRef, useState } from "react";
 
 import { saveLessonAction, type FormState } from "@/app/studio/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { uploadFile } from "@/components/ui/file-upload";
 import { Markdown } from "@/components/ui/markdown";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { describeFinding, lintWording } from "@/core/compliance/wording-lint";
+import { lintWording } from "@/core/compliance/wording-lint";
 import type { Locale } from "@/core/i18n/locales";
+import { languageName, wordingText } from "@/core/i18n/studio/helpers";
+import type { StudioKey } from "@/core/i18n/studio/index";
 
 type Mode = "write" | "split" | "preview";
 
-const MODES: Array<{ mode: Mode; label: string; icon: typeof PencilLine }> = [
-  { mode: "write", label: "Write", icon: PencilLine },
-  { mode: "split", label: "Side by side", icon: Columns2 },
-  { mode: "preview", label: "Preview", icon: Eye },
+const MODES: Array<{ mode: Mode; icon: typeof PencilLine }> = [
+  { mode: "write", icon: PencilLine },
+  { mode: "split", icon: Columns2 },
+  { mode: "preview", icon: Eye },
 ];
 
-const UPLOAD_ERRORS: Record<string, string> = {
-  too_large: "is too large (images up to 10 MB, videos up to 500 MB).",
-  type_not_allowed: "is not an image or MP4/WebM video.",
-  unknown_type: "is not an image or MP4/WebM video.",
-  invalid_content: "could not be read.",
-  rate_limited: "was not uploaded: too many uploads this hour.",
+const UPLOAD_ERRORS: Record<string, StudioKey> = {
+  too_large: "lessons.editor.upload.tooLarge",
+  type_not_allowed: "lessons.editor.upload.type",
+  unknown_type: "lessons.editor.upload.type",
+  invalid_content: "lessons.editor.upload.invalid",
+  rate_limited: "lessons.editor.upload.rateLimited",
 };
 
 export interface LessonEditorProps {
@@ -43,6 +45,7 @@ export interface LessonEditorProps {
 }
 
 export function LessonEditor(props: LessonEditorProps) {
+  const t = useStudioText();
   const [title, setTitle] = useState(props.title);
   const [markdown, setMarkdown] = useState(props.markdown);
   const [selected, setSelected] = useState<string[]>(props.selected);
@@ -69,7 +72,9 @@ export function LessonEditor(props: LessonEditorProps) {
     );
     setUpload(null);
     if (!result.ok) {
-      setUploadError(`${file.name} ${UPLOAD_ERRORS[result.error] ?? "could not be uploaded."}`);
+      setUploadError(
+        t.t(UPLOAD_ERRORS[result.error] ?? "lessons.editor.upload.failed", { name: file.name }),
+      );
       return;
     }
     const extension = result.file.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "bin";
@@ -125,7 +130,8 @@ export function LessonEditor(props: LessonEditorProps) {
 
       <div className="field">
         <label htmlFor="lesson-title" className="label">
-          Title <span className="font-normal text-muted">({LANGUAGE_NAMES[props.locale]})</span>
+          {t.t("lessons.field.title")}{" "}
+          <span className="font-normal text-muted">({languageName(t, props.locale)})</span>
         </label>
         <input
           id="lesson-title"
@@ -142,7 +148,7 @@ export function LessonEditor(props: LessonEditorProps) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div
             role="group"
-            aria-label="Editor view"
+            aria-label={t.t("lessons.editor.view")}
             className="inline-flex rounded-control border border-line bg-card p-0.5"
           >
             {MODES.map((option) => (
@@ -155,7 +161,7 @@ export function LessonEditor(props: LessonEditorProps) {
                   mode === option.mode ? "bg-primary-soft" : "text-muted hover:text-ink"
                 } ${option.mode === "split" ? "max-lg:hidden" : ""}`}
               >
-                <option.icon aria-hidden size={16} /> {option.label}
+                <option.icon aria-hidden size={16} /> {t.t(`lessons.editor.mode.${option.mode}`)}
               </button>
             ))}
           </div>
@@ -167,14 +173,16 @@ export function LessonEditor(props: LessonEditorProps) {
               disabled={upload !== null}
             >
               <ImagePlus aria-hidden size={16} />
-              {upload ? `Uploading ${upload.percent} %` : "Image or video"}
+              {upload
+                ? t.t("lessons.editor.uploading", { percent: upload.percent })
+                : t.t("lessons.editor.media")}
             </button>
             <input
               ref={mediaInput}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm"
               className="sr-only"
-              aria-label="Upload an image or video"
+              aria-label={t.t("lessons.editor.mediaUpload")}
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 event.target.value = "";
@@ -182,7 +190,9 @@ export function LessonEditor(props: LessonEditorProps) {
               }}
             />
             <p className="text-sm text-muted tabular-nums">
-              {words} words · about {Math.max(1, Math.round(words / 200))} min read
+              {t.n("lessons.editor.stats", words, {
+                minutes: Math.max(1, Math.round(words / 200)),
+              })}
             </p>
           </div>
         </div>
@@ -190,7 +200,7 @@ export function LessonEditor(props: LessonEditorProps) {
         <div className={`grid gap-4 ${mode === "split" ? "lg:grid-cols-2" : ""}`}>
           <div className={mode === "preview" ? "hidden" : ""}>
             <label htmlFor="lesson-markdown" className="sr-only">
-              Lesson text (Markdown)
+              {t.t("lessons.editor.textLabel")}
             </label>
             <textarea
               ref={textareaRef}
@@ -199,13 +209,11 @@ export function LessonEditor(props: LessonEditorProps) {
               className="textarea textarea-code min-h-[28rem]"
               value={markdown}
               onChange={(event) => setMarkdown(event.target.value)}
-              placeholder={
-                "## What you will do\n\nOne idea per lesson. Show an example, then ask the learner to apply it to their own work."
-              }
+              placeholder={t.t("lessons.editor.placeholder")}
             />
             <p className="hint mt-1">
               Markdown: <code>## Heading</code>, <code>**bold**</code>, <code>- list</code>,{" "}
-              <code>[link](https://…)</code>. Images and videos: upload them with the button above.
+              <code>[link](https://…)</code>. {t.t("lessons.editor.mediaHint")}
             </p>
             {uploadError && (
               <p
@@ -222,16 +230,16 @@ export function LessonEditor(props: LessonEditorProps) {
               data-theme-scope
               style={props.academyTheme}
               className="min-h-[28rem] min-w-0 rounded-card bg-surface p-3 font-body text-ink"
-              aria-label="Preview"
+              aria-label={t.t("lessons.editor.mode.preview")}
             >
               <div className="card h-full p-6">
                 <h2 className="mb-4 font-display text-2xl leading-tight">
-                  {title || "Untitled lesson"}
+                  {title || t.t("common.actions.untitledLesson")}
                 </h2>
                 {markdown.trim() ? (
                   <Markdown source={markdown} />
                 ) : (
-                  <p className="text-muted">Nothing to preview yet.</p>
+                  <p className="text-muted">{t.t("lessons.editor.previewEmpty")}</p>
                 )}
               </div>
             </div>
@@ -240,13 +248,15 @@ export function LessonEditor(props: LessonEditorProps) {
       </div>
 
       {findings.length > 0 && (
-        <FormFeedback state={{ warnings: [...new Set(findings.map(describeFinding))] }} />
+        <FormFeedback
+          state={{ warnings: [...new Set(findings.map((finding) => wordingText(t, finding)))] }}
+        />
       )}
 
       <fieldset className="card-flat space-y-3 p-4">
-        <legend className="px-1 font-semibold">This lesson teaches</legend>
+        <legend className="px-1 font-semibold">{t.t("lessons.editor.teaches")}</legend>
         {props.criteria.length === 0 ? (
-          <p className="text-sm text-muted">The rubric has no criteria yet.</p>
+          <p className="text-sm text-muted">{t.t("lessons.editor.noCriteria")}</p>
         ) : (
           <div className="grid gap-2 md:grid-cols-2">
             {props.criteria.map((criterion) => (
@@ -281,14 +291,16 @@ export function LessonEditor(props: LessonEditorProps) {
       {props.reference && (
         <details className="card-flat p-4">
           <summary className="cursor-pointer font-semibold">
-            Reference: {LANGUAGE_NAMES[props.reference.locale]} version
+            {t.t("lessons.editor.reference", {
+              language: languageName(t, props.reference.locale),
+            })}
           </summary>
           <div className="mt-4 border-t border-line pt-4">
             <p className="mb-3 font-semibold">{props.reference.title}</p>
             {props.reference.markdown.trim() ? (
               <Markdown source={props.reference.markdown} />
             ) : (
-              <p className="text-sm text-muted">No content yet.</p>
+              <p className="text-sm text-muted">{t.t("lessons.editor.noContent")}</p>
             )}
           </div>
         </details>
@@ -298,10 +310,11 @@ export function LessonEditor(props: LessonEditorProps) {
         <FormFeedback state={{ ...state, warnings: undefined }} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted" aria-live="polite">
-            {dirty ? "Unsaved changes" : "All changes saved"} · every save is a new version
+            {dirty ? t.t("lessons.editor.unsaved") : t.t("lessons.editor.saved")} ·{" "}
+            {t.t("lessons.editor.everySave")}
           </p>
-          <SubmitButton pending={pending} pendingLabel="Saving…" disabled={!dirty}>
-            Save
+          <SubmitButton pending={pending} pendingLabel={t.t("common.saving")} disabled={!dirty}>
+            {t.t("common.save")}
           </SubmitButton>
         </div>
       </div>

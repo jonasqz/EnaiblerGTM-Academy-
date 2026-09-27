@@ -9,10 +9,11 @@ import {
   suggestQuestionsAction,
 } from "@/app/studio/courses/[courseId]/sources/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 
 export function InterviewForm(props: {
   courseId: string;
@@ -20,6 +21,7 @@ export function InterviewForm(props: {
   initial: string[];
   aiAvailable: boolean;
 }) {
+  const t = useStudioText();
   const [locale, setLocale] = useState<Locale>(props.languages[0] ?? "en");
   const [questions, setQuestions] = useState<string[]>(props.initial);
   const [answers, setAnswers] = useState<string[]>(props.initial.map(() => ""));
@@ -47,7 +49,7 @@ export function InterviewForm(props: {
         {props.languages.length > 1 && (
           <div className="field">
             <label htmlFor="interview-locale" className="label">
-              Language
+              {t.t("common.language")}
             </label>
             <select
               id="interview-locale"
@@ -57,7 +59,7 @@ export function InterviewForm(props: {
             >
               {props.languages.map((language) => (
                 <option key={language} value={language}>
-                  {LANGUAGE_NAMES[language]}
+                  {languageName(t, language)}
                 </option>
               ))}
             </select>
@@ -71,7 +73,7 @@ export function InterviewForm(props: {
             disabled={suggesting}
           >
             <Sparkles aria-hidden size={16} />
-            {suggesting ? "Thinking…" : "Suggest questions for this course"}
+            {suggesting ? t.t("lessons.interview.thinking") : t.t("lessons.interview.suggest")}
           </button>
         )}
       </div>
@@ -94,7 +96,7 @@ export function InterviewForm(props: {
                   current.map((value, i) => (i === index ? event.target.value : value)),
                 )
               }
-              placeholder="Answer as you would to a colleague: examples, mistakes you see, rules of thumb."
+              placeholder={t.t("lessons.interview.answerPlaceholder")}
             />
           </li>
         ))}
@@ -103,18 +105,18 @@ export function InterviewForm(props: {
         type="button"
         className="btn btn-ghost btn-sm"
         onClick={() => {
-          const question = window.prompt("Your own question");
+          const question = window.prompt(t.t("lessons.interview.ownQuestion"));
           if (question?.trim()) {
             setQuestions((current) => [...current, question.trim()]);
             setAnswers((current) => [...current, ""]);
           }
         }}
       >
-        <Plus aria-hidden size={16} /> Add a question
+        <Plus aria-hidden size={16} /> {t.t("lessons.interview.addQuestion")}
       </button>
       <FormFeedback state={state} />
-      <SubmitButton pending={pending} pendingLabel="Saving…">
-        Save interview as a source
+      <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+        {t.t("lessons.interview.save")}
       </SubmitButton>
     </form>
   );

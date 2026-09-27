@@ -11,20 +11,22 @@ import {
   setLessonSourcesAction,
 } from "@/app/studio/actions";
 import { LessonEditor } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/lesson-editor";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { changedSourceOf } from "@/core/authoring/auto-update";
 import { isLocale, localize } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { loadLessonEditor, markdownOf } from "@/server/studio/lessons";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Edit lesson" };
-
-const when = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("lessons.editor.title") };
+}
 
 export default async function LessonEditorPage({
   params,
@@ -49,6 +51,13 @@ export default async function LessonEditorPage({
     (language) => !data.translations.some((row) => row.locale === language),
   );
   const changedSource = data.sources.find((row) => row.id === changedSourceOf(lesson.flagReason));
+  const t = await getStudioText();
+  // The source's link sits inside the sentence, wherever the language puts it.
+  const [changedBefore, changedAfter] = lesson.flaggedAt
+    ? t
+        .t("lessons.editor.changed.named", { date: t.date(lesson.flaggedAt, "dateTime") })
+        .split("{source}")
+    : [];
 
   return (
     <div className="space-y-6">
@@ -56,43 +65,47 @@ export default async function LessonEditorPage({
         href={`/studio/courses/${courseId}/lessons`}
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> All lessons
+        <ArrowLeft aria-hidden size={16} /> {t.t("lessons.editor.back")}
       </Link>
 
       {typeof restored === "string" && (
-        <Notice tone="good" title={`Version ${restored} restored`}>
-          It is now the newest version; the history keeps every earlier one.
+        <Notice tone="good" title={t.t("lessons.editor.restored", { version: restored })}>
+          {t.t("lessons.editor.restoredBody")}
         </Notice>
       )}
       {translation === "1" && (
-        <Notice tone="info" title={`New ${LANGUAGE_NAMES[locale]} version`}>
-          Translate the title and write the text. The original is below the editor for reference.
+        <Notice
+          tone="info"
+          title={t.t("lessons.editor.newTranslation", { language: languageName(t, locale) })}
+        >
+          {t.t("lessons.editor.newTranslationBody")}
         </Notice>
       )}
 
       {lesson.flaggedAt && (
-        <Notice tone="warning" title="A source of this lesson changed">
+        <Notice tone="warning" title={t.t("lessons.editor.changed.title")}>
           <p>
             {changedSource ? (
               <>
+                {changedBefore}
                 <Link
                   href={`/studio/courses/${courseId}/sources/${changedSource.id}` as Route}
                   className="font-semibold underline"
                 >
                   {changedSource.title}
-                </Link>{" "}
-                changed
+                </Link>
+                {changedAfter}
               </>
             ) : (
-              "A source changed"
-            )}{" "}
-            on {when.format(lesson.flaggedAt)}, after this lesson was written. Check that the lesson
-            still holds, then mark it as reviewed.
+              t.t("lessons.editor.changed.unnamed", {
+                date: t.date(lesson.flaggedAt, "dateTime"),
+              })
+            )}
           </p>
           <form action={markLessonReviewedAction} className="pt-2">
             <input type="hidden" name="lessonId" value={lesson.id} />
-            <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Saving…">
-              <CircleCheck aria-hidden size={16} /> Mark as reviewed
+            <SubmitButton className="btn btn-secondary btn-sm" pendingLabel={t.t("common.saving")}>
+              <CircleCheck aria-hidden size={16} /> {t.t("lessons.editor.markReviewed")}
             </SubmitButton>
           </form>
         </Notice>
@@ -127,21 +140,21 @@ export default async function LessonEditorPage({
         <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
           <section aria-labelledby="languages-heading" className="card-flat space-y-3 p-4">
             <h2 id="languages-heading" className="font-semibold">
-              Languages
+              {t.t("lessons.editor.languages")}
             </h2>
             <ul className="space-y-1 text-sm">
               {data.translations.map((row) => (
                 <li key={row.id}>
                   {row.id === lesson.id ? (
                     <span className="font-semibold">
-                      {isLocale(row.locale) ? LANGUAGE_NAMES[row.locale] : row.locale} (this one)
+                      {t.t("lessons.editor.thisOne", { language: languageName(t, row.locale) })}
                     </span>
                   ) : (
                     <Link
                       href={`/studio/courses/${courseId}/lessons/${row.id}`}
                       className="underline-offset-4 hover:underline"
                     >
-                      {isLocale(row.locale) ? LANGUAGE_NAMES[row.locale] : row.locale}
+                      {languageName(t, row.locale)}
                     </Link>
                   )}
                 </li>
@@ -153,8 +166,12 @@ export default async function LessonEditorPage({
                 <input type="hidden" name="locale" value={language} />
                 <input type="hidden" name="translationOf" value={lesson.key} />
                 <input type="hidden" name="title" value={lesson.title} />
-                <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Adding…">
-                  <Plus aria-hidden size={14} /> Add {LANGUAGE_NAMES[language]}
+                <SubmitButton
+                  className="btn btn-secondary btn-sm"
+                  pendingLabel={t.t("common.adding")}
+                >
+                  <Plus aria-hidden size={14} />{" "}
+                  {t.t("lessons.editor.addLanguage", { language: languageName(t, language) })}
                 </SubmitButton>
               </form>
             ))}
@@ -164,12 +181,9 @@ export default async function LessonEditorPage({
             <section aria-labelledby="sources-heading" className="card-flat space-y-3 p-4">
               <div className="space-y-1">
                 <h2 id="sources-heading" className="font-semibold">
-                  Based on
+                  {t.t("lessons.editor.basedOn")}
                 </h2>
-                <p className="text-xs text-muted">
-                  Web pages are read again every day. When one of them changes, this lesson is
-                  flagged for review.
-                </p>
+                <p className="text-xs text-muted">{t.t("lessons.editor.basedOnHint")}</p>
               </div>
               <form action={setLessonSourcesAction} className="space-y-2">
                 <input type="hidden" name="lessonId" value={lesson.id} />
@@ -185,8 +199,11 @@ export default async function LessonEditorPage({
                     <span className="min-w-0 break-words">{source.title}</span>
                   </label>
                 ))}
-                <SubmitButton className="btn btn-secondary btn-sm" pendingLabel="Saving…">
-                  Save sources
+                <SubmitButton
+                  className="btn btn-secondary btn-sm"
+                  pendingLabel={t.t("common.saving")}
+                >
+                  {t.t("lessons.editor.saveSources")}
                 </SubmitButton>
               </form>
             </section>
@@ -194,7 +211,7 @@ export default async function LessonEditorPage({
 
           <section aria-labelledby="history-heading" className="card-flat space-y-3 p-4">
             <h2 id="history-heading" className="font-semibold">
-              Version history
+              {t.t("lessons.editor.history")}
             </h2>
             <ol className="space-y-2">
               {data.versions.map((version) => (
@@ -204,13 +221,16 @@ export default async function LessonEditorPage({
                 >
                   <span className="min-w-0">
                     <span className="block font-semibold">
-                      Version {version.version}
+                      {t.t("lessons.version", { version: version.version })}
                       {version.version === lesson.version && (
-                        <span className="font-normal text-muted"> · current</span>
+                        <span className="font-normal text-muted">
+                          {" "}
+                          · {t.t("lessons.editor.current")}
+                        </span>
                       )}
                     </span>
                     <span className="block text-xs text-muted">
-                      {when.format(version.createdAt)}
+                      {t.date(version.createdAt, "dateTime")}
                     </span>
                     <span className="block truncate text-xs text-muted">{version.title}</span>
                   </span>
@@ -220,8 +240,10 @@ export default async function LessonEditorPage({
                       <input type="hidden" name="version" value={version.version} />
                       <SubmitButton
                         className="btn btn-ghost btn-sm"
-                        title={`Restore version ${version.version}`}
-                        confirm={`Restore version ${version.version}? Unsaved changes in the editor are lost.`}
+                        title={t.t("lessons.editor.restore", { version: version.version })}
+                        confirm={t.t("lessons.editor.restoreConfirm", {
+                          version: version.version,
+                        })}
                       >
                         <RotateCcw aria-hidden size={16} />
                       </SubmitButton>

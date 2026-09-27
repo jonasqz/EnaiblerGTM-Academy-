@@ -16,12 +16,12 @@ import { notFound } from "next/navigation";
 import { createLessonAction, deleteLessonAction, moveLessonAction } from "@/app/studio/actions";
 import { draftLessonsAction } from "@/app/studio/courses/[courseId]/sources/actions";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
+import { languageName } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -30,8 +30,12 @@ import { listSources } from "@/server/authoring/sources";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor, type CourseEditor } from "@/server/studio/courses";
 import { markdownOf } from "@/server/studio/lessons";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Lessons" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("lessons.list.title") };
+}
 
 type LessonRow = CourseEditor["lessons"][number];
 
@@ -44,6 +48,7 @@ export default async function LessonsPage({
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/lessons`);
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
+  const t = await getStudioText();
   const languages = editor.course.languages.filter(isLocale);
   const primary = languages[0] ?? tenant.settings.default_locale;
   const rubric = editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null;
@@ -77,17 +82,17 @@ export default async function LessonsPage({
   }
   const titleOf = (row: (typeof rows)[number]) =>
     (row.byLocale.get(primary) ?? [...row.byLocale.values()][0])?.title ?? row.key;
+  // The sources link sits inside the sentence, wherever the language puts it.
+  const [introBefore, introAfter] = t.t("lessons.draft.intro").split("{sources}");
 
   return (
     <div className="space-y-8">
       <AutoRefresh active={drafting_} />
-      {error === "language" && <Notice tone="critical" title="Pick one of the course languages." />}
-      {error === "draft-limit" && (
-        <Notice tone="critical" title="Too many drafts this hour. Try again later." />
-      )}
+      {error === "language" && <Notice tone="critical" title={t.t("lessons.list.errorLanguage")} />}
+      {error === "draft-limit" && <Notice tone="critical" title={t.t("lessons.draft.limit")} />}
       {drafting === "1" && drafting_ && (
-        <Notice tone="info" title="Drafting lessons">
-          This takes a minute or two. New lessons appear below; nothing is published.
+        <Notice tone="info" title={t.t("lessons.draft.running")}>
+          {t.t("lessons.draft.runningBody")}
         </Notice>
       )}
 
@@ -101,38 +106,34 @@ export default async function LessonsPage({
           </span>
           <div className="min-w-60 flex-1 space-y-1">
             <h2 id="draft-heading" className="font-semibold">
-              Draft lessons with AI
+              {t.t("lessons.draft.title")}
             </h2>
             <p className="text-sm text-muted">
-              Written backwards from the rubric, from{" "}
+              {introBefore}
               <Link href={`/studio/courses/${courseId}/sources` as Route} className="underline">
                 {readySources === 0
-                  ? "your sources (none yet: add a recording or document first)"
-                  : `${readySources} source${readySources === 1 ? "" : "s"}`}
+                  ? t.t("lessons.draft.sourcesNone")
+                  : t.n("lessons.draft.sources", readySources)}
               </Link>
-              . Drafts are added as new lessons for you to edit.
+              {introAfter}
             </p>
             {runs.slice(0, 3).map((run) => (
               <p key={run.id} className="flex flex-wrap items-center gap-2 text-sm">
                 {run.status === "done" ? (
                   <Badge tone="good" icon={CircleCheck}>
-                    Added {run.lessonIds.length} {run.lessonIds.length === 1 ? "lesson" : "lessons"}
+                    {t.n("lessons.draft.added", run.lessonIds.length)}
                   </Badge>
                 ) : run.status === "failed" ? (
                   <Badge tone="critical" icon={TriangleAlert}>
-                    Failed
+                    {t.t("lessons.draft.failed")}
                   </Badge>
                 ) : (
                   <Badge tone="info" icon={Hourglass}>
-                    Drafting…
+                    {t.t("lessons.draft.drafting")}
                   </Badge>
                 )}
                 <span className="text-muted">
-                  {LANGUAGE_NAMES[run.locale as Locale] ?? run.locale} ·{" "}
-                  {run.createdAt.toLocaleString("en-GB", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {languageName(t, run.locale)} · {t.date(run.createdAt, "dateTime")}
                   {run.error ? ` · ${run.error}` : ""}
                   {run.notes.length > 0 ? ` · ${run.notes.join(" ")}` : ""}
                 </span>
@@ -144,21 +145,25 @@ export default async function LessonsPage({
             {languages.length > 1 ? (
               <select
                 name="locale"
-                aria-label="Language of the drafts"
+                aria-label={t.t("lessons.draft.language")}
                 className="select"
                 defaultValue={primary}
               >
                 {languages.map((locale) => (
                   <option key={locale} value={locale}>
-                    {LANGUAGE_NAMES[locale]}
+                    {languageName(t, locale)}
                   </option>
                 ))}
               </select>
             ) : (
               <input type="hidden" name="locale" value={primary} />
             )}
-            <SubmitButton className="btn btn-primary" disabled={drafting_} pendingLabel="Starting…">
-              <Sparkles aria-hidden size={18} /> Draft lessons
+            <SubmitButton
+              className="btn btn-primary"
+              disabled={drafting_}
+              pendingLabel={t.t("lessons.draft.starting")}
+            >
+              <Sparkles aria-hidden size={18} /> {t.t("lessons.draft.submit")}
             </SubmitButton>
           </form>
         </section>
@@ -168,38 +173,35 @@ export default async function LessonsPage({
         <section aria-labelledby="lessons-heading" className="space-y-4">
           <div>
             <h2 id="lessons-heading" className="text-lg font-semibold">
-              Lessons
+              {t.t("lessons.list.title")}
             </h2>
-            <p className="text-sm text-muted">
-              Short lessons, each teaching one or more rubric criteria. Translations share progress,
-              so learners can switch language.
-            </p>
+            <p className="text-sm text-muted">{t.t("lessons.list.intro")}</p>
           </div>
 
           {rows.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title="No lessons yet"
-              body="Work backwards from the rubric: one lesson for each thing a good result needs."
+              title={t.t("lessons.list.empty")}
+              body={t.t("lessons.list.emptyBody")}
             />
           ) : (
             <div className="card-flat table-wrap">
               <table className="table">
-                <caption className="sr-only">Lessons and their languages</caption>
+                <caption className="sr-only">{t.t("lessons.list.caption")}</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="w-10">
                       #
                     </th>
-                    <th scope="col">Lesson</th>
+                    <th scope="col">{t.t("lessons.list.lesson")}</th>
                     {languages.map((locale) => (
                       <th key={locale} scope="col">
-                        {LANGUAGE_NAMES[locale]}
+                        {languageName(t, locale)}
                       </th>
                     ))}
-                    <th scope="col">Teaches</th>
+                    <th scope="col">{t.t("lessons.list.teaches")}</th>
                     <th scope="col">
-                      <span className="sr-only">Order and delete</span>
+                      <span className="sr-only">{t.t("lessons.list.actions")}</span>
                     </th>
                   </tr>
                 </thead>
@@ -220,9 +222,9 @@ export default async function LessonsPage({
                                 <input type="hidden" name="title" value={titleOf(row)} />
                                 <SubmitButton
                                   className="btn btn-ghost btn-sm"
-                                  pendingLabel="Adding…"
+                                  pendingLabel={t.t("common.adding")}
                                 >
-                                  <Plus aria-hidden size={14} /> Translate
+                                  <Plus aria-hidden size={14} /> {t.t("lessons.list.translate")}
                                 </SubmitButton>
                               </form>
                             </td>
@@ -249,14 +251,14 @@ export default async function LessonsPage({
                                   style={{ color: "var(--status-good)" }}
                                 />
                               )}
-                              Edit
+                              {t.t("common.edit")}
                             </Link>
                             <span className="block text-xs text-muted">
                               {empty
-                                ? "No content yet"
+                                ? t.t("lessons.list.noContent")
                                 : lesson.flaggedAt
-                                  ? "Source changed: review"
-                                  : `Version ${lesson.version}`}
+                                  ? t.t("lessons.list.sourceChanged")
+                                  : t.t("lessons.version", { version: lesson.version })}
                             </span>
                           </td>
                         );
@@ -286,7 +288,7 @@ export default async function LessonsPage({
                             <SubmitButton
                               className="btn btn-ghost btn-sm"
                               disabled={index === 0}
-                              title="Move up"
+                              title={t.t("lessons.list.moveUp")}
                             >
                               <ArrowUp aria-hidden size={16} />
                             </SubmitButton>
@@ -298,7 +300,7 @@ export default async function LessonsPage({
                             <SubmitButton
                               className="btn btn-ghost btn-sm"
                               disabled={index === rows.length - 1}
-                              title="Move down"
+                              title={t.t("lessons.list.moveDown")}
                             >
                               <ArrowDown aria-hidden size={16} />
                             </SubmitButton>
@@ -308,8 +310,8 @@ export default async function LessonsPage({
                             <input type="hidden" name="key" value={row.key} />
                             <SubmitButton
                               className="btn btn-ghost btn-sm"
-                              title="Delete lesson"
-                              confirm={`Delete “${titleOf(row)}” in every language? Learners' progress on it is kept but no longer counted.`}
+                              title={t.t("lessons.list.delete")}
+                              confirm={t.t("lessons.list.deleteConfirm", { title: titleOf(row) })}
                             >
                               <Trash aria-hidden size={16} />
                             </SubmitButton>
@@ -330,7 +332,7 @@ export default async function LessonsPage({
             <input type="hidden" name="courseId" value={courseId} />
             <div className="field min-w-56 flex-1">
               <label htmlFor="new-lesson-title" className="label">
-                New lesson
+                {t.t("lessons.list.new")}
               </label>
               <input
                 id="new-lesson-title"
@@ -338,13 +340,13 @@ export default async function LessonsPage({
                 className="input"
                 required
                 maxLength={160}
-                placeholder="Lesson title"
+                placeholder={t.t("lessons.list.newPlaceholder")}
               />
             </div>
             {languages.length > 1 ? (
               <div className="field">
                 <label htmlFor="new-lesson-locale" className="label">
-                  Language
+                  {t.t("common.language")}
                 </label>
                 <select
                   id="new-lesson-locale"
@@ -354,7 +356,7 @@ export default async function LessonsPage({
                 >
                   {languages.map((locale) => (
                     <option key={locale} value={locale}>
-                      {LANGUAGE_NAMES[locale]}
+                      {languageName(t, locale)}
                     </option>
                   ))}
                 </select>
@@ -362,8 +364,8 @@ export default async function LessonsPage({
             ) : (
               <input type="hidden" name="locale" value={primary} />
             )}
-            <SubmitButton pendingLabel="Adding…">
-              <Plus aria-hidden size={18} /> Add lesson
+            <SubmitButton pendingLabel={t.t("common.adding")}>
+              <Plus aria-hidden size={18} /> {t.t("lessons.list.add")}
             </SubmitButton>
           </form>
         </section>
@@ -371,11 +373,9 @@ export default async function LessonsPage({
         <aside aria-labelledby="coverage-heading" className="card-flat h-fit space-y-4 p-5">
           <div>
             <h2 id="coverage-heading" className="text-lg font-semibold">
-              Coverage
+              {t.t("lessons.coverage.title")}
             </h2>
-            <p className="text-sm text-muted">
-              Which lesson teaches which criterion. Tick criteria in the lesson editor.
-            </p>
+            <p className="text-sm text-muted">{t.t("lessons.coverage.intro")}</p>
           </div>
           <ul className="space-y-3">
             {check.coverage.map((row) => (
@@ -384,11 +384,11 @@ export default async function LessonsPage({
                   {criterionLabel.get(row.criterionId) ?? row.label}
                   {row.lessonKeys.length === 0 ? (
                     <Badge tone="warning" icon={TriangleAlert}>
-                      Not taught
+                      {t.t("lessons.coverage.notTaught")}
                     </Badge>
                   ) : (
                     <Badge tone="good" icon={CircleCheck}>
-                      {row.lessonKeys.length} {row.lessonKeys.length === 1 ? "lesson" : "lessons"}
+                      {t.n("common.lesson", row.lessonKeys.length)}
                     </Badge>
                   )}
                 </p>
