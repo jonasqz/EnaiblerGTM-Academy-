@@ -179,6 +179,59 @@ export const en = {
     "{name} could not be used: SVGs must not contain scripts or links to other files.",
   "team.path.upload.tooMany": "One picture per path.",
   "team.path.applying": "Applying the picture…",
+
+  // Cohorts
+  "team.cohorts.title": "Cohorts",
+  "team.cohorts.description":
+    "Groups that start a course together: they join with a link, see their dates, and their mentors review their work.",
+  "team.cohorts.off": "Cohorts are switched off",
+  "team.cohorts.offBody":
+    "Switch them on under Settings → Modules to show cohort dates to learners.",
+  "team.cohorts.emptyManager": "Create one for a course below.",
+  "team.cohorts.closed": "Closed",
+  "team.cohorts.mentors.one": "{n} mentor",
+  "team.cohorts.mentors.other": "{n} mentors",
+  "team.cohorts.starts": "Starts",
+  "team.cohorts.ends": "Ends",
+  "team.cohorts.new": "New cohort",
+  "team.cohorts.course": "Course",
+  "team.cohorts.name": "Name",
+  "team.cohorts.namePlaceholder": "Autumn 2026",
+  "team.cohorts.creating": "Creating…",
+  "team.cohorts.create": "Create cohort",
+  "team.cohorts.closedLabel": "Closed: the join link stops working",
+  "team.cohorts.closedHint": "Everyone already in it keeps going.",
+  "team.cohorts.save": "Save cohort",
+  "team.cohorts.mentorEmail": "Mentor e-mail address",
+  "team.cohorts.mentorPlaceholder": "mentor@your-company.com",
+  "team.cohorts.addMentor": "Add mentor",
+  "team.cohorts.actions.nameRequired": "Give the cohort a name, e.g. “Autumn 2026”.",
+  "team.cohorts.actions.dates": "Use valid dates.",
+  "team.cohorts.actions.endBeforeStart": "The end date is before the start date.",
+  "team.cohorts.actions.chooseCourse": "Choose a course.",
+  "team.cohorts.actions.saved": "Cohort saved.",
+  "team.cohorts.actions.mentorEmail": "Enter the mentor's e-mail address.",
+  "team.cohorts.actions.mentorAdded": "Mentor added. They sign in with this address.",
+
+  // One cohort
+  "team.cohort.title": "Cohort",
+  "team.cohort.closed": "closed",
+  "team.cohort.created": "Cohort created",
+  "team.cohort.createdBody": "Share the join link below with the group, and add their mentors.",
+  "team.cohort.unpublished": "The course is not published yet",
+  "team.cohort.unpublishedBody": "The join link works once it is.",
+  "team.cohort.joinLink": "Join link",
+  "team.cohort.joinLinkBody": "Learners who open it sign in, join the cohort and start the course.",
+  "team.cohort.nobody": "Nobody has joined yet",
+  "team.cohort.learnersCaption": "Learners in {name}",
+  "team.cohort.removeSomeone": "Remove someone from the cohort",
+  "team.cohort.removeConfirm": "Remove {alias} from {name}? They stay in the course.",
+  "team.cohort.mentors": "Mentors",
+  "team.cohort.mentorsBody":
+    "Mentors review this cohort’s work in the Studio and see nothing else. Learners never see their names.",
+  "team.cohort.deleteConfirm":
+    "Delete this cohort? Its learners stay in the course; the grouping and mentors go.",
+  "team.cohort.delete": "Delete cohort",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -355,4 +408,59 @@ export const de: Record<keyof typeof en, string> = {
     "{name} lässt sich nicht verwenden: SVGs dürfen keine Skripte oder Links auf andere Dateien enthalten.",
   "team.path.upload.tooMany": "Ein Bild pro Lernpfad.",
   "team.path.applying": "Bild wird übernommen…",
+
+  "team.cohorts.title": "Gruppen",
+  "team.cohorts.description":
+    "Gruppen, die gemeinsam mit einem Kurs beginnen: Sie treten über einen Link bei, sehen ihre Termine, und ihre Mentor:innen bewerten ihre Arbeit.",
+  "team.cohorts.off": "Gruppen sind ausgeschaltet",
+  "team.cohorts.offBody":
+    "Schalte sie unter Einstellungen → Module ein, damit Lernende die Termine ihrer Gruppe sehen.",
+  "team.cohorts.emptyManager": "Leg unten eine für einen Kurs an.",
+  "team.cohorts.closed": "Geschlossen",
+  "team.cohorts.mentors.one": "{n} Mentor:in",
+  "team.cohorts.mentors.other": "{n} Mentor:innen",
+  "team.cohorts.starts": "Beginnt",
+  "team.cohorts.ends": "Endet",
+  "team.cohorts.new": "Neue Gruppe",
+  "team.cohorts.course": "Kurs",
+  "team.cohorts.name": "Name",
+  "team.cohorts.namePlaceholder": "Herbst 2026",
+  "team.cohorts.creating": "Wird angelegt…",
+  "team.cohorts.create": "Gruppe anlegen",
+  "team.cohorts.closedLabel": "Geschlossen: Der Beitrittslink funktioniert nicht mehr",
+  "team.cohorts.closedHint": "Wer schon dabei ist, macht weiter.",
+  "team.cohorts.save": "Gruppe speichern",
+  "team.cohorts.mentorEmail": "E-Mail-Adresse der Mentor:in",
+  "team.cohorts.mentorPlaceholder": "mentor@deine-firma.de",
+  "team.cohorts.addMentor": "Mentor:in hinzufügen",
+  "team.cohorts.actions.nameRequired": "Gib der Gruppe einen Namen, z. B. „Herbst 2026“.",
+  "team.cohorts.actions.dates": "Gib gültige Daten an.",
+  "team.cohorts.actions.endBeforeStart": "Das Enddatum liegt vor dem Startdatum.",
+  "team.cohorts.actions.chooseCourse": "Wähle einen Kurs.",
+  "team.cohorts.actions.saved": "Gruppe gespeichert.",
+  "team.cohorts.actions.mentorEmail": "Gib die E-Mail-Adresse der Mentor:in ein.",
+  "team.cohorts.actions.mentorAdded":
+    "Mentor:in hinzugefügt. Die Anmeldung läuft über diese Adresse.",
+
+  "team.cohort.title": "Gruppe",
+  "team.cohort.closed": "geschlossen",
+  "team.cohort.created": "Gruppe angelegt",
+  "team.cohort.createdBody":
+    "Teil den Beitrittslink unten mit der Gruppe und füge ihre Mentor:innen hinzu.",
+  "team.cohort.unpublished": "Der Kurs ist noch nicht veröffentlicht",
+  "team.cohort.unpublishedBody":
+    "Der Beitrittslink funktioniert, sobald der Kurs veröffentlicht ist.",
+  "team.cohort.joinLink": "Beitrittslink",
+  "team.cohort.joinLinkBody":
+    "Lernende, die ihn öffnen, melden sich an, treten der Gruppe bei und beginnen den Kurs.",
+  "team.cohort.nobody": "Noch ist niemand beigetreten",
+  "team.cohort.learnersCaption": "Lernende in {name}",
+  "team.cohort.removeSomeone": "Jemanden aus der Gruppe entfernen",
+  "team.cohort.removeConfirm": "{alias} aus {name} entfernen? Die Person bleibt im Kurs.",
+  "team.cohort.mentors": "Mentor:innen",
+  "team.cohort.mentorsBody":
+    "Mentor:innen bewerten die Arbeiten dieser Gruppe im Studio und sehen sonst nichts. Lernende sehen die Namen der Mentor:innen nie.",
+  "team.cohort.deleteConfirm":
+    "Diese Gruppe löschen? Die Lernenden bleiben im Kurs; nur die Gruppe und die Zuordnung der Mentor:innen fallen weg.",
+  "team.cohort.delete": "Gruppe löschen",
 };

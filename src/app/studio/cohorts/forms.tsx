@@ -10,15 +10,17 @@ import {
   updateCohortAction,
 } from "@/app/studio/cohorts/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
+import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 
 function DateFields(props: { startsOn?: string | null; endsOn?: string | null }) {
+  const t = useStudioText();
   return (
     <>
       <div className="field">
         <label htmlFor="cohort-start" className="label">
-          Starts
+          {t.t("team.cohorts.starts")}
         </label>
         <input
           id="cohort-start"
@@ -30,7 +32,7 @@ function DateFields(props: { startsOn?: string | null; endsOn?: string | null })
       </div>
       <div className="field">
         <label htmlFor="cohort-end" className="label">
-          Ends
+          {t.t("team.cohorts.ends")}
         </label>
         <input
           id="cohort-end"
@@ -45,14 +47,15 @@ function DateFields(props: { startsOn?: string | null; endsOn?: string | null })
 }
 
 export function NewCohortForm(props: { courses: Array<{ id: string; label: string }> }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(createCohortAction, {});
   return (
     <form onSubmit={onSubmit} className="card-flat space-y-4 p-5 sm:p-6">
-      <h2 className="text-lg font-semibold">New cohort</h2>
+      <h2 className="text-lg font-semibold">{t.t("team.cohorts.new")}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="field">
           <label htmlFor="cohort-course" className="label">
-            Course
+            {t.t("team.cohorts.course")}
           </label>
           <select id="cohort-course" name="courseId" className="select" required>
             {props.courses.map((course) => (
@@ -64,13 +67,13 @@ export function NewCohortForm(props: { courses: Array<{ id: string; label: strin
         </div>
         <div className="field">
           <label htmlFor="cohort-name" className="label">
-            Name
+            {t.t("team.cohorts.name")}
           </label>
           <input
             id="cohort-name"
             name="name"
             className="input"
-            placeholder="Autumn 2026"
+            placeholder={t.t("team.cohorts.namePlaceholder")}
             maxLength={80}
             required
           />
@@ -78,8 +81,8 @@ export function NewCohortForm(props: { courses: Array<{ id: string; label: strin
         <DateFields />
       </div>
       <FormFeedback state={state} />
-      <SubmitButton pending={pending} pendingLabel="Creating…">
-        <Plus aria-hidden size={18} /> Create cohort
+      <SubmitButton pending={pending} pendingLabel={t.t("team.cohorts.creating")}>
+        <Plus aria-hidden size={18} /> {t.t("team.cohorts.create")}
       </SubmitButton>
     </form>
   );
@@ -92,6 +95,7 @@ export function CohortForm(props: {
   endsOn: string | null;
   status: "open" | "closed";
 }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(updateCohortAction, {});
   return (
     <form onSubmit={onSubmit} className="card-flat space-y-4 p-5 sm:p-6">
@@ -99,7 +103,7 @@ export function CohortForm(props: {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="field sm:col-span-2">
           <label htmlFor="cohort-name" className="label">
-            Name
+            {t.t("team.cohorts.name")}
           </label>
           <input
             id="cohort-name"
@@ -121,19 +125,20 @@ export function CohortForm(props: {
           className="mt-0.5 size-4"
         />
         <span>
-          Closed: the join link stops working
-          <span className="block text-xs text-muted">Everyone already in it keeps going.</span>
+          {t.t("team.cohorts.closedLabel")}
+          <span className="block text-xs text-muted">{t.t("team.cohorts.closedHint")}</span>
         </span>
       </label>
       <FormFeedback state={state} />
-      <SubmitButton pending={pending} pendingLabel="Saving…">
-        Save cohort
+      <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+        {t.t("team.cohorts.save")}
       </SubmitButton>
     </form>
   );
 }
 
 export function AddMentorForm(props: { cohortId: string }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(addMentorAction, {});
   const form = useRef<HTMLFormElement>(null);
   // Added: the mentor is in the list above; the field is free for the next one.
@@ -145,18 +150,22 @@ export function AddMentorForm(props: { cohortId: string }) {
       <input type="hidden" name="cohortId" value={props.cohortId} />
       <div className="flex flex-wrap gap-2">
         <label htmlFor="mentor-email" className="sr-only">
-          Mentor e-mail address
+          {t.t("team.cohorts.mentorEmail")}
         </label>
         <input
           id="mentor-email"
           name="email"
           type="email"
           className="input min-w-56 flex-1"
-          placeholder="mentor@your-company.com"
+          placeholder={t.t("team.cohorts.mentorPlaceholder")}
           required
         />
-        <SubmitButton pending={pending} pendingLabel="Adding…" className="btn btn-secondary">
-          <UserPlus aria-hidden size={18} /> Add mentor
+        <SubmitButton
+          pending={pending}
+          pendingLabel={t.t("common.adding")}
+          className="btn btn-secondary"
+        >
+          <UserPlus aria-hidden size={18} /> {t.t("team.cohorts.addMentor")}
         </SubmitButton>
       </div>
       <FormFeedback state={state} />

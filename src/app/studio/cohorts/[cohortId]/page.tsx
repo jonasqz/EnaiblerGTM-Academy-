@@ -23,7 +23,10 @@ import { loadCohort } from "@/server/cohorts";
 import { academyUrl } from "@/server/platform/config";
 import { courseLearners } from "@/server/studio/insights";
 
-export const metadata: Metadata = { title: "Cohort" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("team.cohort.title") };
+}
 
 /** One cohort: its join link, learners and mentors. Mentors see it read-only. */
 export default async function CohortPage({
@@ -60,34 +63,32 @@ export default async function CohortPage({
         href="/studio/cohorts"
         className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
       >
-        <ArrowLeft aria-hidden size={16} /> Cohorts
+        <ArrowLeft aria-hidden size={16} /> {t.t("team.cohorts.title")}
       </Link>
       <header className="space-y-1">
         <p className="eyebrow">{localize(course.title, tenant.settings.default_locale)}</p>
         <h1 className="text-3xl font-semibold">{cohort.name}</h1>
         <p className="text-sm text-muted">
           {cohortDates(t, cohort.startsOn, cohort.endsOn)}
-          {cohort.status === "closed" ? " · closed" : ""}
+          {cohort.status === "closed" ? ` · ${t.t("team.cohort.closed")}` : ""}
         </p>
       </header>
       {created === "1" && (
-        <Notice tone="good" title="Cohort created">
-          Share the join link below with the group, and add their mentors.
+        <Notice tone="good" title={t.t("team.cohort.created")}>
+          {t.t("team.cohort.createdBody")}
         </Notice>
       )}
       {course.status !== "published" && (
-        <Notice tone="warning" title="The course is not published yet">
-          The join link works once it is.
+        <Notice tone="warning" title={t.t("team.cohort.unpublished")}>
+          {t.t("team.cohort.unpublishedBody")}
         </Notice>
       )}
 
       <section aria-labelledby="join-heading" className="card-flat space-y-2 p-5 sm:p-6">
         <h2 id="join-heading" className="flex items-center gap-2 text-lg font-semibold">
-          <Link2 aria-hidden size={18} /> Join link
+          <Link2 aria-hidden size={18} /> {t.t("team.cohort.joinLink")}
         </h2>
-        <p className="text-sm text-muted">
-          Learners who open it sign in, join the cohort and start the course.
-        </p>
+        <p className="text-sm text-muted">{t.t("team.cohort.joinLinkBody")}</p>
         <code className="block break-all rounded-control bg-subtle p-3 font-mono text-sm">
           {joinLink}
         </code>
@@ -95,17 +96,21 @@ export default async function CohortPage({
 
       <section aria-labelledby="learners-heading" className="space-y-3">
         <h2 id="learners-heading" className="text-lg font-semibold">
-          {rows.length} {rows.length === 1 ? "learner" : "learners"}
+          {t.n("common.learner", rows.length)}
         </h2>
         {rows.length === 0 ? (
-          <EmptyState icon={Users} title="Nobody has joined yet" />
+          <EmptyState icon={Users} title={t.t("team.cohort.nobody")} />
         ) : (
-          <LearnersTable rows={shown} canReview caption={`Learners in ${cohort.name}`} />
+          <LearnersTable
+            rows={shown}
+            canReview
+            caption={t.t("team.cohort.learnersCaption", { name: cohort.name })}
+          />
         )}
         {manager && rows.length > 0 && (
           <details className="text-sm">
             <summary className="cursor-pointer font-semibold">
-              Remove someone from the cohort
+              {t.t("team.cohort.removeSomeone")}
             </summary>
             <ul className="mt-2 space-y-1">
               {rows.map((row) => (
@@ -116,9 +121,12 @@ export default async function CohortPage({
                     <span className="font-mono">{row.alias}</span>
                     <SubmitButton
                       className="btn btn-ghost btn-sm"
-                      confirm={`Remove ${row.alias} from ${cohort.name}? They stay in the course.`}
+                      confirm={t.t("team.cohort.removeConfirm", {
+                        alias: row.alias,
+                        name: cohort.name,
+                      })}
                     >
-                      <UserMinus aria-hidden size={16} /> Remove
+                      <UserMinus aria-hidden size={16} /> {t.t("common.remove")}
                     </SubmitButton>
                   </form>
                 </li>
@@ -131,12 +139,9 @@ export default async function CohortPage({
       <section aria-labelledby="mentors-heading" className="card-flat space-y-3 p-5 sm:p-6">
         <div>
           <h2 id="mentors-heading" className="text-lg font-semibold">
-            Mentors
+            {t.t("team.cohort.mentors")}
           </h2>
-          <p className="text-sm text-muted">
-            Mentors review this cohort’s work in the Studio and see nothing else. Learners never see
-            their names.
-          </p>
+          <p className="text-sm text-muted">{t.t("team.cohort.mentorsBody")}</p>
         </div>
         {data.mentors.length > 0 && (
           <ul className="divide-y divide-line">
@@ -147,7 +152,9 @@ export default async function CohortPage({
                   <form action={removeMentorAction}>
                     <input type="hidden" name="cohortId" value={cohort.id} />
                     <input type="hidden" name="userId" value={mentor.userId} />
-                    <SubmitButton className="btn btn-ghost btn-sm">Remove</SubmitButton>
+                    <SubmitButton className="btn btn-ghost btn-sm">
+                      {t.t("common.remove")}
+                    </SubmitButton>
                   </form>
                 )}
               </li>
@@ -170,9 +177,9 @@ export default async function CohortPage({
             <input type="hidden" name="cohortId" value={cohort.id} />
             <SubmitButton
               className="btn btn-danger btn-sm"
-              confirm="Delete this cohort? Its learners stay in the course; the grouping and mentors go."
+              confirm={t.t("team.cohort.deleteConfirm")}
             >
-              <Trash aria-hidden size={16} /> Delete cohort
+              <Trash aria-hidden size={16} /> {t.t("team.cohort.delete")}
             </SubmitButton>
           </form>
         </>
