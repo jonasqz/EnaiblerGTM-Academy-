@@ -64,6 +64,8 @@ const envSchema = z.object({
    * last-updated date, and 2026-09 for documents kept elsewhere.
    */
   PLATFORM_AGREEMENT_VERSION: optional,
+  /** Where content reports from the website go (DSA notice and action). */
+  PLATFORM_ABUSE_EMAIL: z.email().optional(),
 });
 
 export type Env = z.output<typeof envSchema> & { APP_PROTOCOL: "http" | "https" };

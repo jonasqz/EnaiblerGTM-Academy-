@@ -25,6 +25,7 @@ const en = {
     privacy: "Privacy",
     terms: "Terms",
     dpa: "Data processing agreement",
+    report: "Report content",
     hosted: "Hosted in the EU",
   },
   cta: {
@@ -63,6 +64,7 @@ const de: SiteCommonCopy = {
     privacy: "Datenschutz",
     terms: "Nutzungsbedingungen",
     dpa: "Auftragsverarbeitung (AVV)",
+    report: "Inhalte melden",
     hosted: "In der EU gehostet",
   },
   cta: {

@@ -112,6 +112,7 @@ export function SiteFooter(props: {
     [copy.footer.privacy, legalHref("privacy", props.legal)],
     [copy.footer.terms, legalHref("terms", props.legal)],
     [copy.footer.dpa, legalHref("dpa", props.legal)],
+    [copy.footer.report, SITE_PATHS.report],
   ];
   const column = (title: string, links: ReadonlyArray<readonly [string, string]>) => (
     <nav aria-label={title} className="space-y-3">

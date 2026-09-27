@@ -42,6 +42,8 @@ services:
       PLATFORM_IMPRINT_URL: ${PLATFORM_IMPRINT_URL:-}
       PLATFORM_DEMO_URL: ${PLATFORM_DEMO_URL:-}
       PLATFORM_AGREEMENT_VERSION: ${PLATFORM_AGREEMENT_VERSION:-}
+      # Content reports from the website (DSA notice and action).
+      PLATFORM_ABUSE_EMAIL: ${PLATFORM_ABUSE_EMAIL:-}
       # Custom domains (docs/deployment.md): where they point, and the proxy config endpoint.
       CUSTOM_DOMAIN_TARGET: ${CUSTOM_DOMAIN_TARGET:-}
       PROXY_CONFIG_TOKEN: ${PROXY_CONFIG_TOKEN:-}

@@ -18,6 +18,7 @@ const en = {
   "footer.imprint": "Imprint",
   "footer.privacy": "Privacy",
   "footer.terms": "Terms",
+  "footer.report": "Report content",
 
   "home.choosePath": "Choose your {term.path}",
   "home.courses": "{terms.course}",
@@ -386,6 +387,7 @@ const de: Record<MessageKey, string> = {
   "footer.imprint": "Impressum",
   "footer.privacy": "Datenschutz",
   "footer.terms": "Nutzungsbedingungen",
+  "footer.report": "Inhalte melden",
 
   "home.choosePath": "{term.path} wählen",
   "home.courses": "{terms.course}",

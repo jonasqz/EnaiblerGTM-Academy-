@@ -11,6 +11,8 @@ export interface PlatformConfig {
   academyDomain: string;
   /** The operator's own addresses for the legal pages; each replaces its built-in page. */
   links: { terms?: string; dpa?: string; privacy?: string; imprint?: string; demo?: string };
+  /** Where content reports go; development falls back to a local address. */
+  abuseEmail?: string;
   /** Recorded with accepted agreements; unset, a built-in page's date is its version. */
   agreementVersion?: string;
 }
@@ -42,6 +44,9 @@ export function platformConfig(): PlatformConfig | null {
       // An academy visitors of the website can look around in.
       demo: trimmed(process.env.PLATFORM_DEMO_URL),
     },
+    abuseEmail:
+      trimmed(process.env.PLATFORM_ABUSE_EMAIL) ??
+      (production ? undefined : "abuse@enaibler.local"),
     agreementVersion: trimmed(process.env.PLATFORM_AGREEMENT_VERSION),
   };
 }
