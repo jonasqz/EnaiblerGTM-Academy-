@@ -5,11 +5,12 @@ import { useState, useTransition } from "react";
 import type { FormState } from "@/app/studio/actions";
 import { savePathAction, setPathVisualAction } from "@/app/studio/paths/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
+import { useStudioText } from "@/components/studio/studio-text";
 import { FileUpload } from "@/components/ui/file-upload";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
+import { languageName, studioUploadLabels } from "@/core/i18n/studio/helpers";
 
 export function PathForm(props: {
   pathId: string;
@@ -20,6 +21,7 @@ export function PathForm(props: {
   fallbackColor: string;
   slug: string;
 }) {
+  const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(savePathAction, {});
   const [color, setColor] = useState(props.color ?? "");
 
@@ -31,7 +33,7 @@ export function PathForm(props: {
           <div key={locale} className="space-y-4">
             <div className="field">
               <label htmlFor={`title-${locale}`} className="label">
-                Name ({LANGUAGE_NAMES[locale]})
+                {t.t("team.paths.nameIn", { language: languageName(t, locale) })}
               </label>
               <input
                 id={`title-${locale}`}
@@ -43,7 +45,7 @@ export function PathForm(props: {
             </div>
             <div className="field">
               <label htmlFor={`promise-${locale}`} className="label">
-                Promise ({LANGUAGE_NAMES[locale]})
+                {t.t("team.path.promiseIn", { language: languageName(t, locale) })}
               </label>
               <textarea
                 id={`promise-${locale}`}
@@ -51,7 +53,7 @@ export function PathForm(props: {
                 className="textarea min-h-24"
                 maxLength={300}
                 defaultValue={props.promise?.[locale] ?? ""}
-                placeholder="What learners on this path become able to do."
+                placeholder={t.t("team.path.promisePlaceholder")}
               />
             </div>
           </div>
@@ -60,12 +62,12 @@ export function PathForm(props: {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="field">
           <label htmlFor="path-color" className="label">
-            Colour
+            {t.t("team.path.color")}
           </label>
           <div className="flex items-center gap-2">
             <input
               type="color"
-              aria-label="Pick the colour"
+              aria-label={t.t("team.path.pickColor")}
               value={color || props.fallbackColor}
               onChange={(event) => setColor(event.target.value)}
               className="h-10 w-12 cursor-pointer rounded-control border border-line bg-card"
@@ -75,49 +77,45 @@ export function PathForm(props: {
               name="color"
               className="input font-mono"
               value={color}
-              placeholder={`${props.fallbackColor} (from the brand)`}
+              placeholder={t.t("team.path.colorFromBrand", { color: props.fallbackColor })}
               onChange={(event) => setColor(event.target.value)}
             />
           </div>
         </div>
         <div className="field">
           <label htmlFor="path-slug" className="label">
-            Address
+            {t.t("team.path.address")}
           </label>
           <input id="path-slug" name="slug" className="input font-mono" defaultValue={props.slug} />
-          <p className="hint">
-            Used in /paths/… and entry links (?path=…). Changing it breaks old links.
-          </p>
+          <p className="hint">{t.t("team.path.addressHint")}</p>
         </div>
       </div>
       <FormFeedback state={state} />
-      <SubmitButton pending={pending} pendingLabel="Saving…">
-        Save path
+      <SubmitButton pending={pending} pendingLabel={t.t("common.saving")}>
+        {t.t("team.path.save")}
       </SubmitButton>
     </form>
   );
 }
 
-const UPLOAD_LABELS = {
-  choose: "Upload SVG or PNG",
-  drop: "or drop it here",
-  uploading: "Uploading… {percent} %",
-  remove: "Remove",
-  errors: {
-    too_large: "{name} is too large (up to 1 MB).",
-    type_not_allowed: "{name}: use SVG, PNG or WebP.",
-    invalid_content:
-      "{name} could not be used: SVGs must not contain scripts or links to other files.",
-    too_many: "One picture per path.",
-    rate_limited: "Too many uploads this hour.",
-    failed: "{name} could not be uploaded.",
-  },
-};
-
 /** Path picture: the upload is applied at once (SVGs are also rendered to PNG). */
 export function PathVisualUpload(props: { pathId: string }) {
+  const t = useStudioText();
   const [applying, startApplying] = useTransition();
   const [applied, setApplied] = useState<string | null>(null);
+  const labels = studioUploadLabels(t);
+  // What a path picture may be, where the generic labels would not say.
+  const uploadLabels = {
+    ...labels,
+    choose: t.t("team.path.upload.choose"),
+    errors: {
+      ...labels.errors,
+      too_large: t.t("team.path.upload.tooLarge"),
+      type_not_allowed: t.t("team.path.upload.type"),
+      invalid_content: t.t("team.path.upload.invalid"),
+      too_many: t.t("team.path.upload.tooMany"),
+    },
+  };
   return (
     <div className="space-y-2">
       <FileUpload
@@ -126,7 +124,7 @@ export function PathVisualUpload(props: { pathId: string }) {
         accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
         maxFiles={1}
         maxBytes={1024 * 1024}
-        labels={UPLOAD_LABELS}
+        labels={uploadLabels}
         onChange={(files) => {
           const id = files[0]?.id;
           if (!id || id === applied) return;
@@ -137,7 +135,7 @@ export function PathVisualUpload(props: { pathId: string }) {
           startApplying(() => setPathVisualAction(data));
         }}
       />
-      {applying && <p className="hint">Applying the picture…</p>}
+      {applying && <p className="hint">{t.t("team.path.applying")}</p>}
     </div>
   );
 }
