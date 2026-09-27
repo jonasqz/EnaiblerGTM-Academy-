@@ -37,6 +37,10 @@ export default async function DetailsPage({
         completionMode={course.completionMode}
         published={course.publishedAt !== null}
         aiReview={tenant.settings.features.ai_review}
+        emptyParts={{
+          work: !editor.assignment || Object.keys(editor.assignment.prompt).length === 0,
+          test: !editor.test || editor.test.questions.length === 0,
+        }}
       />
     </div>
   );

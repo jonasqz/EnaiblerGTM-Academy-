@@ -307,6 +307,8 @@ export const en = {
   "courses.test.issue.pass_percent": "The pass mark is a whole number from 1 to 100.",
   "courses.test.issue.invalid":
     "Something in the test does not fit ({path}). Reload the page and try again.",
+  "courses.completion.liveEmpty":
+    "What it adds is still empty: fill it in right after saving, because learners on their way see it at once.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -615,4 +617,6 @@ export const de: Record<keyof typeof en, string> = {
   "courses.test.issue.pass_percent": "Die Bestehensgrenze ist eine ganze Zahl von 1 bis 100.",
   "courses.test.issue.invalid":
     "Etwas im Test passt nicht ({path}). Lade die Seite neu und versuch es noch einmal.",
+  "courses.completion.liveEmpty":
+    "Was sie hinzufügt, ist noch leer: Füll es direkt nach dem Speichern aus, denn Lernende, die schon dabei sind, sehen es sofort.",
 };

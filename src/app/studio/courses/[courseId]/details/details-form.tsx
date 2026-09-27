@@ -10,7 +10,12 @@ import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { DeliveryMode } from "@/core/compliance/delivery-mode";
-import { isCompletionMode, type CompletionMode } from "@/core/courses/completion";
+import {
+  isCompletionMode,
+  requiresTest,
+  requiresWork,
+  type CompletionMode,
+} from "@/core/courses/completion";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 
@@ -29,6 +34,8 @@ export interface DetailsFormProps {
   /** Learners may be on their way: a new ending applies to those who have not finished. */
   published: boolean;
   aiReview: boolean;
+  /** Parts not written yet (no assignment text, no questions), which a new ending would show. */
+  emptyParts: { work: boolean; test: boolean };
 }
 
 export function DetailsForm(props: DetailsFormProps) {
@@ -41,6 +48,9 @@ export function DetailsForm(props: DetailsFormProps) {
     if (result.ok && isCompletionMode(saved)) setSavedMode(saved);
     return result;
   }, {});
+  const addsEmpty =
+    (requiresWork(completionMode) && !requiresWork(savedMode) && props.emptyParts.work) ||
+    (requiresTest(completionMode) && !requiresTest(savedMode) && props.emptyParts.test);
   // Show fields for every language the academy offers; only checked ones are saved.
   const locales = props.academyLocales;
 
@@ -101,6 +111,7 @@ export function DetailsForm(props: DetailsFormProps) {
         {props.published && completionMode !== savedMode && (
           <Notice tone="warning" title={t.t("courses.completion.liveTitle")}>
             {t.t("courses.completion.liveBody")}
+            {addsEmpty && ` ${t.t("courses.completion.liveEmpty")}`}
           </Notice>
         )}
       </section>
