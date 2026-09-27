@@ -2,13 +2,16 @@ import { toMicroUsd, type AiUsageKind } from "@/core/usage/ai-usage";
 import type { Database } from "@/db/client";
 import { aiUsage } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { admitAiCall } from "@/server/ai-allowance";
 import type { LlmCaller } from "@/server/llm";
 import { reportError } from "@/server/observability/report";
 
 /*
  * Metering (core/usage/ai-usage): every model call an academy causes is
  * recorded right after it returns, in a transaction of its own, so a run that
- * fails later still counts. Recording never fails the work it measures.
+ * fails later still counts. Recording never fails the work it measures. The
+ * academy's monthly allowance (server/ai-allowance.ts) is checked before each
+ * call, here, so that no caller can forget it.
  */
 
 export interface UsageScope {
@@ -61,17 +64,25 @@ export async function recordAiUsage(
   }
 }
 
-/** Told what one request used; services outside LlmCaller (Whisper, embeddings) report through it. */
-export type UsageCallback = (amount: UsageAmount) => Promise<void>;
-
-/** Records each request a service reports for this academy. */
-export function usageRecorder(db: Database, scope: UsageScope): UsageCallback {
-  return (amount) => recordAiUsage(db, scope, amount);
+/** Services outside LlmCaller (Whisper, embeddings) admit each request before it and record it after. */
+export interface UsageMeter {
+  /** Throws AiAllowanceUsedUp once the academy's allowance for the month is used up. */
+  admit(): Promise<void>;
+  record(amount: UsageAmount): Promise<void>;
 }
 
-/** The same caller, recording each call it makes for this academy. */
+/** Meters each request a service makes for this academy. */
+export function usageMeter(db: Database, scope: UsageScope): UsageMeter {
+  return {
+    admit: () => admitAiCall(db, scope.tenantId),
+    record: (amount) => recordAiUsage(db, scope, amount),
+  };
+}
+
+/** The same caller, admitting and recording each call it makes for this academy. */
 export function meteredLlm(db: Database, llm: LlmCaller, scope: UsageScope): LlmCaller {
   return async (options) => {
+    await admitAiCall(db, scope.tenantId);
     const result = await llm(options);
     await recordAiUsage(db, scope, {
       model: result.model,

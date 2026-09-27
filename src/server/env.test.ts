@@ -27,6 +27,21 @@ describe("environment", () => {
     expect(() => parseEnv({ ...required, BETTER_AUTH_SECRET: "short" })).toThrow(/32 characters/);
   });
 
+  it("takes the AI allowance as an amount in US dollars", () => {
+    expect(parseEnv({ ...required, AI_MONTHLY_ALLOWANCE_USD: "25" }).AI_MONTHLY_ALLOWANCE_USD).toBe(
+      "25",
+    );
+    expect(parseEnv({ ...required, AI_MONTHLY_ALLOWANCE_USD: "" }).AI_MONTHLY_ALLOWANCE_USD).toBe(
+      undefined,
+    );
+    expect(() => parseEnv({ ...required, AI_MONTHLY_ALLOWANCE_USD: "25 USD" })).toThrow(
+      /AI_MONTHLY_ALLOWANCE_USD/,
+    );
+    expect(() => parseEnv({ ...required, AI_UNPRICED_CALL_USD: "-1" })).toThrow(
+      /AI_UNPRICED_CALL_USD/,
+    );
+  });
+
   it("defaults the protocol to https in production only", () => {
     expect(parseEnv({ ...required, NODE_ENV: "production" }).APP_PROTOCOL).toBe("https");
     expect(parseEnv(required).APP_PROTOCOL).toBe("http");

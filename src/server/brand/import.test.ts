@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import { importBrand } from "@/server/brand/import";
 import { safeFetchText, type FetchText } from "@/server/brand/safe-fetch";
 import type { LlmCaller } from "@/server/llm";
@@ -97,6 +98,22 @@ describe("brand import", () => {
       });
       expect(result).toMatchObject({ ok: true, usedAi: false });
     }
+  });
+
+  it("keeps the rule-based proposal and says why once the AI allowance is used up", async () => {
+    const usedUp: LlmCaller = async () => {
+      throw new AiAllowanceUsedUp();
+    };
+    const result = await importBrand("acme.example", {
+      llm: usedUp,
+      model: "m",
+      fetchText: fakeSite,
+    });
+    if (!result.ok) throw new Error(result.error);
+    expect(result).toMatchObject({ usedAi: false });
+    expect(result.theme.colors.primary).toBe("#0f7b6c");
+    expect(result.notes).toContainEqual({ code: "font", site: "Gotham", font: "Montserrat" });
+    expect(result.notes.at(-1)).toEqual({ code: "ai_allowance_used_up" });
   });
 
   it("reports addresses it may not read", async () => {

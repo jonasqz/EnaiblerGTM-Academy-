@@ -6,6 +6,7 @@ import { rubricSchema } from "@/core/review/rubric";
 import type { Locale } from "@/core/i18n/locales";
 import { localize } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
+import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import type { Database, Transaction } from "@/db/client";
 import { assignments, courses, enrollments, reviews, rubrics, submissions } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
@@ -180,8 +181,10 @@ export async function processSubmission(
       else if (options.finalAttempt) holdReasons.push("ai_invalid_output");
       else throw new Error(`AI review output invalid: ${outcome.errors.join("; ")}`);
     } catch (error) {
-      if (!options.finalAttempt) throw error;
-      if (!holdReasons.length) holdReasons.push("ai_unavailable");
+      // The academy's AI allowance for the month is used up: a person reviews this one, no retries.
+      if (error instanceof AiAllowanceUsedUp) holdReasons.push("ai_allowance_used_up");
+      else if (!options.finalAttempt) throw error;
+      else if (!holdReasons.length) holdReasons.push("ai_unavailable");
     }
   }
 
@@ -201,7 +204,7 @@ export async function processSubmission(
     if (!review) {
       await tx
         .update(submissions)
-        .set({ status: "in_review" })
+        .set({ status: "in_review", holdReasons })
         .where(eq(submissions.id, context.submission.id));
       return { status: "held", reasons: holdReasons };
     }

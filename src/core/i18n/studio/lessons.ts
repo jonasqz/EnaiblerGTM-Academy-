@@ -190,6 +190,8 @@ export const en = {
   "lessons.interview.save": "Save interview as a source",
   "lessons.interview.limit": "Too many requests this hour.",
   "lessons.interview.standard": "Using the standard questions.",
+  "lessons.interview.allowance":
+    "Your academy's AI allowance for this month is used up: using the standard questions.",
   "lessons.interview.answerOne": "Answer at least one question.",
 
   // Knowledge check: optional practice questions at the end of a lesson (lesson editor)
@@ -424,6 +426,8 @@ export const de: Record<keyof typeof en, string> = {
   "lessons.interview.save": "Interview als Quelle speichern",
   "lessons.interview.limit": "Zu viele Anfragen in dieser Stunde.",
   "lessons.interview.standard": "Es werden die Standardfragen verwendet.",
+  "lessons.interview.allowance":
+    "Das KI-Kontingent deiner Akademie für diesen Monat ist aufgebraucht: Es werden die Standardfragen verwendet.",
   "lessons.interview.answerOne": "Beantworte mindestens eine Frage.",
 
   "lessons.check.title": "Wissenscheck",

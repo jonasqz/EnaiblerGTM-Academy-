@@ -20,6 +20,7 @@ export const JOB_ERRORS = [
   "no_text_scan",
   "no_text",
   "read_failed",
+  "ai_allowance_used_up",
 ] as const;
 
 export type JobError = (typeof JOB_ERRORS)[number];
@@ -35,6 +36,8 @@ export const PERMANENT_JOB_ERRORS: ReadonlySet<JobError> = new Set([
   "not_a_page",
   "no_text_scan",
   "no_text",
+  // Not before the next month (core/usage/allowance.ts).
+  "ai_allowance_used_up",
 ]);
 
 /** Thrown inside a job to give up with a code. */

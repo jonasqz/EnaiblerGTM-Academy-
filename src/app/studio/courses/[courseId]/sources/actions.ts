@@ -9,6 +9,7 @@ import { text } from "@/app/studio/form-data";
 import { defaultQuestions, interviewText } from "@/core/authoring/interview";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
+import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { suggestInterviewQuestions } from "@/server/authoring/interview";
@@ -135,15 +136,24 @@ export async function suggestQuestionsAction(formData: FormData): Promise<Questi
     kind: "interview",
     courseId,
   });
-  const questions = await suggestInterviewQuestions(metered, {
-    locale,
-    artifactName: artifact,
-    assignmentPrompt: localize(editor.assignment.prompt, locale, languages),
-    criteria: rubric.criteria.map((criterion) => ({
-      label: localize(criterion.label, locale, languages),
-      description: localize(criterion.description, locale, languages),
-    })),
-  });
+  let questions: string[] | null;
+  try {
+    questions = await suggestInterviewQuestions(metered, {
+      locale,
+      artifactName: artifact,
+      assignmentPrompt: localize(editor.assignment.prompt, locale, languages),
+      criteria: rubric.criteria.map((criterion) => ({
+        label: localize(criterion.label, locale, languages),
+        description: localize(criterion.description, locale, languages),
+      })),
+    });
+  } catch (error) {
+    if (!(error instanceof AiAllowanceUsedUp)) throw error;
+    return {
+      questions: defaultQuestions(locale, artifact),
+      message: t.t("lessons.interview.allowance"),
+    };
+  }
   return questions
     ? { questions }
     : {

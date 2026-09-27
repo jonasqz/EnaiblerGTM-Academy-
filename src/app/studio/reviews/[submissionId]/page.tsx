@@ -64,6 +64,12 @@ export default async function ReviewDetailPage({
           </h1>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <SubmissionStatusBadge status={submission.status} />
+            {!ai &&
+              submission.holdReasons?.map((reason) => (
+                <Badge key={reason} tone="warning">
+                  {holdReasonText(t, reason)}
+                </Badge>
+              ))}
             <span className="font-mono font-semibold text-ink">{detail.alias}</span>
             <span>{t.t("team.review.handedIn", { when: timeAgo(t, submission.submittedAt) })}</span>
             <span>{languageName(t, locale)}</span>

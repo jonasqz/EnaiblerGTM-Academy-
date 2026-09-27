@@ -24,6 +24,8 @@ export const en = {
   "brand.import.note.darkSite":
     "Your site is dark; the academy starts light for long reading. Adjust if you like.",
   "brand.import.note.font": "Your site uses “{site}”; closest open-source match: {font}.",
+  "brand.import.note.allowance":
+    "Your academy's AI allowance for this month is used up, so this proposal comes from the rules alone.",
 
   // Presets
   "brand.presets.title": "Or start from a preset",
@@ -150,6 +152,8 @@ export const de: Record<keyof typeof en, string> = {
     "Deine Website ist dunkel; die Akademie startet hell, damit sich lange Texte gut lesen lassen. Pass das an, wenn du möchtest.",
   "brand.import.note.font":
     "Deine Website nutzt „{site}“; die ähnlichste Open-Source-Schrift ist {font}.",
+  "brand.import.note.allowance":
+    "Das KI-Kontingent deiner Akademie für diesen Monat ist aufgebraucht, deshalb stammt dieser Vorschlag nur aus den Regeln.",
 
   "brand.presets.title": "Oder starte mit einer Vorlage",
   "brand.presets.clean": "Schlicht",

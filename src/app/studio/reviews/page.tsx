@@ -54,6 +54,11 @@ export default async function ReviewsPage({ searchParams }: PageProps<"/studio/r
                   </Badge>
                 ))}
                 {!row.ai && <Badge>{t.t("team.reviews.noAi")}</Badge>}
+                {row.holdReasons.map((reason) => (
+                  <Badge key={reason} tone="warning">
+                    {holdReasonText(t, reason)}
+                  </Badge>
+                ))}
               </span>
             </span>
             <span className="flex items-center gap-4">

@@ -56,6 +56,8 @@ export const en = {
   "authoring.draft.rateLimited": "Too many drafts this hour. Try again later.",
   "authoring.draft.unusable": "The draft did not come out usable. Try again.",
   "authoring.draft.noAnswer": "The AI gateway did not answer. Try again in a moment.",
+  "authoring.draft.allowance":
+    "Your academy's AI allowance for this month is used up, so there is no draft until {date}. Write the rubric below yourself in the meantime.",
 
   // Rubric editor
   "authoring.rubric.passAt": "Pass at",
@@ -234,6 +236,8 @@ export const de: Record<keyof typeof en, string> = {
   "authoring.draft.unusable": "Der Entwurf ist nicht brauchbar geworden. Versuch es noch einmal.",
   "authoring.draft.noAnswer":
     "Das KI-Gateway hat nicht geantwortet. Versuch es gleich noch einmal.",
+  "authoring.draft.allowance":
+    "Das KI-Kontingent deiner Akademie für diesen Monat ist aufgebraucht, deshalb gibt es bis zum {date} keinen Entwurf. Schreib das Bewertungsraster bis dahin unten selbst.",
 
   "authoring.rubric.passAt": "Bestanden ab",
   "authoring.rubric.passAtHint": "Bezogen auf die gewichtete Punktzahl über alle Kriterien.",

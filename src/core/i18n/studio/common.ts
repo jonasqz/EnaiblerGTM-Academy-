@@ -72,6 +72,8 @@ export const en = {
   "common.hold.repeated_failure": "Repeated failed attempt",
   "common.hold.ai_unavailable": "AI review unavailable",
   "common.hold.ai_invalid_output": "AI answer was unusable",
+  "common.hold.ai_allowance_used_up":
+    "AI allowance for this month is used up: a person reviews this one",
   "common.audit.initial_phase": "One of the first passes",
   "common.audit.sampled": "Random sample",
 
@@ -156,6 +158,8 @@ export const en = {
   "common.jobError.no_text_scan": "No readable text: the PDF may be a scan.",
   "common.jobError.no_text": "No readable text found.",
   "common.jobError.read_failed": "Reading the source failed.",
+  "common.jobError.ai_allowance_used_up":
+    "Your academy's AI allowance for the month was used up. Try again once it starts again on the 1st.",
 
   // Publish checklist (core/courses/publish-check.ts)
   "common.publish.no_languages": "Choose at least one course language.",
@@ -263,6 +267,12 @@ export const en = {
   "overview.attention.drafts.one": "{n} draft course",
   "overview.attention.drafts.other": "{n} draft courses",
   "overview.attention.draftsBody": "Not visible to learners until published.",
+  "overview.attention.allowance": "{percent} % of this month's AI allowance used",
+  "overview.attention.allowanceBody":
+    "Once it is used up, hand-ins wait for your team and AI help pauses until {date}.",
+  "overview.attention.allowanceUsedUp": "This month's AI allowance is used up",
+  "overview.attention.allowanceUsedUpBody":
+    "Hand-ins wait for a person on your team, and AI help pauses until {date}.",
   "overview.funnel": "Funnel",
   "overview.funnelIntro": "Events in this period, with the share of the step before.",
   "overview.funnelCaption": "Funnel, last {days} days",
@@ -398,6 +408,8 @@ export const de: Record<keyof typeof en, string> = {
   "common.hold.repeated_failure": "Wiederholt nicht bestanden",
   "common.hold.ai_unavailable": "KI-Bewertung nicht verfügbar",
   "common.hold.ai_invalid_output": "Antwort der KI war unbrauchbar",
+  "common.hold.ai_allowance_used_up":
+    "KI-Kontingent für diesen Monat aufgebraucht: Eine Person bewertet diese Abgabe",
   "common.audit.initial_phase": "Eine der ersten Bewertungen",
   "common.audit.sampled": "Zufällige Stichprobe",
 
@@ -480,6 +492,8 @@ export const de: Record<keyof typeof en, string> = {
   "common.jobError.no_text_scan": "Kein lesbarer Text: Das PDF ist vielleicht ein Scan.",
   "common.jobError.no_text": "Kein lesbarer Text gefunden.",
   "common.jobError.read_failed": "Die Quelle konnte nicht gelesen werden.",
+  "common.jobError.ai_allowance_used_up":
+    "Das KI-Kontingent deiner Akademie für den Monat war aufgebraucht. Versuch es wieder, sobald es am 1. neu beginnt.",
 
   "common.publish.no_languages": "Wähle mindestens eine Kurssprache.",
   "common.publish.missing_title": "Ergänze den Kurstitel auf {language}.",
@@ -591,6 +605,12 @@ export const de: Record<keyof typeof en, string> = {
   "overview.attention.drafts.one": "{n} Kursentwurf",
   "overview.attention.drafts.other": "{n} Kursentwürfe",
   "overview.attention.draftsBody": "Für Lernende erst nach dem Veröffentlichen sichtbar.",
+  "overview.attention.allowance": "{percent} % des KI-Kontingents für diesen Monat verbraucht",
+  "overview.attention.allowanceBody":
+    "Ist es aufgebraucht, warten Abgaben auf dein Team und die KI-Hilfe pausiert bis zum {date}.",
+  "overview.attention.allowanceUsedUp": "Das KI-Kontingent für diesen Monat ist aufgebraucht",
+  "overview.attention.allowanceUsedUpBody":
+    "Abgaben warten auf eine Person aus deinem Team, und die KI-Hilfe pausiert bis zum {date}.",
   "overview.funnel": "Trichter",
   "overview.funnelIntro": "Ereignisse in diesem Zeitraum, mit dem Anteil am Schritt davor.",
   "overview.funnelCaption": "Trichter, letzte {days} Tage",

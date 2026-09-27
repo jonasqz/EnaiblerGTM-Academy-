@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 
+import { jobErrorCode, PERMANENT_JOB_ERRORS } from "@/core/authoring/job-errors";
 import { readyToCalibrate, rubricWithout, summarizeCalibration } from "@/core/review/calibration";
 import { REVIEW_PROMPT_VERSION } from "@/core/review/prompt";
 import { rubricSchema } from "@/core/review/rubric";
@@ -158,8 +159,9 @@ export async function runCalibration(
       );
     }
   } catch (error) {
-    if (!deps.finalAttempt) throw error;
-    await finish({ status: "failed", error: "gateway_failed" });
+    const code = jobErrorCode(error, "gateway_failed");
+    if (!deps.finalAttempt && !PERMANENT_JOB_ERRORS.has(code)) throw error;
+    await finish({ status: "failed", error: code });
     return;
   }
   const summary = summarizeCalibration(results);

@@ -14,10 +14,10 @@ import {
   type Topic,
 } from "@/core/authoring/transcript";
 import { isLocale, type Locale } from "@/core/i18n/locales";
-import { JobFailure, jobErrorCode } from "@/core/authoring/job-errors";
+import { JobFailure, jobErrorCode, PERMANENT_JOB_ERRORS } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import type { TranscriptSegment } from "@/db/schema/authoring";
-import { usageRecorder } from "@/server/ai-usage";
+import { usageMeter } from "@/server/ai-usage";
 import { meteredModel, type AuthoringModel } from "@/server/authoring/model";
 import {
   downloadFile,
@@ -118,7 +118,7 @@ export async function transcribeRecording(
       deps.whisper,
       audio,
       locale,
-      usageRecorder(db, { ...scope, kind: "transcription" }),
+      usageMeter(db, { ...scope, kind: "transcription" }),
     );
     if (segments.length === 0) throw new JobFailure("no_speech");
 
@@ -140,12 +140,10 @@ export async function transcribeRecording(
     await storeSourceText(db, tenantId, sourceId, transcriptText(transcript));
     if (await hasVideo(input)) await deps.next(QUEUES.keyframes, { tenantId, sourceId });
   } catch (error) {
-    if (!deps.finalAttempt) throw error;
+    const code = jobErrorCode(error, "transcription_failed");
+    if (!deps.finalAttempt && !PERMANENT_JOB_ERRORS.has(code)) throw error;
     console.error("[authoring] transcription failed", error);
-    await updateSource(db, tenantId, sourceId, {
-      status: "failed",
-      error: jobErrorCode(error, "transcription_failed"),
-    });
+    await updateSource(db, tenantId, sourceId, { status: "failed", error: code });
   } finally {
     await dir.cleanup();
   }

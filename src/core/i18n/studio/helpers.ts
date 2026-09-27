@@ -109,6 +109,7 @@ const HOLD_KEYS = {
   "common.hold.repeated_failure": 1,
   "common.hold.ai_unavailable": 1,
   "common.hold.ai_invalid_output": 1,
+  "common.hold.ai_allowance_used_up": 1,
 } satisfies Partial<Record<StudioKey, 1>>;
 
 export function auditText(t: StudioText, reason: string): string {

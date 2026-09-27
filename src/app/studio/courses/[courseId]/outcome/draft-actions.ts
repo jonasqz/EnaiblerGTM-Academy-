@@ -5,6 +5,7 @@ import { z } from "zod";
 import { localized, text } from "@/app/studio/form-data";
 import { isLocale } from "@/core/i18n/locales";
 import type { Rubric } from "@/core/review/rubric";
+import { AiAllowanceUsedUp, allowanceResetsAt } from "@/core/usage/allowance";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { authoringModel, meteredModel } from "@/server/authoring/model";
@@ -75,6 +76,10 @@ export async function draftRubricAction(formData: FormData): Promise<RubricDraft
       example: example.slice(0, 40_000),
     };
   } catch (error) {
+    if (error instanceof AiAllowanceUsedUp) {
+      const date = t.date(allowanceResetsAt());
+      return { status: "error", message: t.t("authoring.draft.allowance", { date }) };
+    }
     console.error("[authoring] rubric draft failed", error);
     return { status: "error", message: t.t("authoring.draft.noAnswer") };
   }

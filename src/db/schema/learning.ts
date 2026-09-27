@@ -93,6 +93,12 @@ export const submissions = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     attemptNo: integer("attempt_no").notNull(),
     status: submissionStatus("status").notNull().default("submitted"),
+    /**
+     * Why the review job left the work to a person without an AI result (no
+     * gateway, humans only, the AI allowance used up), for the review queue.
+     * A held AI result keeps its reasons in the review's routing.
+     */
+    holdReasons: jsonb("hold_reasons").$type<string[]>(),
     files: jsonb("files").$type<SubmittedFile[]>().notNull().default([]),
     formData: jsonb("form_data").$type<Record<string, unknown>>(),
     url: text("url"),

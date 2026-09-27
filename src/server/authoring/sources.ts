@@ -9,7 +9,7 @@ import type { Locale } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
 import { EMBEDDING_DIMENSIONS, files, lessons, sourceChunks, sources } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
-import { usageRecorder } from "@/server/ai-usage";
+import { usageMeter } from "@/server/ai-usage";
 import { embed, embeddingConfig } from "@/server/authoring/speech";
 import { safeFetchText, type FetchText } from "@/server/brand/safe-fetch";
 import { deleteFiles, fileBytes, loadFile } from "@/server/files";
@@ -182,13 +182,14 @@ export async function storeSourceText(
         config,
         chunks.map((chunk) => chunk.content),
         EMBEDDING_DIMENSIONS,
-        usageRecorder(db, {
+        usageMeter(db, {
           tenantId,
           kind: "embedding",
           courseId: before?.courseId,
           refId: sourceId,
         }),
       ).catch((error: unknown) => {
+        // The month's AI allowance used up included: the source is still read, without vectors.
         console.warn("[authoring] embeddings failed; keyword retrieval only", error);
         return null;
       })
