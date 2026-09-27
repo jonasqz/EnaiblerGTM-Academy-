@@ -21,11 +21,20 @@ import {
 import { ThemePreview } from "@/app/studio/settings/brand/theme-preview";
 import { saveThemeAction } from "@/app/studio/settings/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { uploadFile } from "@/components/ui/file-upload";
+import { useStudioText } from "@/components/studio/studio-text";
+import { uploadFile, type FileUploadLabels } from "@/components/ui/file-upload";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { themeContrastIssues } from "@/core/theme/contrast";
+import { studioUploadLabels } from "@/core/i18n/studio/helpers";
+import type { StudioKey } from "@/core/i18n/studio/index";
+import type { StudioText } from "@/core/i18n/studio/translator";
+import {
+  MIN_BUTTON_CONTRAST,
+  MIN_TEXT_CONTRAST,
+  themeContrastIssues,
+  type ContrastIssue,
+} from "@/core/theme/contrast";
 import { fontFaceCss, themeToCssVariables } from "@/core/theme/css";
 import {
   FONT_WEIGHT_NAMES,
@@ -35,24 +44,28 @@ import {
 } from "@/core/theme/fonts";
 import { themeSchema, type Theme } from "@/core/theme/schema";
 
-const UPLOAD_ERRORS: Record<string, string> = {
-  too_large: "The file is too large.",
-  type_not_allowed: "This type of file is not accepted here.",
-  unknown_type: "This type of file is not accepted here.",
-  invalid_content: "The file could not be read.",
-  rate_limited: "Too many uploads. Try again later.",
+/** Upload errors the editor explains; anything else "could not be uploaded". */
+const UPLOAD_ERRORS: Record<string, keyof FileUploadLabels["errors"]> = {
+  too_large: "too_large",
+  type_not_allowed: "type_not_allowed",
+  unknown_type: "type_not_allowed",
+  invalid_content: "invalid_content",
+  rate_limited: "rate_limited",
 };
 
-const COLOR_FIELDS: Array<{
-  key: "primary" | "ink" | "surface" | "card";
-  label: string;
-  hint: string;
-}> = [
-  { key: "primary", label: "Primary", hint: "Buttons, links, highlights" },
-  { key: "ink", label: "Text", hint: "Text, outlines, hard shadows" },
-  { key: "surface", label: "Background", hint: "The page behind everything" },
-  { key: "card", label: "Cards", hint: "Panels, forms, lessons" },
-];
+const COLOR_FIELDS = ["primary", "ink", "surface", "card"] as const;
+
+/** Core words contrast problems in English (for manifests); the Studio words them from issue.code. */
+function contrastText(t: StudioText, issue: ContrastIssue): string {
+  const needs =
+    issue.code === "text_on_primary" && issue.severity === "error"
+      ? MIN_BUTTON_CONTRAST
+      : MIN_TEXT_CONTRAST;
+  return t.t(`brand.contrast.${issue.code}`, {
+    ratio: t.number(issue.ratio, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    needs,
+  });
+}
 
 function ColorField(props: {
   id: string;
@@ -61,6 +74,7 @@ function ColorField(props: {
   value: string;
   onChange: (value: string) => void;
 }) {
+  const t = useStudioText();
   return (
     <div className="field">
       <label htmlFor={props.id} className="text-sm font-semibold">
@@ -69,7 +83,7 @@ function ColorField(props: {
       <div className="flex items-center gap-2">
         <input
           type="color"
-          aria-label={`${props.label} colour picker`}
+          aria-label={t.t("brand.colors.picker", { label: props.label })}
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
           className="size-10 shrink-0 cursor-pointer rounded-control border border-line bg-card p-0.5"
@@ -101,6 +115,14 @@ export function BrandEditor(props: {
   website: string;
   fonts: readonly BundledFont[];
 }) {
+  const t = useStudioText();
+  const uploadLabels = studioUploadLabels(t);
+  const uploadError = (error: string, fallback: StudioKey) => {
+    const known = UPLOAD_ERRORS[error];
+    return known ? uploadLabels.errors[known] : t.t(fallback);
+  };
+  const weightName = (weight: number) =>
+    weight in FONT_WEIGHT_NAMES ? t.t(`brand.fonts.weight.${weight}` as StudioKey) : String(weight);
   const [draft, setDraft] = useState<ThemeDraft>(() => draftFromTheme(props.initial));
   const set = (change: Partial<ThemeDraft>) => setDraft((current) => ({ ...current, ...change }));
 
@@ -134,10 +156,10 @@ export function BrandEditor(props: {
   const [logoStatus, setLogoStatus] = useState<string | null>(null);
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
-    setLogoStatus("Uploading…");
+    setLogoStatus(uploadLabels.uploading);
     const uploaded = await uploadFile("/api/uploads?purpose=brand_logo", file, () => undefined);
     if (!uploaded.ok) {
-      setLogoStatus(UPLOAD_ERRORS[uploaded.error] ?? "The logo could not be uploaded.");
+      setLogoStatus(uploadError(uploaded.error, "brand.logo.uploadFailed"));
       return;
     }
     const prepared = await prepareLogoAction(uploaded.file.id);
@@ -162,10 +184,10 @@ export function BrandEditor(props: {
   } | null>(null);
   const uploadFont = async (file: File | undefined) => {
     if (!file) return;
-    setFontStatus("Uploading…");
+    setFontStatus(uploadLabels.uploading);
     const uploaded = await uploadFile("/api/uploads?purpose=brand_font", file, () => undefined);
     if (!uploaded.ok) {
-      setFontStatus(UPLOAD_ERRORS[uploaded.error] ?? "The font could not be uploaded.");
+      setFontStatus(uploadError(uploaded.error, "brand.fonts.uploadFailed"));
       return;
     }
     const prepared = await prepareFontAction(uploaded.file.id);
@@ -186,7 +208,7 @@ export function BrandEditor(props: {
     if (!pendingFont) return;
     const family = pendingFont.family.trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(family) || family.length > 60) {
-      setFontStatus("Use letters, digits, spaces, _ and - for the font name.");
+      setFontStatus(t.t("brand.fonts.nameRule"));
       return;
     }
     setDraft((current) => ({
@@ -243,33 +265,30 @@ export function BrandEditor(props: {
             </span>
             <div>
               <h2 id="import-heading" className="text-lg font-semibold">
-                Import from your website
+                {t.t("brand.import.title")}
               </h2>
-              <p className="text-sm text-muted">
-                We read your site’s colours, fonts and shapes and suggest a theme. Nothing is saved
-                until you save.
-              </p>
+              <p className="text-sm text-muted">{t.t("brand.import.intro")}</p>
             </div>
           </div>
           <form onSubmit={importer.onSubmit} className="flex flex-wrap gap-2">
             <label htmlFor="import-url" className="sr-only">
-              Website address
+              {t.t("brand.import.urlLabel")}
             </label>
             <input
               id="import-url"
               name="url"
               className="input min-w-60 flex-1"
               inputMode="url"
-              placeholder="https://your-company.com"
+              placeholder={t.t("brand.import.urlPlaceholder")}
               defaultValue={props.website}
               required
             />
             <SubmitButton
               pending={importer.pending}
-              pendingLabel="Reading your website…"
+              pendingLabel={t.t("brand.import.pending")}
               className="btn btn-secondary"
             >
-              <Wand2 aria-hidden size={18} /> Import
+              <Wand2 aria-hidden size={18} /> {t.t("brand.import.submit")}
             </SubmitButton>
           </form>
           {importer.state.status === "error" && (
@@ -278,7 +297,7 @@ export function BrandEditor(props: {
           {importer.state.status === "done" && (
             <Notice
               tone="good"
-              title={`Suggested from ${importer.state.source}. Check the preview, adjust, then save.`}
+              title={t.t("brand.import.suggested", { source: importer.state.source })}
             >
               <ul className="list-disc space-y-1 pl-4">
                 {importer.state.notes.map((note) => (
@@ -291,12 +310,12 @@ export function BrandEditor(props: {
 
         <section aria-labelledby="presets-heading" className="card-flat space-y-3 p-5 sm:p-6">
           <h2 id="presets-heading" className="text-lg font-semibold">
-            Or start from a preset
+            {t.t("brand.presets.title")}
           </h2>
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((preset) => (
               <button
-                key={preset.name}
+                key={preset.id}
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setLook(preset.draft)}
@@ -312,7 +331,7 @@ export function BrandEditor(props: {
                     ),
                   )}
                 </span>
-                {preset.name}
+                {t.t(`brand.presets.${preset.id}`)}
               </button>
             ))}
           </div>
@@ -321,26 +340,24 @@ export function BrandEditor(props: {
         <section aria-labelledby="logo-heading" className="card-flat space-y-4 p-5 sm:p-6">
           <div>
             <h2 id="logo-heading" className="text-lg font-semibold">
-              Logo
+              {t.t("brand.logo.title")}
             </h2>
-            <p className="hint">
-              In the header, on mails and on shared certificate images. SVG works best; PNG or WebP
-              with a transparent background too.
-            </p>
+            <p className="hint">{t.t("brand.logo.hint")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {draft.logo ? (
               // eslint-disable-next-line @next/next/no-img-element -- uploaded logo
               <img
                 src={draft.logo.src}
-                alt="Current logo"
+                alt={t.t("brand.logo.current")}
                 className="h-14 w-auto max-w-56 rounded-control border border-line bg-card object-contain p-2"
               />
             ) : (
-              <p className="text-sm text-muted">No logo yet: the academy name stands alone.</p>
+              <p className="text-sm text-muted">{t.t("brand.logo.none")}</p>
             )}
             <label className="btn btn-secondary btn-sm cursor-pointer">
-              <ImageUp aria-hidden size={16} /> {draft.logo ? "Replace logo" : "Upload logo"}
+              <ImageUp aria-hidden size={16} />{" "}
+              {draft.logo ? t.t("brand.logo.replace") : t.t("brand.logo.upload")}
               <input
                 type="file"
                 accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
@@ -357,7 +374,7 @@ export function BrandEditor(props: {
                 className="btn btn-ghost btn-sm"
                 onClick={() => set({ logo: null })}
               >
-                <Trash aria-hidden size={16} /> Remove
+                <Trash aria-hidden size={16} /> {t.t("common.remove")}
               </button>
             )}
           </div>
@@ -377,10 +394,8 @@ export function BrandEditor(props: {
                 className="mt-0.5 size-4 accent-(--tenant-primary)"
               />
               <span>
-                Show the academy name next to the logo
-                <span className="block text-xs text-muted">
-                  Turn it off when the logo already spells out the name.
-                </span>
+                {t.t("brand.logo.showName")}
+                <span className="block text-xs text-muted">{t.t("brand.logo.showNameHint")}</span>
               </span>
             </label>
           )}
@@ -388,17 +403,17 @@ export function BrandEditor(props: {
 
         <section aria-labelledby="colours-heading" className="card-flat space-y-4 p-5 sm:p-6">
           <h2 id="colours-heading" className="text-lg font-semibold">
-            Colours
+            {t.t("brand.colors.title")}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {COLOR_FIELDS.map((field) => (
               <ColorField
-                key={field.key}
-                id={`color-${field.key}`}
-                label={field.label}
-                hint={field.hint}
-                value={draft[field.key]}
-                onChange={(value) => set({ [field.key]: value })}
+                key={field}
+                id={`color-${field}`}
+                label={t.t(`brand.colors.${field}`)}
+                hint={t.t(`brand.colors.${field}Hint`)}
+                value={draft[field]}
+                onChange={(value) => set({ [field]: value })}
               />
             ))}
           </div>
@@ -409,25 +424,25 @@ export function BrandEditor(props: {
               onChange={(event) => set({ onPrimary: event.target.checked ? null : "#ffffff" })}
               className="size-4 accent-(--tenant-primary)"
             />
-            Pick the button text colour automatically
+            {t.t("brand.colors.autoButtonText")}
           </label>
           {draft.onPrimary !== null && (
             <ColorField
               id="color-on-primary"
-              label="Button text"
+              label={t.t("brand.colors.buttonText")}
               value={draft.onPrimary}
               onChange={(value) => set({ onPrimary: value })}
             />
           )}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold">Accents</legend>
-            <p className="hint">Paths, course cards and decorations. Up to four.</p>
+            <legend className="text-sm font-semibold">{t.t("brand.colors.accents")}</legend>
+            <p className="hint">{t.t("brand.colors.accentsHint")}</p>
             <div className="flex flex-wrap items-center gap-2">
               {draft.accents.map((accent, index) => (
                 <span key={index} className="flex items-center gap-1">
                   <input
                     type="color"
-                    aria-label={`Accent ${index + 1}`}
+                    aria-label={t.t("brand.colors.accent", { n: index + 1 })}
                     value={accent}
                     onChange={(event) =>
                       set({
@@ -441,7 +456,7 @@ export function BrandEditor(props: {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm px-2"
-                    aria-label={`Remove accent ${index + 1}`}
+                    aria-label={t.t("brand.colors.removeAccent", { n: index + 1 })}
                     onClick={() => set({ accents: draft.accents.filter((_, i) => i !== index) })}
                   >
                     ×
@@ -454,7 +469,7 @@ export function BrandEditor(props: {
                   className="btn btn-ghost btn-sm"
                   onClick={() => set({ accents: [...draft.accents, draft.primary] })}
                 >
-                  + Accent
+                  {t.t("brand.colors.addAccent")}
                 </button>
               )}
             </div>
@@ -466,12 +481,12 @@ export function BrandEditor(props: {
           className="card-flat grid gap-4 p-5 sm:grid-cols-2 sm:p-6"
         >
           <h2 id="type-heading" className="text-lg font-semibold sm:col-span-2">
-            Fonts
+            {t.t("brand.fonts.title")}
           </h2>
           {(["display", "body"] as const).map((slot) => (
             <div key={slot} className="field">
               <label htmlFor={`font-${slot}`} className="text-sm font-semibold">
-                {slot === "display" ? "Headings" : "Text"}
+                {t.t(`brand.fonts.${slot}`)}
               </label>
               <select
                 id={`font-${slot}`}
@@ -481,7 +496,7 @@ export function BrandEditor(props: {
                 style={{ fontFamily: `"${draft[slot]}"` }}
               >
                 {ownFamilies.length > 0 && (
-                  <optgroup label="Your fonts">
+                  <optgroup label={t.t("brand.fonts.yours")}>
                     {ownFamilies.map((family) => (
                       <option key={family} value={family} style={{ fontFamily: `"${family}"` }}>
                         {family}
@@ -489,7 +504,7 @@ export function BrandEditor(props: {
                     ))}
                   </optgroup>
                 )}
-                <optgroup label="Open-source fonts">
+                <optgroup label={t.t("brand.fonts.openSource")}>
                   {props.fonts.map((font) => (
                     <option
                       key={font.family}
@@ -503,14 +518,11 @@ export function BrandEditor(props: {
               </select>
             </div>
           ))}
-          <p className="hint sm:col-span-2">
-            Open-source fonts are hosted by us in the EU. Your own fonts are served from your
-            academy’s address too, never from a font service.
-          </p>
+          <p className="hint sm:col-span-2">{t.t("brand.fonts.hosting")}</p>
 
           <div className="space-y-3 border-t border-line pt-4 sm:col-span-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Type aria-hidden size={16} /> Your own fonts
+              <Type aria-hidden size={16} /> {t.t("brand.fonts.own")}
             </h3>
             {draft.fontFiles.length > 0 && (
               <ul className="divide-y divide-line rounded-control border border-line">
@@ -527,14 +539,18 @@ export function BrandEditor(props: {
                       {file.family}
                     </span>
                     <span className="text-muted">
-                      {FONT_WEIGHT_NAMES[file.weight] ?? file.weight}
-                      {file.style === "italic" ? " italic" : ""} ·{" "}
-                      {file.src.split(".").pop()?.toUpperCase()}
+                      {file.style === "italic"
+                        ? t.t("brand.fonts.italicWeight", { weight: weightName(file.weight) })
+                        : weightName(file.weight)}{" "}
+                      · {file.src.split(".").pop()?.toUpperCase()}
                     </span>
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      aria-label={`Remove ${file.family} ${FONT_WEIGHT_NAMES[file.weight] ?? ""}`}
+                      aria-label={t.t("brand.fonts.remove", {
+                        font: file.family,
+                        weight: weightName(file.weight),
+                      })}
                       onClick={() => removeFontFile(file.src)}
                     >
                       <Trash aria-hidden size={16} />
@@ -547,7 +563,7 @@ export function BrandEditor(props: {
               <div className="grid gap-3 rounded-control border border-line p-3 sm:grid-cols-[1fr_10rem_auto]">
                 <div className="field">
                   <label htmlFor="font-family-name" className="text-sm font-semibold">
-                    Font name
+                    {t.t("brand.fonts.name")}
                   </label>
                   <input
                     id="font-family-name"
@@ -561,7 +577,7 @@ export function BrandEditor(props: {
                 </div>
                 <div className="field">
                   <label htmlFor="font-weight" className="text-sm font-semibold">
-                    Weight
+                    {t.t("brand.fonts.weight")}
                   </label>
                   <select
                     id="font-weight"
@@ -571,9 +587,9 @@ export function BrandEditor(props: {
                       setPendingFont({ ...pendingFont, weight: Number(event.target.value) })
                     }
                   >
-                    {Object.entries(FONT_WEIGHT_NAMES).map(([weight, name]) => (
+                    {Object.keys(FONT_WEIGHT_NAMES).map((weight) => (
                       <option key={weight} value={weight}>
-                        {weight} · {name}
+                        {weight} · {weightName(Number(weight))}
                       </option>
                     ))}
                   </select>
@@ -587,7 +603,7 @@ export function BrandEditor(props: {
                     }
                     className="size-4 accent-(--tenant-primary)"
                   />
-                  Italic
+                  {t.t("brand.fonts.italic")}
                 </label>
                 <div className="flex gap-2 sm:col-span-3">
                   <button
@@ -595,14 +611,14 @@ export function BrandEditor(props: {
                     className="btn btn-secondary btn-sm"
                     onClick={addPendingFont}
                   >
-                    Add font
+                    {t.t("brand.fonts.add")}
                   </button>
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={() => setPendingFont(null)}
                   >
-                    Cancel
+                    {t.t("common.cancel")}
                   </button>
                 </div>
               </div>
@@ -616,10 +632,9 @@ export function BrandEditor(props: {
                     className="mt-0.5 size-4 accent-(--tenant-primary)"
                   />
                   <span>
-                    We hold a licence to use this font on the web
+                    {t.t("brand.fonts.licence")}
                     <span className="block text-xs text-muted">
-                      One file per weight: .woff2 is best; .woff, .ttf or .otf also work (and are
-                      used for share images).
+                      {t.t("brand.fonts.licenceHint")}
                     </span>
                   </span>
                 </label>
@@ -627,7 +642,7 @@ export function BrandEditor(props: {
                   className={`btn btn-secondary btn-sm ${licensed ? "cursor-pointer" : "pointer-events-none opacity-50"}`}
                   aria-disabled={!licensed}
                 >
-                  <Upload aria-hidden size={16} /> Upload font file
+                  <Upload aria-hidden size={16} /> {t.t("brand.fonts.upload")}
                   <input
                     type="file"
                     accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
@@ -654,17 +669,12 @@ export function BrandEditor(props: {
           className="card-flat grid gap-5 p-5 sm:grid-cols-2 sm:p-6"
         >
           <h2 id="shape-heading" className="text-lg font-semibold sm:col-span-2">
-            Shape
+            {t.t("brand.shape.title")}
           </h2>
           <fieldset className="field sm:col-span-2">
-            <legend className="mb-1.5 text-sm font-semibold">Style</legend>
+            <legend className="mb-1.5 text-sm font-semibold">{t.t("brand.shape.style")}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {(
-                [
-                  ["soft", "Soft", "Rounded corners, soft shadows, cards lift on hover."],
-                  ["outlined", "Outlined", "Ink outlines, hard offset shadows, buttons press in."],
-                ] as const
-              ).map(([value, label, body]) => (
+              {(["soft", "outlined"] as const).map((value) => (
                 <label
                   key={value}
                   className={`flex gap-3 rounded-control border p-3 ${draft.style === value ? "border-primary bg-primary-soft" : "border-line"}`}
@@ -677,8 +687,12 @@ export function BrandEditor(props: {
                     className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
                   />
                   <span>
-                    <span className="block text-sm font-semibold">{label}</span>
-                    <span className="text-xs text-muted">{body}</span>
+                    <span className="block text-sm font-semibold">
+                      {t.t(`brand.shape.style.${value}`)}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {t.t(`brand.shape.style.${value}Hint`)}
+                    </span>
                   </span>
                 </label>
               ))}
@@ -686,7 +700,8 @@ export function BrandEditor(props: {
           </fieldset>
           <div className="field">
             <label htmlFor="shape-radius" className="text-sm font-semibold">
-              Corner radius <span className="font-normal text-muted">{draft.radius}px</span>
+              {t.t("brand.shape.radius")}{" "}
+              <span className="font-normal text-muted">{draft.radius}px</span>
             </label>
             <input
               id="shape-radius"
@@ -700,7 +715,8 @@ export function BrandEditor(props: {
           </div>
           <div className="field">
             <label htmlFor="shape-border" className="text-sm font-semibold">
-              Border width <span className="font-normal text-muted">{draft.borderWidth}px</span>
+              {t.t("brand.shape.border")}{" "}
+              <span className="font-normal text-muted">{draft.borderWidth}px</span>
             </label>
             <input
               id="shape-border"
@@ -714,7 +730,7 @@ export function BrandEditor(props: {
           </div>
           <div className="field">
             <label htmlFor="shape-shadow" className="text-sm font-semibold">
-              Shadow
+              {t.t("brand.shape.shadow")}
             </label>
             <select
               id="shape-shadow"
@@ -722,16 +738,16 @@ export function BrandEditor(props: {
               value={draft.shadow}
               onChange={(event) => set({ shadow: event.target.value as ShadowKind })}
             >
-              <option value="soft">Soft</option>
-              <option value="hard">Hard offset</option>
-              <option value="none">None</option>
+              <option value="soft">{t.t("brand.shape.shadow.soft")}</option>
+              <option value="hard">{t.t("brand.shape.shadow.hard")}</option>
+              <option value="none">{t.t("brand.shape.shadow.none")}</option>
             </select>
           </div>
         </section>
       </div>
 
       <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-        <p className="eyebrow">Preview</p>
+        <p className="eyebrow">{t.t("brand.preview")}</p>
         {parsed && parsed.fonts.files.length > 0 && (
           <style dangerouslySetInnerHTML={{ __html: fontFaceCss(parsed) }} />
         )}
@@ -745,10 +761,10 @@ export function BrandEditor(props: {
         {issues.length > 0 && (
           <FormFeedback
             state={{
-              errors: blocking.map((issue) => issue.message),
+              errors: blocking.map((issue) => contrastText(t, issue)),
               warnings: issues
                 .filter((issue) => issue.severity === "warning")
-                .map((issue) => issue.message),
+                .map((issue) => contrastText(t, issue)),
             }}
           />
         )}
@@ -757,11 +773,11 @@ export function BrandEditor(props: {
           <FormFeedback state={save.state} />
           <SubmitButton
             pending={save.pending}
-            pendingLabel="Saving…"
+            pendingLabel={t.t("common.saving")}
             disabled={!parsed || blocking.length > 0}
             className="btn btn-primary w-full"
           >
-            Save brand
+            {t.t("brand.save")}
           </SubmitButton>
         </form>
         {!props.isDefault && (
@@ -769,9 +785,9 @@ export function BrandEditor(props: {
             <input type="hidden" name="reset" value="1" />
             <SubmitButton
               className="btn btn-ghost btn-sm w-full"
-              confirm="Go back to enaibler's default look? Your current brand settings are replaced."
+              confirm={t.t("brand.resetConfirm")}
             >
-              Reset to enaibler’s default look
+              {t.t("brand.reset")}
             </SubmitButton>
           </form>
         )}

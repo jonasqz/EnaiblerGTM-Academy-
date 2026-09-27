@@ -113,10 +113,10 @@ export function parseDraft(draft: ThemeDraft): Theme | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Starting points; everything stays editable. */
-export const PRESETS: Array<{ name: string; draft: LookDraft }> = [
+/** Starting points; everything stays editable. Named in the Studio text (brand.presets.<id>). */
+export const PRESETS: Array<{ id: "clean" | "boldOutlined" | "editorial"; draft: LookDraft }> = [
   {
-    name: "Clean",
+    id: "clean",
     draft: {
       ink: "#191b22",
       surface: "#f6f5f1",
@@ -133,7 +133,7 @@ export const PRESETS: Array<{ name: string; draft: LookDraft }> = [
     },
   },
   {
-    name: "Bold outlined",
+    id: "boldOutlined",
     draft: {
       ink: "#1f1d2b",
       surface: "#fff4e0",
@@ -150,7 +150,7 @@ export const PRESETS: Array<{ name: string; draft: LookDraft }> = [
     },
   },
   {
-    name: "Editorial",
+    id: "editorial",
     draft: {
       ink: "#2b2622",
       surface: "#f7f3ec",
