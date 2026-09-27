@@ -1,6 +1,7 @@
 import { BookOpen, CircleCheck, Timer } from "lucide-react";
 import type { CSSProperties } from "react";
 
+import { useStudioText } from "@/components/studio/studio-text";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Logo } from "@/core/theme/schema";
@@ -8,6 +9,7 @@ import type { Logo } from "@/core/theme/schema";
 /**
  * A miniature academy in the draft theme: the same component classes the
  * learner pages use, inside a [data-theme-scope] so only this box changes.
+ * Its sample text is what learners see; only the box's label is Studio text.
  */
 export function ThemePreview(props: {
   variables: Record<string, string>;
@@ -16,12 +18,13 @@ export function ThemePreview(props: {
   courseTerm: string;
   lessonTerm: string;
 }) {
+  const t = useStudioText();
   return (
     <div
       data-theme-scope
       style={props.variables as CSSProperties}
       className="overflow-hidden rounded-card border-outline border-line bg-surface font-body text-ink"
-      aria-label="Preview of your academy"
+      aria-label={t.t("brand.preview.label")}
     >
       <div className="flex items-center justify-between gap-3 border-b-outline border-line bg-card px-4 py-3">
         <span className="flex min-w-0 items-center gap-2 font-display text-base leading-tight">

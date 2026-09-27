@@ -6,11 +6,16 @@ import { sameJson } from "@/core/shared/json";
 import { DEFAULT_THEME } from "@/core/theme/enaibler-tokens";
 import { FONT_LIBRARY } from "@/core/theme/fonts";
 import { requireCapability } from "@/server/access";
+import { getStudioText } from "@/server/studio-text";
 
-export const metadata: Metadata = { title: "Brand" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getStudioText();
+  return { title: t.t("brand.title") };
+}
 
 export default async function BrandPage() {
   const { tenant } = await requireCapability("academy.manage", "/studio/settings/brand");
+  // The preview's sample learner text is English, and so are the academy's nouns in it.
   const terms = createTranslator({ locale: "en", termOverrides: tenant.terminology });
   return (
     <BrandEditor
