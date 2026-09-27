@@ -14,7 +14,7 @@ import { rankChunks } from "@/core/authoring/text";
 import { lessonKeyFor } from "@/core/courses/lessons";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
-import type { JobError } from "@/core/authoring/job-errors";
+import { jobErrorCode, PERMANENT_JOB_ERRORS, type JobError } from "@/core/authoring/job-errors";
 import type { Database } from "@/db/client";
 import {
   assignments,
@@ -30,7 +30,7 @@ import {
 } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
-import { meteredLlm, usageRecorder, type UsageCallback } from "@/server/ai-usage";
+import { meteredLlm, usageMeter, type UsageMeter } from "@/server/ai-usage";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { embed, type EmbeddingConfig } from "@/server/authoring/speech";
 import type { Enqueue } from "@/server/jobs/producer";
@@ -101,7 +101,7 @@ async function gatherMaterial(
   courseId: string,
   criteria: ReadonlyArray<{ label: string; description: string }>,
   embeddings: EmbeddingConfig | null,
-  onUsage: UsageCallback,
+  meter: UsageMeter,
 ): Promise<Material> {
   const material: Material = { passages: [], sourceOf: new Map(), keyframes: new Map() };
   let budget = PASSAGE_BUDGET;
@@ -188,7 +188,7 @@ async function gatherMaterial(
     let best: typeof chunks = [];
     if (embeddings) {
       const vector = (
-        await embed(embeddings, [query], EMBEDDING_DIMENSIONS, onUsage).catch(() => null)
+        await embed(embeddings, [query], EMBEDDING_DIMENSIONS, meter).catch(() => null)
       )?.[0];
       if (vector) {
         best = await withTenant(db, tenantId, (tx) =>
@@ -295,7 +295,7 @@ export async function runLessonDraft(
     run.courseId,
     criteria,
     deps.embeddings,
-    usageRecorder(db, { ...scope, kind: "embedding" }),
+    usageMeter(db, { ...scope, kind: "embedding" }),
   );
   const llm = meteredLlm(db, deps.model.llm, { ...scope, kind: "lesson_draft" });
   const prompt = buildLessonDraftPrompt({
@@ -344,8 +344,9 @@ export async function runLessonDraft(
       );
     }
   } catch (error) {
-    if (!deps.finalAttempt) throw error;
-    await fail("gateway_failed");
+    const code = jobErrorCode(error, "gateway_failed");
+    if (!deps.finalAttempt && !PERMANENT_JOB_ERRORS.has(code)) throw error;
+    await fail(code);
     return;
   }
   if (!parsed.ok) {

@@ -12,6 +12,7 @@ import type { Locale } from "@/core/i18n/locales";
 import { themeContrastIssues } from "@/core/theme/contrast";
 import { FONT_LIBRARY } from "@/core/theme/fonts";
 import { themeSchema, type ThemeInput } from "@/core/theme/schema";
+import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import { safeFetchText, type FetchText } from "@/server/brand/safe-fetch";
 import type { LlmCaller } from "@/server/llm";
 
@@ -25,8 +26,12 @@ import type { LlmCaller } from "@/server/llm";
 
 export const BRAND_PROMPT_VERSION = "brand-2026-09-b";
 
-/** The rules' notes by code, or the model's own sentence (already in the customer's language). */
-export type BrandNote = ProposalNote | { code: "model"; text: string };
+/**
+ * The rules' notes by code, the model's own sentence (already in the
+ * customer's language), or why the model was not asked.
+ */
+export type BrandNote =
+  ProposalNote | { code: "model"; text: string } | { code: "ai_allowance_used_up" };
 
 export type BrandImportResult =
   | { ok: true; theme: ThemeInput; notes: BrandNote[]; source: string; usedAi: boolean }
@@ -100,6 +105,10 @@ export async function importBrand(
       };
     }
   } catch (error) {
+    if (error instanceof AiAllowanceUsedUp) {
+      const notes: BrandNote[] = [...proposal.notes, { code: "ai_allowance_used_up" }];
+      return { ok: true, theme: proposal.theme, notes, source, usedAi: false };
+    }
     console.error("[brand] model refinement failed, keeping the rule-based proposal", error);
   }
   return { ok: true, theme: proposal.theme, notes: proposal.notes, source, usedAi: false };

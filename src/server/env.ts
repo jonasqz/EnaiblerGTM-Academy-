@@ -1,10 +1,17 @@
 import { z } from "zod";
 
+import { parseUsd } from "@/core/usage/allowance";
+
 /**
  * Runtime configuration. Parsed lazily (not at import time) so `next build`
  * works without secrets. See .env.example for descriptions.
  */
 const optional = z.string().trim().min(1).optional();
+const usd = z
+  .string()
+  .trim()
+  .refine((value) => parseUsd(value) !== null, "an amount in US dollars, such as 25 or 12.50")
+  .optional();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -41,6 +48,14 @@ const envSchema = z.object({
   WHISPER_MODEL: optional,
   /** ffmpeg binary for recordings (the worker image has it on PATH). */
   FFMPEG_PATH: optional,
+  /**
+   * Monthly AI allowance of an academy without its own, in US dollars of
+   * provider cost (core/usage/allowance; read by name in server/ai-allowance).
+   * Unset: no limit.
+   */
+  AI_MONTHLY_ALLOWANCE_USD: usd,
+  /** What a model call counts against the allowance when the gateway reports no price; default 0.05. */
+  AI_UNPRICED_CALL_USD: usd,
   /**
    * Self-serve: the platform site where customers create academies, e.g.
    * enaibler.app. Development defaults to plain localhost. Unset in

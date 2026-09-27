@@ -6,6 +6,8 @@ import { checkCoursePublishable } from "@/core/courses/publish-check";
 import { STUDIO_AREAS, STUDIO_MESSAGES } from "@/core/i18n/studio/index";
 import {
   cohortDates,
+  holdReasonText,
+  jobErrorText,
   manifestWarningText,
   publishIssueText,
   wordingText,
@@ -104,6 +106,16 @@ describe("Studio translator", () => {
     ).toBe(
       "“accredited” should be avoided in lesson text. Only use accreditation wording for an actual accreditation, confirmed by counsel.",
     );
+  });
+
+  it("says why work waits for a person and why a job stopped", () => {
+    expect(holdReasonText(studioText("en"), "ai_allowance_used_up")).toBe(
+      "AI allowance for this month is used up: a person reviews this one",
+    );
+    expect(holdReasonText(studioText("de"), "ai_allowance_used_up")).toBe(
+      "KI-Kontingent für diesen Monat aufgebraucht: Eine Person bewertet diese Abgabe",
+    );
+    expect(jobErrorText(studioText("de"), "ai_allowance_used_up")).toMatch(/^Das KI-Kontingent/);
   });
 
   it("words what saving the settings found", () => {

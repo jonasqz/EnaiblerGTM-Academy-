@@ -167,7 +167,7 @@ describe.skipIf(!hasDatabase)("learner mail: review ready and level-up", () => {
     expect(mail.from.name).toBe(tenant.settings.author_display_name);
     expect(mail.subject).toBe("Feedback on “Late-invoice playbook” is ready");
     expect(mail.text).toContain("passed the review");
-    expect(mail.text).toContain("You also reached Level 1 · Apprentice.");
+    expect(mail.text).toContain("You also reached level 1 · Apprentice.");
     // One link: to the credential, where sharing it starts.
     const [issued] = await withTenant(dbs.app.db, tenant.id, (tx) =>
       tx
@@ -231,9 +231,9 @@ describe.skipIf(!hasDatabase)("learner mail: review ready and level-up", () => {
     expect((await dispatchNotifications(dbs.app.db, tenant, { send })).sent).toBe(1);
     expect(sent.length).toBe(before + 1);
     expect(sent.at(-1)).toMatchObject({
-      subject: `New Level at ${tenant.settings.author_display_name}: Mentor`,
+      subject: `New level at ${tenant.settings.author_display_name}: Mentor`,
     });
-    expect(sent.at(-1)!.text).toContain("gave you the Level “Mentor” in Builder.");
+    expect(sent.at(-1)!.text).toContain("gave you the level “Mentor” in Builder.");
     // A granted level has no credential behind it: the mail leads to the profile.
     expect(sent.at(-1)!.html).toContain('/me"');
     expect(sent.at(-1)!.html).not.toContain("/verify/");

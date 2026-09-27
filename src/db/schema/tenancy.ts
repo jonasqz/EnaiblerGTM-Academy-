@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  check,
   jsonb,
   pgEnum,
   pgTable,
@@ -23,18 +25,29 @@ export type StoredTenantConfig = Omit<TenantSettings, "slug" | "domains">;
  * Tenants and their domains are global (no RLS): the host has to be resolved
  * to a tenant before any tenant context exists.
  */
-export const tenants = pgTable("tenants", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  status: tenantStatus("status").notNull().default("active"),
-  /** Validated with tenantSettingsSchema on write and again on read (defaults for new keys). */
-  config: jsonb("config").$type<StoredTenantConfig>().notNull(),
-  /** Theme tokens; null means enaibler's default theme. */
-  theme: jsonb("theme").$type<ThemeInput>(),
-  terminology: jsonb("terminology").$type<Terminology>().notNull().default({}),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const tenants = pgTable(
+  "tenants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    status: tenantStatus("status").notNull().default("active"),
+    /** Validated with tenantSettingsSchema on write and again on read (defaults for new keys). */
+    config: jsonb("config").$type<StoredTenantConfig>().notNull(),
+    /** Theme tokens; null means enaibler's default theme. */
+    theme: jsonb("theme").$type<ThemeInput>(),
+    terminology: jsonb("terminology").$type<Terminology>().notNull().default({}),
+    /**
+     * Monthly AI allowance in millionths of a US dollar (core/usage/allowance):
+     * null is the platform default (AI_MONTHLY_ALLOWANCE_USD), -1 no limit.
+     * The operator's alone, so it stays out of `config`, which the academy's
+     * admins edit in the Studio and manifests replace.
+     */
+    aiAllowanceMicroUsd: bigint("ai_allowance_micro_usd", { mode: "number" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [check("tenants_ai_allowance", sql`${table.aiAllowanceMicroUsd} >= -1`)],
+);
 
 export const tenantDomains = pgTable(
   "tenant_domains",

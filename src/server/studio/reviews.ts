@@ -28,6 +28,8 @@ export interface QueueRow {
   attemptNo: number;
   submittedAt: Date;
   ai: { percent: number; pass: boolean; reasons: string[]; audit: string | null } | null;
+  /** Why it waits without an AI review (no gateway, humans only, the AI allowance used up). */
+  holdReasons: string[];
 }
 
 /** A mentor sees only their cohorts' work; everyone else with reviews.decide sees all. */
@@ -46,6 +48,7 @@ export async function listReviewQueue(
         userId: submissions.userId,
         attemptNo: submissions.attemptNo,
         submittedAt: submissions.submittedAt,
+        holdReasons: submissions.holdReasons,
         courseId: courses.id,
         courseTitle: courses.title,
         hasHuman: sql<boolean>`exists (select 1 from ${reviews} r where r.submission_id = "submissions"."id" and r.reviewer_type = 'human')`,
@@ -97,6 +100,7 @@ export async function listReviewQueue(
               audit,
             }
           : null,
+        holdReasons: ai ? [] : (row.holdReasons ?? []),
       });
     }
     return queue.sort((a, b) => Number(a.kind === "spot_check") - Number(b.kind === "spot_check"));

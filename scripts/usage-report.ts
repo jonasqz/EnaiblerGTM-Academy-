@@ -7,6 +7,8 @@
  *   npm run usage:report -- --month 2026-09 --csv    as CSV, for a spreadsheet
  * Connects like tenant:apply (DATABASE_MIGRATION_URL). FORCE ROW LEVEL
  * SECURITY binds the owner too, so each academy is read in its own context.
+ * Allowances are read like the app does (AI_MONTHLY_ALLOWANCE_USD,
+ * AI_UNPRICED_CALL_USD), so run it where those are set, e.g. the worker.
  */
 import { asc } from "drizzle-orm";
 
@@ -19,6 +21,7 @@ import {
 } from "@/core/usage/report";
 import { createDatabase } from "@/db/client";
 import { tenants } from "@/db/schema";
+import { aiAllowanceStatus } from "@/server/ai-allowance";
 import { usageByKind } from "@/server/studio/usage";
 
 function parseArgs(args: readonly string[]): { month: string; csv: boolean } | null {
@@ -64,6 +67,7 @@ try {
       slug: tenant.slug,
       name: tenant.config.author_display_name,
       kinds: await usageByKind(db, tenant.id, options.month),
+      allowance: await aiAllowanceStatus(db, tenant.id, options.month),
     });
   }
   const report = usageReport(options.month, academies);

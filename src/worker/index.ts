@@ -8,6 +8,7 @@ import { PgBoss, type Job } from "pg-boss";
 import { createDatabase, assertRlsEnforced } from "@/db/client";
 import { tenants } from "@/db/schema";
 import { findTenantById } from "@/db/tenants";
+import { allowanceConfig } from "@/server/ai-allowance";
 import { runLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel } from "@/server/authoring/model";
 import { extractKeyframes, transcribeRecording } from "@/server/authoring/recordings";
@@ -30,6 +31,18 @@ import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   log.error("DATABASE_URL is not set", { runtime: "worker" });
+  process.exit(1);
+}
+
+// Every model call checks the academy's AI allowance: a mistyped amount stops the worker here.
+try {
+  if (allowanceConfig().defaultMicroUsd === null) {
+    log.warn(
+      "AI_MONTHLY_ALLOWANCE_USD is not set: academies without their own allowance have no limit",
+    );
+  }
+} catch (error) {
+  log.error(error instanceof Error ? error.message : String(error), { runtime: "worker" });
   process.exit(1);
 }
 

@@ -314,6 +314,16 @@ export const en = {
   "settings.usage.minutes.other": "{n} minutes of audio",
   "settings.usage.tokens.one": "{n} token",
   "settings.usage.tokens.other": "{n} tokens",
+  // This month's AI allowance, set by enaibler: a share, never an amount
+  "settings.usage.allowance.heading": "AI allowance for {month}",
+  "settings.usage.allowance.intro":
+    "enaibler sets how much AI your academy can use each month. Everything on this page counts towards it.",
+  "settings.usage.allowance.used": "{percent} % used",
+  "settings.usage.allowance.meter": "Share of this month's AI allowance used",
+  "settings.usage.allowance.resets": "It starts again on {date}.",
+  "settings.usage.allowance.usedUp": "This month's AI allowance is used up",
+  "settings.usage.allowance.whenUsedUp":
+    "Once it is used up, hand-ins wait for a person on your team instead of the AI review, and AI help with drafts, calibration, recordings, source search and your brand pauses until it starts again. Learners notice nothing, except that their feedback may take longer.",
 
   // Sharing: what learners post about their certificates, and where its page leads visitors
   "settings.tab.sharing": "Sharing",
@@ -683,6 +693,15 @@ export const de: Record<keyof typeof en, string> = {
   "settings.usage.minutes.other": "{n} Minuten Audio",
   "settings.usage.tokens.one": "{n} Token",
   "settings.usage.tokens.other": "{n} Token",
+  "settings.usage.allowance.heading": "KI-Kontingent für {month}",
+  "settings.usage.allowance.intro":
+    "enaibler legt fest, wie viel KI deine Akademie pro Monat nutzen kann. Alles auf dieser Seite zählt dazu.",
+  "settings.usage.allowance.used": "{percent} % verbraucht",
+  "settings.usage.allowance.meter": "Verbrauchter Anteil des KI-Kontingents in diesem Monat",
+  "settings.usage.allowance.resets": "Es beginnt am {date} neu.",
+  "settings.usage.allowance.usedUp": "Das KI-Kontingent für diesen Monat ist aufgebraucht",
+  "settings.usage.allowance.whenUsedUp":
+    "Ist es aufgebraucht, warten Abgaben auf eine Person aus deinem Team statt auf die KI-Bewertung, und die KI-Hilfe bei Entwürfen, Kalibrierung, Aufnahmen, Quellensuche und deiner Marke pausiert, bis es neu beginnt. Lernende merken davon nichts, außer dass ihr Feedback länger dauern kann.",
 
   "settings.tab.sharing": "Teilen",
   "settings.sharing.linkedin.heading": "Deine LinkedIn-Seite",

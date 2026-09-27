@@ -310,7 +310,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
       tx.select().from(notifications).where(eq(notifications.userId, learner)),
     );
     expect(mail).toMatchObject({ kind: "level_up", payload: { pathId, level: 1 }, status: "sent" });
-    expect(sent.at(-1)?.text).toContain("You reached the Level “Apprentice” in Builder.");
+    expect(sent.at(-1)?.text).toContain("You reached the level “Apprentice” in Builder.");
     // It leads to the credential that brought the level, where sharing it starts.
     expect(sent.at(-1)?.html).toContain(
       `/verify/${completion && completion.issued ? completion.publicId : ""}#share`,

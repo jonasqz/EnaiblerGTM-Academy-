@@ -5,8 +5,10 @@
  *   npm run academy -- resume <slug>
  *   npm run academy -- export <slug> <file.zip> [--with-files]
  *   npm run academy -- delete <slug> --confirm <slug>
+ *   npm run academy -- allowance <slug> [25|unlimited|default]   monthly AI allowance in dollars
  * Runs as enaibler_owner (DATABASE_MIGRATION_URL); the S3_* variables for files.
  */
+import { parseAllowance, type AllowanceStatus } from "@/core/usage/allowance";
 import { createDatabase } from "@/db/client";
 import { findTenantBySlug } from "@/db/tenants";
 import {
@@ -15,6 +17,7 @@ import {
   listAcademies,
   setAcademyStatus,
 } from "@/server/operator/academies";
+import { readAiAllowance, setAiAllowance } from "@/server/ai-allowance";
 import { storageConfigured } from "@/server/storage";
 
 const USAGE = `Usage:
@@ -22,7 +25,19 @@ const USAGE = `Usage:
   academy suspend <slug>
   academy resume <slug>
   academy export <slug> <file.zip> [--with-files]
-  academy delete <slug> --confirm <slug>`;
+  academy delete <slug> --confirm <slug>
+  academy allowance <slug> [dollars|unlimited|default]`;
+
+const dollars = (microUsd: number) => `$${(microUsd / 1_000_000).toFixed(2)}`;
+
+/** "$25.00 a month (default), $3.10 used in 2026-09 (12 %)" */
+function describeAllowance(status: AllowanceStatus): string {
+  const kind = status.setting.kind === "amount" ? "own" : status.setting.kind;
+  const limit =
+    status.allowanceMicroUsd === null ? "no limit" : `${dollars(status.allowanceMicroUsd)} a month`;
+  const used = `${dollars(status.spentMicroUsd)} used in ${status.month}`;
+  return `${limit} (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
+}
 
 const args = process.argv.slice(2);
 const positional: string[] = [];
@@ -86,6 +101,18 @@ try {
       console.log(
         `✓ ${slug} deleted: ${result.files} files, ${result.accounts} accounts no other academy knew`,
       );
+    } else if (command === "allowance") {
+      // The third word is the new value; without it, the allowance is only shown.
+      if (file === undefined) {
+        const current = await readAiAllowance(db, slug);
+        console.log(`${slug}: ${describeAllowance(current!)}`);
+      } else {
+        const setting = parseAllowance(file);
+        if (!setting)
+          throw new Error(`"${file}" is not an amount in dollars, "unlimited" or "default".`);
+        const updated = await setAiAllowance(db, slug, setting);
+        console.log(`✓ ${slug}: ${describeAllowance(updated!)}`);
+      }
     } else {
       throw new Error(USAGE);
     }

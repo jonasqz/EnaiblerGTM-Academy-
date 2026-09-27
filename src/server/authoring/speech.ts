@@ -2,15 +2,16 @@ import { readFile } from "node:fs/promises";
 
 import type { TimedText } from "@/core/authoring/transcript";
 import type { Locale } from "@/core/i18n/locales";
-import type { UsageCallback } from "@/server/ai-usage";
+import type { UsageMeter } from "@/server/ai-usage";
 import { reportedCost } from "@/server/llm";
 
 /*
  * Speech recognition and embeddings over OpenAI-compatible APIs: self-hosted
  * Whisper (faster-whisper behind e.g. speaches) for recordings, LiteLLM for
  * embeddings. Both are optional; without them authoring still works, with
- * time-based topics and keyword retrieval. Each request reports what it used
- * to the caller's `onUsage`, which knows the academy it is metered for.
+ * time-based topics and keyword retrieval. The caller's meter, which knows the
+ * academy, admits each request before it is sent (the monthly AI allowance)
+ * and records what it used afterwards.
  */
 
 export interface WhisperConfig {
@@ -34,8 +35,9 @@ export async function transcribe(
   config: WhisperConfig,
   audioPath: string,
   locale: Locale | null,
-  onUsage?: UsageCallback,
+  meter?: UsageMeter,
 ): Promise<TimedText[]> {
+  await meter?.admit();
   const form = new FormData();
   form.set("file", new Blob([await readFile(audioPath)], { type: "audio/mpeg" }), "audio.mp3");
   form.set("model", config.model);
@@ -59,7 +61,7 @@ export async function transcribe(
     segments?: Array<{ start: number; end: number; text: string }>;
   };
   const duration = Number(body.duration);
-  await onUsage?.({
+  await meter?.record({
     model: config.model,
     audioSeconds:
       Number.isFinite(duration) && duration > 0 ? duration : (body.segments?.at(-1)?.end ?? null),
@@ -100,10 +102,11 @@ export async function embed(
   config: EmbeddingConfig,
   texts: readonly string[],
   dimensions: number,
-  onUsage?: UsageCallback,
+  meter?: UsageMeter,
 ): Promise<number[][] | null> {
   const vectors: number[][] = [];
   for (let start = 0; start < texts.length; start += 64) {
+    await meter?.admit();
     const response = await fetch(`${config.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
@@ -124,7 +127,7 @@ export async function embed(
       usage?: { prompt_tokens?: number };
     };
     // Before the size check: vectors of the wrong size were still paid for.
-    await onUsage?.({
+    await meter?.record({
       model: body.model ?? config.model,
       tokensIn: body.usage?.prompt_tokens ?? null,
       cost: reportedCost(response.headers),

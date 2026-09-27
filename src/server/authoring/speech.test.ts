@@ -6,18 +6,39 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { UsageAmount } from "@/server/ai-usage";
+import { AiAllowanceUsedUp } from "@/core/usage/allowance";
+import type { UsageAmount, UsageMeter } from "@/server/ai-usage";
 import { embed, transcribe } from "@/server/authoring/speech";
+
+/** Notes each admission and what each request used, in order; `refuse` plays a used-up allowance. */
+function recordingMeter(refuse = false) {
+  const events: Array<"admit" | UsageAmount> = [];
+  const meter: UsageMeter = {
+    admit: async () => {
+      events.push("admit");
+      if (refuse) throw new AiAllowanceUsedUp();
+    },
+    record: async (amount) => {
+      events.push(amount);
+    },
+  };
+  return { meter, events };
+}
 
 describe("speech and embeddings report what each request used", () => {
   let server: Server;
   let baseUrl: string;
   let transcription: Record<string, unknown> = {};
+  let requests = 0;
   let dir: string;
+  let audio: string;
 
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), "enaibler-speech-"));
+    audio = join(dir, "audio.mp3");
+    writeFileSync(audio, "stand-in for audio");
     server = createServer((request, response) => {
+      requests++;
       const body: Buffer[] = [];
       request.on("data", (chunk: Buffer) => body.push(chunk));
       request.on("end", () => {
@@ -50,46 +71,53 @@ describe("speech and embeddings report what each request used", () => {
   });
 
   it("meters embeddings per batch, with the gateway's tokens and price", async () => {
-    const used: UsageAmount[] = [];
+    const { meter, events } = recordingMeter();
     const texts = Array.from({ length: 70 }, (_, index) => `passage ${index}`);
-    const vectors = await embed({ baseUrl, model: "embed" }, texts, 3, async (amount) => {
-      used.push(amount);
-    });
+    const vectors = await embed({ baseUrl, model: "embed" }, texts, 3, meter);
     expect(vectors).toHaveLength(70);
-    expect(used).toEqual([
+    // Each batch is admitted before it goes out.
+    expect(events).toEqual([
+      "admit",
       { model: "embed-small", tokensIn: 448, cost: 0.0005 },
+      "admit",
       { model: "embed-small", tokensIn: 42, cost: 0.0005 },
     ]);
 
     // Vectors of a size the database cannot store were still paid for.
-    used.length = 0;
-    expect(
-      await embed({ baseUrl, model: "embed" }, ["one"], 1024, async (amount) => {
-        used.push(amount);
-      }),
-    ).toBeNull();
-    expect(used).toHaveLength(1);
+    const wrongSize = recordingMeter();
+    expect(await embed({ baseUrl, model: "embed" }, ["one"], 1024, wrongSize.meter)).toBeNull();
+    expect(wrongSize.events).toEqual(["admit", expect.objectContaining({ tokensIn: 7 })]);
   });
 
   it("meters transcription by the audio's length, at no price", async () => {
-    const audio = join(dir, "audio.mp3");
-    writeFileSync(audio, "stand-in for audio");
-    const used: UsageAmount[] = [];
-    const onUsage = async (amount: UsageAmount) => {
-      used.push(amount);
-    };
+    const { meter, events } = recordingMeter();
     const segments = [
       { start: 0, end: 6, text: "Here is my invoice list." },
       { start: 6, end: 11.2, text: "Then I chase the late ones." },
     ];
     transcription = { duration: 12.5, segments };
-    await transcribe({ baseUrl, model: "whisper-small" }, audio, "en", onUsage);
+    await transcribe({ baseUrl, model: "whisper-small" }, audio, "en", meter);
     // Without a duration the last segment's end stands in for it.
     transcription = { segments };
-    await transcribe({ baseUrl, model: "whisper-small" }, audio, "en", onUsage);
-    expect(used).toEqual([
+    await transcribe({ baseUrl, model: "whisper-small" }, audio, "en", meter);
+    expect(events).toEqual([
+      "admit",
       { model: "whisper-small", audioSeconds: 12.5, cost: 0 },
+      "admit",
       { model: "whisper-small", audioSeconds: 11.2, cost: 0 },
     ]);
+  });
+
+  it("sends nothing once the academy's AI allowance for the month is used up", async () => {
+    const { meter, events } = recordingMeter(true);
+    const before = requests;
+    await expect(embed({ baseUrl, model: "embed" }, ["one"], 3, meter)).rejects.toBeInstanceOf(
+      AiAllowanceUsedUp,
+    );
+    await expect(
+      transcribe({ baseUrl, model: "whisper-small" }, audio, "en", meter),
+    ).rejects.toBeInstanceOf(AiAllowanceUsedUp);
+    expect(events).toEqual(["admit", "admit"]);
+    expect(requests).toBe(before);
   });
 });

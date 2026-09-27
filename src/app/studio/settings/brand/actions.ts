@@ -19,7 +19,7 @@ export type BrandImportState =
 
 const HOUR = 60 * 60_000;
 
-/** The rules report their notes by code; the model already wrote its own in the Studio's language. */
+/** Notes come by code, worded here; the model already wrote its own in the Studio's language. */
 function noteText(t: StudioText, note: BrandNote): string {
   switch (note.code) {
     case "no_brand_color":
@@ -30,6 +30,8 @@ function noteText(t: StudioText, note: BrandNote): string {
       return t.t("brand.import.note.font", { site: note.site, font: note.font });
     case "model":
       return note.text;
+    case "ai_allowance_used_up":
+      return t.t("brand.import.note.allowance");
   }
 }
 

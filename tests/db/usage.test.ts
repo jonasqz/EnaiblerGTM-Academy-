@@ -19,6 +19,7 @@ import {
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
+import { aiAllowanceStatus, setAiAllowance } from "@/server/ai-allowance";
 import { requestLessonDraft, runLessonDraft } from "@/server/authoring/lesson-drafting";
 import { createSource, extractSource } from "@/server/authoring/sources";
 import type { Enqueue } from "@/server/jobs/producer";
@@ -363,6 +364,8 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
         },
         { kind: "lesson_draft", at: "2026-09-10T10:00:00Z", calls: 2 },
       ]);
+      // 20 cents a month; the other academy has no limit.
+      await setAiAllowance(dbs.app.db, academy.slug, { kind: "amount", microUsd: 200_000 });
     });
 
     it("shows the Studio its month by kind and by course, and nothing of other academies", async () => {
@@ -403,6 +406,7 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
           slug: tenant.slug,
           name: tenant.settings.author_display_name,
           kinds: await usageByKind(dbs.owner.db, tenant.id, "2026-09"),
+          allowance: await aiAllowanceStatus(dbs.owner.db, tenant.id, "2026-09"),
         })),
       );
       const report = usageReport("2026-09", academies);
@@ -418,12 +422,19 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
         transcriptionSeconds: 312,
         totalCostMicroUsd: 13_090,
         costIncomplete: true,
+        // The unpriced embedding at $0.05, the 5.2 transcribed minutes at $0.006.
+        countedMicroUsd: 13_090 + 50_000 + 31_200,
+        allowanceMicroUsd: 200_000,
+        allowancePercent: 47,
       });
       expect(report.lines[1]).toMatchObject({
         reviews: 1,
         authoringCalls: 2,
         totalCostMicroUsd: 2000,
         costIncomplete: false,
+        countedMicroUsd: 2000,
+        allowanceMicroUsd: null,
+        allowancePercent: null,
       });
     });
 
@@ -435,10 +446,13 @@ describe.skipIf(!hasDatabase)("AI usage per academy", () => {
           env: { ...process.env, DATABASE_MIGRATION_URL: process.env.TEST_DATABASE_MIGRATION_URL },
         });
       expect(report("--month", "2026-09", "--csv").split("\n")).toContain(
-        `2026-09,${academy.slug},${academy.settings.author_display_name},5,0.0060,0.0012,6,0.0071,5.2,0.0131,true`,
+        `2026-09,${academy.slug},${academy.settings.author_display_name},5,0.0060,0.0012,6,0.0071,5.2,0.0131,true,0.0943,0.20,47`,
       );
       expect(report("--month=2026-09")).toMatch(
-        new RegExp(`^${other.slug} .* 1 +0\\.0010 +0\\.0010 +2 +0\\.0010 +0\\.0 +0\\.0020$`, "m"),
+        new RegExp(
+          `^${other.slug} .* 1 +0\\.0010 +0\\.0010 +2 +0\\.0010 +0\\.0 +0\\.0020 +0\\.0020 +unlimited +-$`,
+          "m",
+        ),
       );
       expect(() => report("--month", "2026-13")).toThrow(/Usage: usage-report/);
     });
