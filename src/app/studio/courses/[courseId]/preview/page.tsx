@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
+import { KnowledgeCheck } from "@/components/knowledge-check";
+import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
 import { isLocale, localize } from "@/core/i18n/locales";
@@ -13,7 +15,7 @@ import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
-import { markdownOf } from "@/server/studio/lessons";
+import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -128,6 +130,13 @@ export default async function PreviewPage({
                 <p className="text-muted">{learner.t("lesson.empty")}</p>
               )}
             </div>
+            <KnowledgeCheck
+              key={current.id}
+              questions={checkQuestionsOf(current.blocks)}
+              labels={knowledgeCheckLabels(learner)}
+              headingLevel={3}
+              className="mt-10 border-t border-line pt-8"
+            />
           </article>
         ) : (
           <article className="min-w-0 space-y-8">
