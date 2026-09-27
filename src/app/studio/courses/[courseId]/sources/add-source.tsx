@@ -8,52 +8,40 @@ import { useRef, useState } from "react";
 import type { FormState } from "@/app/studio/actions";
 import { addSourceAction } from "@/app/studio/courses/[courseId]/sources/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
-import { LANGUAGE_NAMES } from "@/components/studio/language-names";
 import { ScreenRecorder } from "@/components/studio/screen-recorder";
+import { useStudioText } from "@/components/studio/studio-text";
 import { FileUpload, type UploadedFile } from "@/components/ui/file-upload";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { Locale } from "@/core/i18n/locales";
+import { languageName, studioUploadLabels } from "@/core/i18n/studio/helpers";
+import type { StudioKey } from "@/core/i18n/studio/index";
 
 type Kind = "recording" | "document" | "url";
 
-const KINDS: Array<{ kind: Kind; label: string; icon: typeof Video; hint: string }> = [
+const KINDS: Array<{ kind: Kind; label: StudioKey; icon: typeof Video; hint: StudioKey }> = [
   {
     kind: "recording",
-    label: "Recording",
+    label: "lessons.sources.kind.recording",
     icon: Video,
-    hint: "A screen recording with narration (MP4, WebM, MOV or audio). We transcribe it, split it into steps and take a screenshot of each.",
+    hint: "lessons.addSource.hint.recording",
   },
   {
     kind: "document",
-    label: "Document",
+    label: "lessons.sources.kind.document",
     icon: FileText,
-    hint: "A PDF, Markdown or text file: a whitepaper, a framework, your notes.",
+    hint: "lessons.addSource.hint.document",
   },
   {
     kind: "url",
-    label: "Web page",
+    label: "lessons.sources.kind.url",
     icon: Globe,
-    hint: "A blog post or article of yours. We read the page, not the whole site.",
+    hint: "lessons.addSource.hint.url",
   },
 ];
 
-const UPLOAD_LABELS = {
-  choose: "Choose a file",
-  drop: "or drop it here",
-  uploading: "Uploading… {percent} %",
-  remove: "Remove",
-  errors: {
-    too_large: "{name} is too large (up to 2 GB).",
-    type_not_allowed: "{name}: this type of file cannot be used here.",
-    invalid_content: "{name} could not be read.",
-    too_many: "One file at a time.",
-    rate_limited: "Too many uploads this hour.",
-    failed: "{name} could not be uploaded.",
-  },
-};
-
 export function AddSource(props: { courseId: string; languages: Locale[] }) {
+  const t = useStudioText();
   const [kind, setKind] = useState<Kind>("recording");
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [uploadKey, setUploadKey] = useState(0);
@@ -72,19 +60,22 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
   );
   const endpoint = `/api/uploads?purpose=source&course=${props.courseId}`;
   const current = KINDS.find((option) => option.kind === kind)!;
+  // The Studio's upload labels, keeping this upload's progress and its 2 GB limit in words.
+  const uploadLabels = studioUploadLabels(t);
 
   return (
     <section aria-labelledby="add-source-heading" className="card space-y-5 p-5 sm:p-6">
       <div>
         <h2 id="add-source-heading" className="text-lg font-semibold">
-          Add a source
+          {t.t("lessons.addSource.title")}
         </h2>
-        <p className="text-sm text-muted">
-          Everything stays on our servers in the EU: recordings are transcribed on our own speech
-          recognition.
-        </p>
+        <p className="text-sm text-muted">{t.t("lessons.addSource.privacy")}</p>
       </div>
-      <div role="tablist" aria-label="Kind of source" className="flex flex-wrap gap-2">
+      <div
+        role="tablist"
+        aria-label={t.t("lessons.addSource.kind")}
+        className="flex flex-wrap gap-2"
+      >
         {KINDS.map((option) => (
           <button
             key={option.kind}
@@ -98,17 +89,17 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
             }}
             className={`btn btn-sm ${kind === option.kind ? "btn-primary" : "btn-secondary"}`}
           >
-            <option.icon aria-hidden size={16} /> {option.label}
+            <option.icon aria-hidden size={16} /> {t.t(option.label)}
           </button>
         ))}
         <Link
           href={`/studio/courses/${props.courseId}/sources/interview` as Route}
           className="btn btn-secondary btn-sm"
         >
-          <MessageSquareQuote aria-hidden size={16} /> Interview
+          <MessageSquareQuote aria-hidden size={16} /> {t.t("lessons.sources.kind.interview")}
         </Link>
       </div>
-      <p className="text-sm">{current.hint}</p>
+      <p className="text-sm">{t.t(current.hint)}</p>
 
       <form ref={formRef} onSubmit={onSubmit} className="space-y-4">
         <input type="hidden" name="courseId" value={props.courseId} />
@@ -117,7 +108,7 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
         {kind === "url" ? (
           <div className="field">
             <label htmlFor="source-url" className="label">
-              Address of the page
+              {t.t("lessons.addSource.url")}
             </label>
             <input
               id="source-url"
@@ -142,7 +133,11 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
               }
               maxFiles={1}
               maxBytes={2048 * 1024 * 1024}
-              labels={UPLOAD_LABELS}
+              labels={{
+                ...uploadLabels,
+                uploading: t.t("lessons.addSource.uploading"),
+                errors: { ...uploadLabels.errors, too_large: t.t("lessons.addSource.tooLarge") },
+              }}
               onChange={(files) => setFile(files[0] ?? null)}
             />
             {kind === "recording" && !file && (
@@ -162,19 +157,20 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="field">
             <label htmlFor="source-title" className="label">
-              Title <span className="font-normal text-muted">(optional)</span>
+              {t.t("lessons.field.title")}{" "}
+              <span className="font-normal text-muted">({t.t("common.optional")})</span>
             </label>
             <input id="source-title" name="title" className="input" maxLength={200} />
           </div>
           {props.languages.length > 1 && (
             <div className="field">
               <label htmlFor="source-locale" className="label">
-                Spoken or written in
+                {t.t("lessons.addSource.locale")}
               </label>
               <select id="source-locale" name="locale" className="select">
                 {props.languages.map((locale) => (
                   <option key={locale} value={locale}>
-                    {LANGUAGE_NAMES[locale]}
+                    {languageName(t, locale)}
                   </option>
                 ))}
               </select>
@@ -182,8 +178,12 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
           )}
         </div>
         <FormFeedback state={state} />
-        <SubmitButton pending={pending} disabled={kind !== "url" && !file} pendingLabel="Adding…">
-          Add source
+        <SubmitButton
+          pending={pending}
+          disabled={kind !== "url" && !file}
+          pendingLabel={t.t("common.adding")}
+        >
+          {t.t("lessons.addSource.submit")}
         </SubmitButton>
       </form>
     </section>

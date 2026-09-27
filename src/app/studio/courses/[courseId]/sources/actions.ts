@@ -20,6 +20,7 @@ import { loadFile } from "@/server/files";
 import { enqueue } from "@/server/jobs/producer";
 import { rateLimit } from "@/server/rate-limit";
 import { getCourseEditor } from "@/server/studio/course-context";
+import { getStudioText } from "@/server/studio-text";
 
 const HOUR = 60 * 60_000;
 
@@ -35,6 +36,7 @@ async function courseFor(formData: FormData) {
 /** Adds a recording, document or web page; reading it happens in the background. */
 export async function addSourceAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const t = await getStudioText();
   const kind = text(formData, "kind");
   const locale = text(formData, "locale");
   const sourceLocale: Locale | null = isLocale(locale) ? locale : (languages[0] ?? null);
@@ -42,15 +44,17 @@ export async function addSourceAction(_: FormState, formData: FormData): Promise
   if (kind === "recording" || kind === "document") {
     const fileId = text(formData, "fileId");
     const record = fileId ? await loadFile(getDb(), tenant.id, fileId) : null;
-    if (!record || record.purpose !== "source") return { errors: ["Upload the file first."] };
+    if (!record || record.purpose !== "source") {
+      return { errors: [t.t("lessons.addSource.uploadFirst")] };
+    }
     const family = record.contentType.split("/")[0];
     const isMedia = family === "video" || family === "audio";
     if ((kind === "recording") !== isMedia) {
       return {
         errors: [
           kind === "recording"
-            ? "That is not a video or audio file."
-            : "Upload recordings as recordings, not as documents.",
+            ? t.t("lessons.addSource.notMedia")
+            : t.t("lessons.addSource.mediaAsDocument"),
         ],
       };
     }
@@ -69,7 +73,7 @@ export async function addSourceAction(_: FormState, formData: FormData): Promise
     );
   } else if (kind === "url") {
     const url = normalizeWebsite(text(formData, "url"));
-    if (!url) return { errors: ["Enter the page's address, e.g. https://example.com/article."] };
+    if (!url) return { errors: [t.t("lessons.addSource.urlInvalid")] };
     await createSource(
       getDb(),
       tenant.id,
@@ -84,15 +88,15 @@ export async function addSourceAction(_: FormState, formData: FormData): Promise
       enqueue,
     );
   } else {
-    return { errors: ["Choose what to add."] };
+    return { errors: [t.t("lessons.addSource.chooseKind")] };
   }
   revalidatePath(`/studio/courses/${courseId}/sources`);
   return {
     ok: true,
     message:
       kind === "recording"
-        ? "Recording added. Transcription runs in the background."
-        : "Source added. Reading it takes a moment.",
+        ? t.t("lessons.addSource.recordingAdded")
+        : t.t("lessons.addSource.added"),
   };
 }
 
@@ -118,10 +122,11 @@ export async function suggestQuestionsAction(formData: FormData): Promise<Questi
   if (!model || !editor.assignment || !editor.rubric) {
     return { questions: defaultQuestions(locale, artifact) };
   }
+  const t = await getStudioText();
   if (!rateLimit(`interview:${tenant.id}`, 20, HOUR)) {
     return {
       questions: defaultQuestions(locale, artifact),
-      message: "Too many requests this hour.",
+      message: t.t("lessons.interview.limit"),
     };
   }
   const rubric = rubricSchema.parse(editor.rubric.definition);
@@ -136,17 +141,21 @@ export async function suggestQuestionsAction(formData: FormData): Promise<Questi
   });
   return questions
     ? { questions }
-    : { questions: defaultQuestions(locale, artifact), message: "Using the standard questions." };
+    : {
+        questions: defaultQuestions(locale, artifact),
+        message: t.t("lessons.interview.standard"),
+      };
 }
 
 export async function saveInterviewAction(_: FormState, formData: FormData): Promise<FormState> {
   const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const t = await getStudioText();
   const questions = formData.getAll("question").map(String);
   const answers = formData.getAll("answer").map(String);
   const content = interviewText(
     questions.map((question, index) => ({ question, answer: answers[index] ?? "" })),
   );
-  if (content.length < 40) return { errors: ["Answer at least one question."] };
+  if (content.length < 40) return { errors: [t.t("lessons.interview.answerOne")] };
   const locale = text(formData, "locale");
   await createSource(
     getDb(),
@@ -154,7 +163,7 @@ export async function saveInterviewAction(_: FormState, formData: FormData): Pro
     {
       courseId,
       kind: "interview",
-      title: text(formData, "title") || "Expert interview",
+      title: text(formData, "title") || t.t("lessons.interview.title"),
       locale: isLocale(locale) ? locale : (languages[0] ?? null),
       content: content.slice(0, 100_000),
       createdBy: viewer.userId,
