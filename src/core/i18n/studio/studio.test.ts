@@ -68,6 +68,7 @@ describe("Studio translator", () => {
     expect(studioText("en").date(new Date("2026-09-27T08:45:00Z"), "dateTime")).toBe(
       "27 Sept 2026, 10:45",
     );
+    expect(de.date(new Date("2026-03-15T12:00:00Z"), "month")).toBe("März 2026");
   });
 
   it("words what the core rules report by code", () => {

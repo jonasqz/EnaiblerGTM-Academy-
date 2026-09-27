@@ -65,8 +65,23 @@ export function toMicroUsd(cost: number | null | undefined): number | null {
     : Math.round(cost * 1_000_000);
 }
 
+/** Usage is counted by calendar month in Berlin time, in the Studio and the operator's report alike. */
+export const USAGE_TIME_ZONE = "Europe/Berlin";
+
+const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+export function isUsageMonth(value: unknown): value is string {
+  return typeof value === "string" && MONTH.test(value);
+}
+
+function parseMonth(month: string): { year: number; index: number } {
+  const match = MONTH.exec(month);
+  if (!match) throw new Error(`Not a month: ${month}`);
+  return { year: Number(match[1]), index: Number(match[2]) - 1 };
+}
+
 /** "2026-09" for the month a moment falls in, in the given time zone (Berlin by default). */
-export function usageMonth(date: Date, timeZone = "Europe/Berlin"): string {
+export function usageMonth(date: Date, timeZone = USAGE_TIME_ZONE): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -78,15 +93,30 @@ export function usageMonth(date: Date, timeZone = "Europe/Berlin"): string {
 }
 
 /** The first moment of a "2026-09" month and of the month after, in the given time zone. */
-export function monthRange(month: string, timeZone = "Europe/Berlin"): { from: Date; to: Date } {
-  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
-  if (!match) throw new Error(`Not a month: ${month}`);
-  const year = Number(match[1]);
-  const index = Number(match[2]) - 1;
+export function monthRange(month: string, timeZone = USAGE_TIME_ZONE): { from: Date; to: Date } {
+  const { year, index } = parseMonth(month);
   return {
     from: zonedMidnight(year, index, timeZone),
     to: zonedMidnight(index === 11 ? year + 1 : year, (index + 1) % 12, timeZone),
   };
+}
+
+/** The month `delta` months after a "2026-09" month (before it when negative). */
+export function shiftMonth(month: string, delta: number): string {
+  const { year, index } = parseMonth(month);
+  const shifted = year * 12 + index + delta;
+  return `${Math.floor(shifted / 12)}-${String((shifted % 12) + 1).padStart(2, "0")}`;
+}
+
+/** `count` months ending with `month`, the newest first. */
+export function recentMonths(month: string, count: number): string[] {
+  return Array.from({ length: count }, (_, back) => shiftMonth(month, -back));
+}
+
+/** The 15th at noon UTC: inside the month in every time zone, so naming the month never slips. */
+export function midMonth(month: string): Date {
+  const { year, index } = parseMonth(month);
+  return new Date(Date.UTC(year, index, 15, 12));
 }
 
 /** Midnight on the first of a month in a time zone, as a UTC instant. */
@@ -140,4 +170,26 @@ export function addUsage(totals: UsageTotals, record: Omit<AiUsageRecord, "kind"
   if (record.costMicroUsd === null) totals.costIncomplete = true;
   else totals.costMicroUsd += record.costMicroUsd;
   return totals;
+}
+
+/** Adds totals that are already added up, such as one kind's month to an academy's. */
+export function mergeTotals(totals: UsageTotals, more: UsageTotals): UsageTotals {
+  totals.calls += more.calls;
+  totals.tokensIn += more.tokensIn;
+  totals.tokensOut += more.tokensOut;
+  totals.audioSeconds += more.audioSeconds;
+  totals.costMicroUsd += more.costMicroUsd;
+  totals.costIncomplete ||= more.costIncomplete;
+  return totals;
+}
+
+/** One kind's totals over a period, as the database adds them up. */
+export interface KindUsage extends UsageTotals {
+  kind: AiUsageKind;
+  /**
+   * The hand-ins, runs, sources or drafts the calls were for, each once (a
+   * call without one counts on its own). For reviews: the hand-ins the AI
+   * reviewed, however many attempts the model needed.
+   */
+  items: number;
 }

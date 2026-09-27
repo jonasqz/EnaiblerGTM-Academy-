@@ -10,7 +10,10 @@ export interface StudioText {
   t(key: StudioKey, vars?: StudioVars): string;
   /** `key.one` or `key.other` for `count` (also available as {n}). */
   n(key: StudioPluralKey, count: number, vars?: StudioVars): string;
-  date(value: Date | string | number, style?: "date" | "dateTime" | "time" | "short"): string;
+  date(
+    value: Date | string | number,
+    style?: "date" | "dateTime" | "time" | "short" | "month",
+  ): string;
   number(value: number, options?: Intl.NumberFormatOptions): string;
   /** "A, B and C" / "A, B und C". */
   list(items: readonly string[]): string;
@@ -32,6 +35,7 @@ export function studioText(locale: Locale, options: { timeZone?: string } = {}):
     dateTime: new Intl.DateTimeFormat(intl, { dateStyle: "medium", timeStyle: "short", timeZone }),
     time: new Intl.DateTimeFormat(intl, { timeStyle: "short", timeZone }),
     short: new Intl.DateTimeFormat(intl, { day: "numeric", month: "short", timeZone }),
+    month: new Intl.DateTimeFormat(intl, { month: "long", year: "numeric", timeZone }),
   };
   const fill = (template: string, vars: StudioVars = {}) =>
     template.replace(/\{(\w+)\}/g, (whole, name: string) => {

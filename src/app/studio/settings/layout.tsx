@@ -27,6 +27,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/studio/
           { href: "/studio/settings/brand", label: t.t("settings.tab.brand") },
           { href: "/studio/settings/domains", label: t.t("settings.tab.domains") },
           { href: "/studio/settings/integrations", label: t.t("settings.tab.integrations") },
+          { href: "/studio/settings/usage", label: t.t("settings.tab.usage") },
         ]}
       />
       {children}
