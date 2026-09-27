@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { continueUrl } from "@/components/entry-links";
@@ -11,6 +12,7 @@ import { authFor } from "@/server/auth";
 import { createAcademy } from "@/server/platform/academies";
 import { academyOrigin, platformConfig } from "@/server/platform/config";
 import { acceptedDocuments, signupOpen } from "@/server/platform/legal";
+import { notifyNewAcademy } from "@/server/platform/notices";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { getLocale } from "@/server/request";
 
@@ -119,6 +121,11 @@ export async function createAcademyAction(
   }
 
   const { host, origin } = academyOrigin(result.tenant.primaryDomain);
+  const notify = config.notifyEmail;
+  if (notify) {
+    const tenant = result.tenant;
+    after(() => notifyNewAcademy({ to: notify, tenant, adminEmail: email.data }));
+  }
   try {
     // The link is issued by the new academy's own auth, on the academy's own host.
     await authFor(result.tenant).api.signInMagicLink({

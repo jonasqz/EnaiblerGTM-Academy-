@@ -13,6 +13,8 @@ export interface PlatformConfig {
   links: { terms?: string; dpa?: string; privacy?: string; imprint?: string; demo?: string };
   /** Where content reports go; development falls back to a local address. */
   abuseEmail?: string;
+  /** The operator's inbox for news such as each new academy. */
+  notifyEmail?: string;
   /** Recorded with accepted agreements; unset, a built-in page's date is its version. */
   agreementVersion?: string;
 }
@@ -47,6 +49,7 @@ export function platformConfig(): PlatformConfig | null {
     abuseEmail:
       trimmed(process.env.PLATFORM_ABUSE_EMAIL) ??
       (production ? undefined : "abuse@enaibler.local"),
+    notifyEmail: trimmed(process.env.PLATFORM_NOTIFY_EMAIL),
     agreementVersion: trimmed(process.env.PLATFORM_AGREEMENT_VERSION),
   };
 }

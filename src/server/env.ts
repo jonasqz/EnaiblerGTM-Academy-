@@ -66,6 +66,8 @@ const envSchema = z.object({
   PLATFORM_AGREEMENT_VERSION: optional,
   /** Where content reports from the website go (DSA notice and action). */
   PLATFORM_ABUSE_EMAIL: z.email().optional(),
+  /** The operator's inbox for each new academy; no notice without it. */
+  PLATFORM_NOTIFY_EMAIL: z.email().optional(),
 });
 
 export type Env = z.output<typeof envSchema> & { APP_PROTOCOL: "http" | "https" };

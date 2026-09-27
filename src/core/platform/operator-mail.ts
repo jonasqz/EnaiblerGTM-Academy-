@@ -3,8 +3,8 @@ import type { ContentReport, ReportReason } from "@/core/platform/report";
 
 /*
  * Mail to enaibler's own team from the website: content reports (to
- * PLATFORM_ABUSE_EMAIL). In English and plain text, so what people typed
- * arrives exactly as typed.
+ * PLATFORM_ABUSE_EMAIL) and new academies (to PLATFORM_NOTIFY_EMAIL). In
+ * English and plain text, so what people typed arrives exactly as typed.
  */
 
 const REASONS: Record<ReportReason, string> = {
@@ -65,5 +65,30 @@ export function contentReportMail(input: {
   return {
     subject: `Content report ${input.reference}: ${REASONS[report.reason]} on ${host}`,
     text,
+  };
+}
+
+export function newAcademyMail(input: {
+  name: string;
+  slug: string;
+  url: string;
+  adminEmail: string;
+  locales: readonly Locale[];
+  website: string | null;
+  createdAt: Date;
+}): { subject: string; text: string } {
+  return {
+    subject: `New academy: ${input.name} (${input.slug})`,
+    text: [
+      "A new academy was created on the website.",
+      rows([
+        ["Academy", input.name],
+        ["Address", input.url],
+        ["Admin", input.adminEmail],
+        ["Languages", input.locales.join(", ")],
+        ["Website", input.website ?? "none given"],
+        ["Created", utc(input.createdAt)],
+      ]),
+    ].join("\n\n"),
   };
 }
