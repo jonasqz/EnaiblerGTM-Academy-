@@ -5,8 +5,10 @@ import { notFound } from "next/navigation";
 
 import { StatTile } from "@/components/ui/stat-tile";
 import { can } from "@/core/access/roles";
+import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { starterRubric } from "@/core/courses/starter-rubric";
 import { isLocale, localize } from "@/core/i18n/locales";
+import { DEFAULT_PASS_PERCENT } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
 import { sameJson } from "@/core/shared/json";
 import { getDb } from "@/db/client";
@@ -48,16 +50,21 @@ export default async function StudioCoursePage({
   const primary = tenant.settings.default_locale;
 
   const rubric = editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null;
-  const has = (code: string) =>
-    [...check.errors, ...check.warnings].some((issue) => issue.code === code);
+  const issues = [...check.errors, ...check.warnings];
+  const has = (code: string) => issues.some((issue) => issue.code === code);
   const keys = new Set(editor.lessons.map((lesson) => lesson.key));
   const taught = check.coverage.filter((row) => row.lessonKeys.length > 0).length;
   // Unchanged since creation: the generic criteria still need to become specific.
   const starter = rubric
     ? sameJson(rubric.criteria, starterRubric(editor.course.languages.filter(isLocale)).criteria)
     : false;
+  const work = requiresWork(editor.course.completionMode);
+  const test = requiresTest(editor.course.completionMode);
+  const questions = editor.test?.questions.length ?? 0;
+  const passPercent = editor.test?.passPercent ?? DEFAULT_PASS_PERCENT;
 
-  const steps: Array<{ title: string; detail: string; state: StepState; href: string }> = [
+  type Step = { title: string; detail: string; state: StepState; href: string };
+  const workSteps: Step[] = [
     {
       title: t.t("courses.step.outcome"),
       detail: editor.assignment
@@ -76,11 +83,33 @@ export default async function StudioCoursePage({
       state: !rubric ? "todo" : starter ? "attention" : "done",
       href: `${base}/outcome#rubric`,
     },
+  ];
+  const testStep: Step = {
+    title: t.t("courses.step.test"),
+    detail: questions
+      ? t.n("courses.overview.test.done", questions, { percent: passPercent })
+      : t.t("courses.overview.test.todo"),
+    // Done once nothing about the test blocks publishing.
+    state:
+      has("no_test") || has("missing_test_text")
+        ? "todo"
+        : has("test_too_short") ||
+            issues.some((issue) => issue.finding?.context === "test_question")
+          ? "attention"
+          : "done",
+    href: `${base}/test`,
+  };
+
+  const steps: Step[] = [
+    ...(work ? workSteps : []),
+    ...(test ? [testStep] : []),
     {
       title: t.t("courses.step.lessons"),
-      detail: keys.size
-        ? `${t.n("common.lesson", keys.size)} · ${t.n("courses.overview.lessons.taught", check.coverage.length, { taught })}`
-        : t.t("courses.overview.lessons.todo"),
+      detail: !keys.size
+        ? t.t("courses.overview.lessons.todo")
+        : work
+          ? `${t.n("common.lesson", keys.size)} · ${t.n("courses.overview.lessons.taught", check.coverage.length, { taught })}`
+          : t.n("common.lesson", keys.size),
       state:
         keys.size === 0 || has("no_lessons")
           ? "todo"
@@ -126,11 +155,19 @@ export default async function StudioCoursePage({
           label={t.t("courses.overview.completed")}
           value={stats.completed}
         />
-        <StatTile
-          locale={t.locale}
-          label={t.t("courses.overview.waiting")}
-          value={stats.pendingReviews}
-        />
+        {work ? (
+          <StatTile
+            locale={t.locale}
+            label={t.t("courses.overview.waiting")}
+            value={stats.pendingReviews}
+          />
+        ) : (
+          <StatTile
+            locale={t.locale}
+            label={t.t("courses.overview.tookTest")}
+            value={stats.test.takers}
+          />
+        )}
         <StatTile
           locale={t.locale}
           label={t.t("courses.overview.certificates")}
@@ -186,64 +223,120 @@ export default async function StudioCoursePage({
           </ol>
         </section>
 
-        <section aria-labelledby="review-heading" className="card-flat space-y-4 p-5">
-          <div>
-            <h2 id="review-heading" className="text-lg font-semibold">
-              {t.t("courses.overview.review.title")}
-            </h2>
-            <p className="text-sm text-muted">{t.t("courses.overview.review.intro")}</p>
-          </div>
-          <dl className="grid gap-3 text-sm">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted">{t.t("courses.overview.review.aiReviews")}</dt>
-              <dd className="font-semibold tabular-nums">{stats.aiReviews}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted">{t.t("courses.overview.review.agreement")}</dt>
-              <dd className="text-right font-semibold tabular-nums">
-                {stats.agreement ? (
-                  <>
-                    {Math.round(stats.agreement.rate * 100)} %
-                    <span className="block text-xs font-normal text-muted">
-                      {t.t("courses.overview.review.sample", { n: stats.agreement.sample })}
-                    </span>
-                  </>
-                ) : (
-                  <span className="font-normal text-muted">
-                    {t.t("courses.overview.review.noChecks")}
-                  </span>
-                )}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted">{t.t("courses.overview.review.cost")}</dt>
-              <dd className="font-semibold tabular-nums">
-                {stats.avgCostMicroUsd === null ? (
-                  <span className="font-normal text-muted">
-                    {t.t("courses.overview.review.notReported")}
-                  </span>
-                ) : (
-                  t.number(stats.avgCostMicroUsd / 1_000_000, USD)
-                )}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted">{t.t("courses.overview.review.mode")}</dt>
-              <dd className="font-semibold">
-                {rubric?.review_policy.mode === "human_only"
-                  ? t.t("courses.overview.review.mode.human_only")
-                  : rubric?.review_policy.mode === "ai_then_human"
-                    ? t.t("courses.overview.review.mode.ai_then_human")
-                    : t.t("courses.overview.review.mode.ai_auto")}
-              </dd>
-            </div>
-          </dl>
-          {stats.pendingReviews > 0 && can(roles, "reviews.decide") && (
-            <Link href="/studio/reviews" className="btn btn-secondary btn-sm">
-              {t.t("courses.overview.review.openQueue")}
-            </Link>
+        <div className="space-y-6">
+          {work && (
+            <section aria-labelledby="review-heading" className="card-flat space-y-4 p-5">
+              <div>
+                <h2 id="review-heading" className="text-lg font-semibold">
+                  {t.t("courses.overview.review.title")}
+                </h2>
+                <p className="text-sm text-muted">{t.t("courses.overview.review.intro")}</p>
+              </div>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.review.aiReviews")}</dt>
+                  <dd className="font-semibold tabular-nums">{stats.aiReviews}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.review.agreement")}</dt>
+                  <dd className="text-right font-semibold tabular-nums">
+                    {stats.agreement ? (
+                      <>
+                        {Math.round(stats.agreement.rate * 100)} %
+                        <span className="block text-xs font-normal text-muted">
+                          {t.t("courses.overview.review.sample", { n: stats.agreement.sample })}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-normal text-muted">
+                        {t.t("courses.overview.review.noChecks")}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.review.cost")}</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {stats.avgCostMicroUsd === null ? (
+                      <span className="font-normal text-muted">
+                        {t.t("courses.overview.review.notReported")}
+                      </span>
+                    ) : (
+                      t.number(stats.avgCostMicroUsd / 1_000_000, USD)
+                    )}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.review.mode")}</dt>
+                  <dd className="font-semibold">
+                    {rubric?.review_policy.mode === "human_only"
+                      ? t.t("courses.overview.review.mode.human_only")
+                      : rubric?.review_policy.mode === "ai_then_human"
+                        ? t.t("courses.overview.review.mode.ai_then_human")
+                        : t.t("courses.overview.review.mode.ai_auto")}
+                  </dd>
+                </div>
+              </dl>
+              {stats.pendingReviews > 0 && can(roles, "reviews.decide") && (
+                <Link href="/studio/reviews" className="btn btn-secondary btn-sm">
+                  {t.t("courses.overview.review.openQueue")}
+                </Link>
+              )}
+            </section>
           )}
-        </section>
+
+          {test && (
+            <section aria-labelledby="test-heading" className="card-flat space-y-4 p-5">
+              <div>
+                <h2 id="test-heading" className="text-lg font-semibold">
+                  {t.t("courses.overview.testCard.title")}
+                </h2>
+                <p className="text-sm text-muted">{t.t("courses.overview.testCard.intro")}</p>
+              </div>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.testCard.attempts")}</dt>
+                  <dd className="font-semibold tabular-nums">{t.number(stats.test.attempts)}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.testCard.passed")}</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {t.t("courses.overview.testCard.passedOf", {
+                      passed: stats.test.passed,
+                      takers: stats.test.takers,
+                    })}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.testCard.rate")}</dt>
+                  <dd className="text-right font-semibold tabular-nums">
+                    {stats.test.takers > 0 ? (
+                      <>
+                        {Math.round((stats.test.passed / stats.test.takers) * 100)} %
+                        <span className="block text-xs font-normal text-muted">
+                          {t.t("courses.overview.testCard.rateHint")}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-normal text-muted">
+                        {t.t("courses.overview.testCard.none")}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted">{t.t("courses.overview.testCard.passMark")}</dt>
+                  <dd className="font-semibold tabular-nums">{passPercent} %</dd>
+                </div>
+              </dl>
+              {canEdit && (
+                <Link href={`${base}/test` as Route} className="btn btn-secondary btn-sm">
+                  {t.t("courses.overview.testCard.edit")}
+                </Link>
+              )}
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );

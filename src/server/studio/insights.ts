@@ -17,6 +17,7 @@ import {
   paths,
   reviews,
   submissions,
+  testAttempts,
   user,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
@@ -183,6 +184,8 @@ export interface CourseLearnerRow {
   completedAt: Date | null;
   progress: { done: number; total: number; percent: number };
   latestSubmission: { id: string; status: string; attemptNo: number; submittedAt: Date } | null;
+  /** The final test: whether any attempt passed, and the best score (percent, rounded down). */
+  test: { attempts: number; passed: boolean; bestPercent: number } | null;
   credential: { publicId: string; visibility: "private" | "public" } | null;
   contactEmail: string | null;
 }
@@ -244,6 +247,24 @@ export async function courseLearners(
       .orderBy(submissions.userId, desc(submissions.attemptNo));
     const latestByUser = new Map(latest.map((row) => [row.userId, row]));
 
+    const tests = await tx
+      .select({
+        userId: testAttempts.userId,
+        attempts: sql<number>`count(*)::int`,
+        passed: sql<boolean>`bool_or(${testAttempts.passed})`,
+        // Integer division rounds down, like gradePercent.
+        bestPercent: sql<number>`coalesce(max(${testAttempts.correct} * 100 / nullif(${testAttempts.total}, 0)), 0)::int`,
+      })
+      .from(testAttempts)
+      .where(
+        and(
+          eq(testAttempts.courseId, courseId),
+          only ? inArray(testAttempts.userId, [...only]) : undefined,
+        ),
+      )
+      .groupBy(testAttempts.userId);
+    const testByUser = new Map(tests.map((row) => [row.userId, row]));
+
     const creds = await tx
       .select({
         userId: credentials.userId,
@@ -260,6 +281,7 @@ export async function courseLearners(
 
     return rows.map((row) => {
       const submission = latestByUser.get(row.userId);
+      const test = testByUser.get(row.userId);
       const credential = credByUser.get(row.userId);
       return {
         userId: row.userId,
@@ -279,6 +301,9 @@ export async function courseLearners(
               attemptNo: submission.attemptNo,
               submittedAt: submission.submittedAt,
             }
+          : null,
+        test: test
+          ? { attempts: test.attempts, passed: test.passed, bestPercent: test.bestPercent }
           : null,
         credential: credential
           ? { publicId: credential.publicId, visibility: credential.visibility }
@@ -300,6 +325,8 @@ export interface CourseStats {
   /** AI verdicts a human also judged, and how often both agreed (brief §8 agreement rate). */
   agreement: AgreementStats | null;
   avgCostMicroUsd: number | null;
+  /** The final test: every hand-in, learners who took it, learners who passed it. */
+  test: { attempts: number; takers: number; passed: number };
 }
 
 export async function courseStats(
@@ -328,6 +355,14 @@ export async function courseStats(
       .select({ visibility: credentials.visibility })
       .from(credentials)
       .where(and(eq(credentials.courseId, courseId), isNull(credentials.revokedAt)));
+    const [test] = await tx
+      .select({
+        attempts: n,
+        takers: sql<number>`count(distinct ${testAttempts.userId})::int`,
+        passed: sql<number>`(count(distinct ${testAttempts.userId}) filter (where ${testAttempts.passed}))::int`,
+      })
+      .from(testAttempts)
+      .where(eq(testAttempts.courseId, courseId));
     const reviewRows = subs.length
       ? await tx
           .select({
@@ -371,6 +406,7 @@ export async function courseStats(
       avgCostMicroUsd: costs.length
         ? Math.round(costs.reduce((sum, cost) => sum + cost, 0) / costs.length)
         : null,
+      test: test ?? { attempts: 0, takers: 0, passed: 0 },
     };
   });
 }

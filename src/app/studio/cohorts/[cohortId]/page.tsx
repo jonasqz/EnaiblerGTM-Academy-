@@ -105,6 +105,7 @@ export default async function CohortPage({
             rows={shown}
             canReview
             caption={t.t("team.cohort.learnersCaption", { name: cohort.name })}
+            completionMode={course.completionMode}
           />
         )}
         {manager && rows.length > 0 && (

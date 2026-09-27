@@ -26,7 +26,7 @@ export const en = {
   // New course
   "courses.new.title": "Start with the outcome",
   "courses.new.description":
-    "What will learners have built when they finish? Name it and describe a good result. The rubric and the lessons follow from there.",
+    "Decide how learners finish: real work, a final test or both. The rubric, the test and the lessons follow from there.",
   "courses.new.steps": "Steps",
   "courses.new.thisStep": "(this step)",
   "courses.new.step.outcome": "What learners build and what good looks like.",
@@ -182,6 +182,133 @@ export const en = {
     "Learners appear under an alias. Names and e-mail addresses only show for learners who agreed to be contacted by the academy.",
   "courses.learners.empty": "Nobody has started this course yet",
   "courses.learners.caption": "Learners of this course",
+
+  // How learners finish (core/courses/completion), in the new-course form and the details
+  "courses.completion.title": "How do learners finish this course?",
+  "courses.completion.hint": "You can change this later in the course details.",
+  "courses.completion.recommended": "Recommended",
+  "courses.completion.work": "Real work",
+  "courses.completion.work.bodyAi":
+    "Learners hand in one piece of work. AI and your team review it against your rubric.",
+  "courses.completion.work.bodyTeam":
+    "Learners hand in one piece of work. Your team reviews it against your rubric.",
+  "courses.completion.test": "Final test",
+  "courses.completion.test.body":
+    "Multiple-choice questions, checked automatically when learners hand them in.",
+  "courses.completion.work_and_test": "Both",
+  "courses.completion.work_and_test.body":
+    "Learners hand in the work and pass the final test, in either order.",
+  "courses.completion.choose": "Choose how learners finish the course.",
+  "courses.completion.liveTitle": "This course is live",
+  "courses.completion.liveBody":
+    "The new choice applies to learners who have not finished yet. Certificates of Completion already issued stay valid; learners who already passed everything it asks for receive theirs when you save.",
+  "courses.completion.addedWork":
+    "The course now has an assignment with a starter rubric: describe it under Outcome & rubric.",
+  "courses.completion.addedTest":
+    "The course now has an empty final test: write its questions under Final test.",
+  "courses.completion.completed.one":
+    "{n} learner had already passed everything the course now asks for and received the Certificate of Completion.",
+  "courses.completion.completed.other":
+    "{n} learners had already passed everything the course now asks for and received the Certificate of Completion.",
+  "courses.new.draftNoteTest": "Creates a draft with an empty final test. Nothing is public yet.",
+  "courses.new.draftNoteBoth":
+    "Creates a draft with a starter rubric and an empty final test. Nothing is public yet.",
+  "courses.new.step.test": "Questions in every course language, and the pass mark.",
+  "courses.tab.test": "Final test",
+  "courses.step.test": "Final test",
+
+  // Final test in the overview and the learners table
+  "courses.overview.test.done.one": "{n} question, pass at {percent} %",
+  "courses.overview.test.done.other": "{n} questions, pass at {percent} %",
+  "courses.overview.test.todo": "Write the questions.",
+  "courses.overview.tookTest": "Took the final test",
+  "courses.overview.testCard.title": "Final test",
+  "courses.overview.testCard.intro":
+    "How learners do on the final test. Every retake is an attempt.",
+  "courses.overview.testCard.attempts": "Attempts",
+  "courses.overview.testCard.passed": "Learners who passed",
+  "courses.overview.testCard.passedOf": "{passed} of {takers}",
+  "courses.overview.testCard.rate": "Pass rate",
+  "courses.overview.testCard.rateHint": "of learners who took it",
+  "courses.overview.testCard.none": "No attempts yet",
+  "courses.overview.testCard.passMark": "Pass mark",
+  "courses.overview.testCard.edit": "Edit the final test",
+  "courses.learners.test": "Final test",
+  "courses.learners.testPassed": "Passed",
+  "courses.learners.testNotPassed": "Not passed yet",
+  "courses.learners.testBest": "best {percent} %",
+  "courses.learners.testAttempts.one": "{n} attempt",
+  "courses.learners.testAttempts.other": "{n} attempts",
+  "courses.learners.testNotTaken": "Not taken",
+  "courses.preview.testNote":
+    "The final test at the end shows the questions without their answers, as learners see them.",
+
+  // Final test editor
+  "courses.test.intro.title": "How the final test works",
+  "courses.test.intro.body":
+    "Learners see the questions without the answers. The test is graded when they hand it in, and they can retake it as often as they like.",
+  "courses.test.intro.test": "Passing it issues the Certificate of Completion.",
+  "courses.test.intro.work_and_test":
+    "Passing it, together with the work, issues the Certificate of Completion.",
+  "courses.test.notUsed.title": "Learners do not take this test",
+  "courses.test.notUsed.body":
+    "The course ends with the work only. The test is kept in case you choose it in Details.",
+  "courses.test.created.title": "Course created as a draft",
+  "courses.test.created.body":
+    "Write the final test, then the lessons that prepare learners for it.",
+  "courses.test.settings": "Pass mark and results",
+  "courses.test.passPercent": "Pass mark",
+  "courses.test.passPercentHint":
+    "Share of questions a learner must answer right. Scores are rounded down.",
+  "courses.test.showMistakes": "Show learners which questions they got wrong",
+  "courses.test.showMistakesHint":
+    "Never the right answers, so a retake still shows what they know.",
+  "courses.test.questions": "Questions",
+  "courses.test.questionsIntro":
+    "Mark every right answer. With several right answers, a question counts only when a learner picks all of them and nothing else.",
+  "courses.test.count": "{n} of {max} questions",
+  "courses.test.question": "Question {n}",
+  "courses.test.questionText": "Question",
+  "courses.test.options": "Options",
+  "courses.test.optionLabel": "Option {n}, {language}",
+  "courses.test.right": "Right",
+  "courses.test.rightLabel": "Option {n} is right",
+  "courses.test.several": "Several right answers: learners choose all that apply.",
+  "courses.test.addOption": "Add an option",
+  "courses.test.removeOption": "Remove option {n}",
+  "courses.test.optionUp": "Move option {n} up",
+  "courses.test.optionDown": "Move option {n} down",
+  "courses.test.addQuestion": "Add a question",
+  "courses.test.removeQuestion": "Remove question {n}",
+  "courses.test.removeQuestionConfirm": "Remove question {n}? It is gone once you save.",
+  "courses.test.questionUp": "Move question {n} up",
+  "courses.test.questionDown": "Move question {n} down",
+  "courses.test.empty.title": "No questions yet",
+  "courses.test.empty.body": "{min} or more questions say more about what someone learned.",
+  "courses.test.gap.prompt": "No question in {language} yet.",
+  "courses.test.gap.options": "Options missing in {language}.",
+  "courses.test.gap.right": "No right answer marked yet.",
+  "courses.test.save": "Save final test",
+  "courses.test.unsaved": "Unsaved changes",
+  "courses.test.allSaved": "Saved",
+  "courses.test.nextAttempts":
+    "Changes apply to the next attempts; earlier attempts keep their result.",
+  "courses.test.unreadable": "The test could not be read. Reload the page and try again.",
+  "courses.test.gone": "This course no longer exists.",
+  "courses.test.issue.too_many_questions": "Keep it to {max} questions.",
+  "courses.test.issue.question_text": "Question {question}: write the question.",
+  "courses.test.issue.question_too_long": "Question {question}: keep it under {max} characters.",
+  "courses.test.issue.option_text": "Question {question}: option {option} has no text.",
+  "courses.test.issue.option_too_long":
+    "Question {question}: keep option {option} under {max} characters.",
+  "courses.test.issue.too_few_options": "Question {question}: give at least {min} options.",
+  "courses.test.issue.too_many_options": "Question {question}: keep it to {max} options.",
+  "courses.test.issue.no_right_answer": "Question {question}: mark at least one right answer.",
+  "courses.test.issue.pass_percent": "The pass mark is a whole number from 1 to 100.",
+  "courses.test.issue.invalid":
+    "Something in the test does not fit ({path}). Reload the page and try again.",
+  "courses.completion.liveEmpty":
+    "What it adds is still empty: fill it in right after saving, because learners on their way see it at once.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -210,7 +337,7 @@ export const de: Record<keyof typeof en, string> = {
 
   "courses.new.title": "Fang beim Ergebnis an",
   "courses.new.description":
-    "Was haben Lernende gebaut, wenn sie fertig sind? Benenne es und beschreibe ein gutes Ergebnis. Bewertungsraster und Lektionen folgen daraus.",
+    "Leg fest, wie Lernende abschließen: mit einer echten Arbeit, einem Abschlusstest oder beidem. Bewertungsraster, Test und Lektionen folgen daraus.",
   "courses.new.steps": "Schritte",
   "courses.new.thisStep": "(dieser Schritt)",
   "courses.new.step.outcome": "Was Lernende bauen und wie ein gutes Ergebnis aussieht.",
@@ -364,4 +491,132 @@ export const de: Record<keyof typeof en, string> = {
     "Lernende erscheinen unter einem Alias. Namen und E-Mail-Adressen siehst du nur bei Lernenden, die einer Kontaktaufnahme durch die Akademie zugestimmt haben.",
   "courses.learners.empty": "Noch hat niemand diesen Kurs begonnen",
   "courses.learners.caption": "Lernende dieses Kurses",
+
+  "courses.completion.title": "Wie schließen Lernende diesen Kurs ab?",
+  "courses.completion.hint": "Du kannst das später in den Details des Kurses ändern.",
+  "courses.completion.recommended": "Empfohlen",
+  "courses.completion.work": "Echte Arbeit",
+  "courses.completion.work.bodyAi":
+    "Lernende reichen eine Arbeit ein. KI und dein Team bewerten sie anhand deines Bewertungsrasters.",
+  "courses.completion.work.bodyTeam":
+    "Lernende reichen eine Arbeit ein. Dein Team bewertet sie anhand deines Bewertungsrasters.",
+  "courses.completion.test": "Abschlusstest",
+  "courses.completion.test.body":
+    "Multiple-Choice-Fragen, automatisch ausgewertet, sobald Lernende sie abgeben.",
+  "courses.completion.work_and_test": "Beides",
+  "courses.completion.work_and_test.body":
+    "Lernende reichen die Arbeit ein und bestehen den Abschlusstest, in beliebiger Reihenfolge.",
+  "courses.completion.choose": "Wähle, wie Lernende den Kurs abschließen.",
+  "courses.completion.liveTitle": "Dieser Kurs ist live",
+  "courses.completion.liveBody":
+    "Die neue Wahl gilt für alle, die noch nicht fertig sind. Bereits ausgestellte Abschlussbescheinigungen bleiben gültig; Lernende, die schon alles bestanden haben, was sie verlangt, bekommen ihre beim Speichern.",
+  "courses.completion.addedWork":
+    "Der Kurs hat jetzt eine Aufgabe mit einer Vorlage für das Bewertungsraster: Beschreib sie unter Ergebnis & Bewertungsraster.",
+  "courses.completion.addedTest":
+    "Der Kurs hat jetzt einen leeren Abschlusstest: Schreib die Fragen unter Abschlusstest.",
+  "courses.completion.completed.one":
+    "{n} lernende Person hatte schon alles bestanden, was der Kurs jetzt verlangt, und hat die Abschlussbescheinigung bekommen.",
+  "courses.completion.completed.other":
+    "{n} Lernende hatten schon alles bestanden, was der Kurs jetzt verlangt, und haben die Abschlussbescheinigung bekommen.",
+  "courses.new.draftNoteTest":
+    "Legt einen Entwurf mit einem leeren Abschlusstest an. Noch ist nichts öffentlich.",
+  "courses.new.draftNoteBoth":
+    "Legt einen Entwurf mit einer Vorlage für das Bewertungsraster und einem leeren Abschlusstest an. Noch ist nichts öffentlich.",
+  "courses.new.step.test": "Fragen in jeder Kurssprache und die Bestehensgrenze.",
+  "courses.tab.test": "Abschlusstest",
+  "courses.step.test": "Abschlusstest",
+
+  "courses.overview.test.done.one": "{n} Frage, Bestehensgrenze {percent} %",
+  "courses.overview.test.done.other": "{n} Fragen, Bestehensgrenze {percent} %",
+  "courses.overview.test.todo": "Schreib die Fragen.",
+  "courses.overview.tookTest": "Haben den Abschlusstest gemacht",
+  "courses.overview.testCard.title": "Abschlusstest",
+  "courses.overview.testCard.intro":
+    "Wie Lernende im Abschlusstest abschneiden. Jede Wiederholung zählt als Versuch.",
+  "courses.overview.testCard.attempts": "Versuche",
+  "courses.overview.testCard.passed": "Lernende, die bestanden haben",
+  "courses.overview.testCard.passedOf": "{passed} von {takers}",
+  "courses.overview.testCard.rate": "Bestehensquote",
+  "courses.overview.testCard.rateHint": "der Lernenden, die ihn gemacht haben",
+  "courses.overview.testCard.none": "Noch keine Versuche",
+  "courses.overview.testCard.passMark": "Bestehensgrenze",
+  "courses.overview.testCard.edit": "Abschlusstest bearbeiten",
+  "courses.learners.test": "Abschlusstest",
+  "courses.learners.testPassed": "Bestanden",
+  "courses.learners.testNotPassed": "Noch nicht bestanden",
+  "courses.learners.testBest": "bestes Ergebnis {percent} %",
+  "courses.learners.testAttempts.one": "{n} Versuch",
+  "courses.learners.testAttempts.other": "{n} Versuche",
+  "courses.learners.testNotTaken": "Noch nicht gemacht",
+  "courses.preview.testNote":
+    "Der Abschlusstest am Ende zeigt die Fragen ohne Antworten, so wie Lernende sie sehen.",
+
+  "courses.test.intro.title": "So funktioniert der Abschlusstest",
+  "courses.test.intro.body":
+    "Lernende sehen die Fragen ohne die Antworten. Der Test wird bei der Abgabe ausgewertet, und sie können ihn beliebig oft wiederholen.",
+  "courses.test.intro.test": "Wer ihn besteht, bekommt die Abschlussbescheinigung.",
+  "courses.test.intro.work_and_test":
+    "Wer ihn und die Arbeit besteht, bekommt die Abschlussbescheinigung.",
+  "courses.test.notUsed.title": "Lernende machen diesen Test nicht",
+  "courses.test.notUsed.body":
+    "Der Kurs endet nur mit der Arbeit. Der Test bleibt erhalten, falls du ihn in den Details wählst.",
+  "courses.test.created.title": "Kurs als Entwurf angelegt",
+  "courses.test.created.body":
+    "Schreib den Abschlusstest und dann die Lektionen, die darauf vorbereiten.",
+  "courses.test.settings": "Bestehensgrenze und Ergebnisse",
+  "courses.test.passPercent": "Bestehensgrenze",
+  "courses.test.passPercentHint":
+    "Anteil der Fragen, die richtig beantwortet sein müssen. Ergebnisse werden abgerundet.",
+  "courses.test.showMistakes": "Lernenden zeigen, welche Fragen sie falsch beantwortet haben",
+  "courses.test.showMistakesHint":
+    "Nie die richtigen Antworten, damit auch eine Wiederholung zeigt, was sie wissen.",
+  "courses.test.questions": "Fragen",
+  "courses.test.questionsIntro":
+    "Markiere jede richtige Antwort. Hat eine Frage mehrere, zählt sie nur, wenn alle und keine anderen gewählt sind.",
+  "courses.test.count": "{n} von {max} Fragen",
+  "courses.test.question": "Frage {n}",
+  "courses.test.questionText": "Frage",
+  "courses.test.options": "Antworten",
+  "courses.test.optionLabel": "Antwort {n}, {language}",
+  "courses.test.right": "Richtig",
+  "courses.test.rightLabel": "Antwort {n} ist richtig",
+  "courses.test.several": "Mehrere richtige Antworten: Lernende wählen alle zutreffenden.",
+  "courses.test.addOption": "Antwort hinzufügen",
+  "courses.test.removeOption": "Antwort {n} entfernen",
+  "courses.test.optionUp": "Antwort {n} nach oben",
+  "courses.test.optionDown": "Antwort {n} nach unten",
+  "courses.test.addQuestion": "Frage hinzufügen",
+  "courses.test.removeQuestion": "Frage {n} entfernen",
+  "courses.test.removeQuestionConfirm": "Frage {n} entfernen? Beim Speichern ist sie weg.",
+  "courses.test.questionUp": "Frage {n} nach oben",
+  "courses.test.questionDown": "Frage {n} nach unten",
+  "courses.test.empty.title": "Noch keine Fragen",
+  "courses.test.empty.body":
+    "Mit {min} oder mehr Fragen sagt der Test mehr darüber, was jemand gelernt hat.",
+  "courses.test.gap.prompt": "Noch keine Frage auf {language}.",
+  "courses.test.gap.options": "Antworten fehlen auf {language}.",
+  "courses.test.gap.right": "Noch keine richtige Antwort markiert.",
+  "courses.test.save": "Abschlusstest speichern",
+  "courses.test.unsaved": "Ungespeicherte Änderungen",
+  "courses.test.allSaved": "Gespeichert",
+  "courses.test.nextAttempts":
+    "Änderungen gelten ab den nächsten Versuchen; frühere Versuche behalten ihr Ergebnis.",
+  "courses.test.unreadable":
+    "Der Test konnte nicht gelesen werden. Lade die Seite neu und versuch es noch einmal.",
+  "courses.test.gone": "Diesen Kurs gibt es nicht mehr.",
+  "courses.test.issue.too_many_questions": "Höchstens {max} Fragen.",
+  "courses.test.issue.question_text": "Frage {question}: Schreib die Frage.",
+  "courses.test.issue.question_too_long": "Frage {question}: Bleib unter {max} Zeichen.",
+  "courses.test.issue.option_text": "Frage {question}: Antwort {option} hat keinen Text.",
+  "courses.test.issue.option_too_long":
+    "Frage {question}: Antwort {option} darf höchstens {max} Zeichen haben.",
+  "courses.test.issue.too_few_options": "Frage {question}: Gib mindestens {min} Antworten an.",
+  "courses.test.issue.too_many_options": "Frage {question}: Höchstens {max} Antworten.",
+  "courses.test.issue.no_right_answer":
+    "Frage {question}: Markiere mindestens eine richtige Antwort.",
+  "courses.test.issue.pass_percent": "Die Bestehensgrenze ist eine ganze Zahl von 1 bis 100.",
+  "courses.test.issue.invalid":
+    "Etwas im Test passt nicht ({path}). Lade die Seite neu und versuch es noch einmal.",
+  "courses.completion.liveEmpty":
+    "Was sie hinzufügt, ist noch leer: Füll es direkt nach dem Speichern aus, denn Lernende, die schon dabei sind, sehen es sofort.",
 };

@@ -224,6 +224,29 @@ describe("manifest validation", () => {
     expect(result.warnings.join("\n")).toMatch(/Font "Lobster" is neither bundled nor uploaded/);
   });
 
+  it("lets a course say how learners finish it, and leaves it to the Studio otherwise", () => {
+    const result = validateTenantManifest({
+      ...baseManifest(),
+      courses: [
+        { slug: "quiz", delivery_mode: "free_async", completion: "test" },
+        { slug: "both", delivery_mode: "free_async", completion: "work_and_test" },
+        { slug: "plain", delivery_mode: "free_async" },
+      ],
+    });
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(result.manifest.courses.map((course) => course.completion)).toEqual([
+      "test",
+      "work_and_test",
+      undefined,
+    ]);
+    expect(
+      errorsOf({
+        ...baseManifest(),
+        courses: [{ slug: "exam", delivery_mode: "free_async", completion: "exam" }],
+      }).join("\n"),
+    ).toMatch(/courses\.0\.completion/);
+  });
+
   it("rejects unknown keys so typos do not pass silently", () => {
     const errors = errorsOf({ ...baseManifest(), terminology: { paths: { en: "Characters" } } });
     expect(errors.length).toBeGreaterThan(0);

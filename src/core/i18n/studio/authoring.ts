@@ -162,6 +162,15 @@ export const en = {
   "authoring.exemplar.contentMissing": "Paste or upload the example's text.",
   "authoring.exemplar.expectedMissing": "Say whether you would pass it.",
   "authoring.exemplar.added": "Example added.",
+
+  // Outcome page of a course without work, or without an assignment yet
+  "authoring.outcome.missing.title": "No assignment yet",
+  "authoring.outcome.missing.body":
+    "This course was set up without one, for example from the academy's configuration. Add it with a starter rubric, then describe what learners build.",
+  "authoring.outcome.missing.add": "Add the assignment",
+  "authoring.outcome.notUsed.title": "Learners do not hand in work",
+  "authoring.outcome.notUsed.body":
+    "The course ends with the final test only. The assignment and the rubric are kept in case you choose work again in Details.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -324,4 +333,12 @@ export const de: Record<keyof typeof en, string> = {
   "authoring.exemplar.contentMissing": "Füge den Text des Beispiels ein oder lade ihn hoch.",
   "authoring.exemplar.expectedMissing": "Gib an, ob du sie bestehen lassen würdest.",
   "authoring.exemplar.added": "Beispiel hinzugefügt.",
+
+  "authoring.outcome.missing.title": "Noch keine Aufgabe",
+  "authoring.outcome.missing.body":
+    "Dieser Kurs wurde ohne angelegt, zum Beispiel über die Konfiguration der Akademie. Leg sie mit einer Vorlage für das Bewertungsraster an und beschreib dann, was Lernende bauen.",
+  "authoring.outcome.missing.add": "Aufgabe anlegen",
+  "authoring.outcome.notUsed.title": "Lernende reichen keine Arbeit ein",
+  "authoring.outcome.notUsed.body":
+    "Der Kurs endet nur mit dem Abschlusstest. Aufgabe und Bewertungsraster bleiben erhalten, falls du in den Details wieder eine Arbeit wählst.",
 };

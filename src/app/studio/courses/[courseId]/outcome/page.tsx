@@ -1,8 +1,13 @@
+import { Hammer } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { setUpOutcomeAction } from "@/app/studio/courses/[courseId]/outcome/actions";
 import { OutcomeForm } from "@/app/studio/courses/[courseId]/outcome/outcome-form";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { requiresWork } from "@/core/courses/completion";
 import { isLocale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
 import { requireCapability } from "@/server/access";
@@ -23,8 +28,28 @@ export default async function OutcomePage({
   const { created } = await searchParams;
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/outcome`);
   const editor = await getCourseEditor(tenant.id, courseId);
-  if (!editor?.assignment || !editor.rubric) notFound();
+  if (!editor) notFound();
   const t = await getStudioText();
+  const work = requiresWork(editor.course.completionMode);
+  if (!editor.assignment || !editor.rubric) {
+    // Courses from a manifest start without an assignment; a test-only course needs none.
+    if (!work) notFound();
+    return (
+      <EmptyState
+        icon={Hammer}
+        title={t.t("authoring.outcome.missing.title")}
+        body={t.t("authoring.outcome.missing.body")}
+        action={
+          <form action={setUpOutcomeAction}>
+            <input type="hidden" name="courseId" value={editor.course.id} />
+            <SubmitButton pendingLabel={t.t("common.adding")}>
+              {t.t("authoring.outcome.missing.add")}
+            </SubmitButton>
+          </form>
+        }
+      />
+    );
+  }
   const learnerText = await getTranslator();
   const { assignment } = editor;
   const file = assignment.submissionTypes.find((type) => type.type === "file");
@@ -35,6 +60,11 @@ export default async function OutcomePage({
       {created === "1" && (
         <Notice tone="good" title={t.t("authoring.outcome.created.title")}>
           {t.t("authoring.outcome.created.body")}
+        </Notice>
+      )}
+      {!work && (
+        <Notice tone="warning" title={t.t("authoring.outcome.notUsed.title")}>
+          {t.t("authoring.outcome.notUsed.body")}
         </Notice>
       )}
       <OutcomeForm

@@ -184,6 +184,7 @@ async function syncCatalog(
         deliveryMode: course.delivery_mode,
         estMinutes: course.est_minutes,
         plannedLaunch: course.launch,
+        completionMode: course.completion,
       })
       .onConflictDoUpdate({
         target: [courses.tenantId, courses.slug],
@@ -194,6 +195,8 @@ async function syncCatalog(
           ...(course.title ? { title: course.title } : {}),
           ...(course.languages ? { languages: course.languages } : {}),
           ...(course.est_minutes ? { estMinutes: course.est_minutes } : {}),
+          // The mode only: the Studio adds the assignment or the test when authors set them up.
+          ...(course.completion ? { completionMode: course.completion } : {}),
         },
       })
       .returning({ id: courses.id });

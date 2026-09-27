@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { CourseStatusBadge } from "@/components/studio/status-badges";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { can } from "@/core/access/roles";
+import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { localize } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
@@ -41,18 +42,34 @@ export default async function StudioCourseLayout({
   const base = `/studio/courses/${course.id}`;
   const canEdit = can(roles, "courses.edit");
   const lessonCount = new Set(editor.lessons.map((lesson) => lesson.key)).size;
+  // Only the parts this course ends with; what another ending left behind stays out of sight.
+  const work = requiresWork(course.completionMode);
+  const test = requiresTest(course.completionMode);
   const tabs: TabItem[] = [
     { href: base as Route, label: t.t("courses.tab.overview"), exact: true },
     ...(canEdit
       ? [
-          { href: `${base}/outcome` as Route, label: t.t("courses.tab.outcome") },
+          ...(work
+            ? [{ href: `${base}/outcome` as Route, label: t.t("courses.tab.outcome") }]
+            : []),
+          ...(test
+            ? [
+                {
+                  href: `${base}/test` as Route,
+                  label: t.t("courses.tab.test"),
+                  count: editor.test?.questions.length ?? 0,
+                },
+              ]
+            : []),
           { href: `${base}/sources` as Route, label: t.t("courses.tab.sources") },
           {
             href: `${base}/lessons` as Route,
             label: t.t("courses.step.lessons"),
             count: lessonCount,
           },
-          { href: `${base}/calibrate` as Route, label: t.t("courses.tab.calibrate") },
+          ...(work
+            ? [{ href: `${base}/calibrate` as Route, label: t.t("courses.tab.calibrate") }]
+            : []),
           { href: `${base}/details` as Route, label: t.t("courses.step.details") },
           { href: `${base}/publish` as Route, label: t.t("courses.step.publish") },
         ]

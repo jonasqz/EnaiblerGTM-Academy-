@@ -1,4 +1,4 @@
-import { BookOpen, Circle, Hammer, Timer } from "lucide-react";
+import { BookOpen, Circle, Hammer, ListChecks, Timer } from "lucide-react";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,9 +8,11 @@ import { KnowledgeCheck } from "@/components/knowledge-check";
 import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
+import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { isLocale, localize } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 import { createTranslator } from "@/core/i18n/translator";
+import { publicTestQuestions } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { requireCapability } from "@/server/access";
@@ -53,6 +55,10 @@ export default async function PreviewPage({
   const current = lessons.find((lesson) => lesson.key === lessonKey) ?? null;
   const rubric = editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null;
   const base = `/studio/courses/${courseId}/preview?lang=${locale}`;
+  // The course ends as learners will finish it; parts another ending left behind stay hidden.
+  const work = requiresWork(editor.course.completionMode);
+  const test = requiresTest(editor.course.completionMode);
+  const testQuestions = publicTestQuestions(editor.test?.questions ?? [], locale, fallback);
 
   return (
     <div className="space-y-6">
@@ -60,6 +66,7 @@ export default async function PreviewPage({
         {editor.course.status === "published"
           ? t.t("courses.preview.body")
           : t.t("courses.preview.bodyDraft")}
+        {test && ` ${t.t("courses.preview.testNote")}`}
       </Notice>
 
       {languages.length > 1 && (
@@ -111,9 +118,21 @@ export default async function PreviewPage({
                 </Link>
               </li>
             ))}
-            <li className="flex items-center gap-2 px-3 py-2 text-sm font-semibold">
-              <Hammer aria-hidden size={16} className="shrink-0" /> {learner.term("assignment")}
-            </li>
+            {work && (
+              <li className="flex items-center gap-2 px-3 py-2 text-sm font-semibold">
+                <Hammer aria-hidden size={16} className="shrink-0" /> {learner.term("assignment")}
+              </li>
+            )}
+            {test && (
+              <li>
+                <Link
+                  href={`${base}#final-test` as Route}
+                  className="flex items-center gap-2 rounded-control px-3 py-2 text-sm font-semibold hover:bg-subtle"
+                >
+                  <ListChecks aria-hidden size={16} className="shrink-0" /> {learner.term("test")}
+                </Link>
+              </li>
+            )}
           </ol>
         </aside>
 
@@ -163,7 +182,7 @@ export default async function PreviewPage({
                 </span>
               </p>
             </header>
-            {editor.assignment && (
+            {work && editor.assignment && (
               <section className="card space-y-3 p-6">
                 <p className="eyebrow">{learner.t("course.whatYouBuild")}</p>
                 <p className="font-display text-2xl">
@@ -172,7 +191,7 @@ export default async function PreviewPage({
                 <Markdown source={localize(editor.assignment.prompt, locale, fallback)} />
               </section>
             )}
-            {rubric && (
+            {work && rubric && (
               <section className="space-y-3">
                 <h3 className="font-display text-xl">{learner.t("course.howReviewed")}</h3>
                 <p className="text-muted">
@@ -188,6 +207,40 @@ export default async function PreviewPage({
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+            {test && (
+              <section id="final-test" className="scroll-mt-6 space-y-3">
+                <h3 className="font-display text-xl">{learner.term("test")}</h3>
+                {testQuestions.length === 0 ? (
+                  <p className="text-muted">{t.t("courses.test.empty.title")}</p>
+                ) : (
+                  <ol className="space-y-3">
+                    {testQuestions.map((question, index) => (
+                      <li key={question.id} className="card-flat p-4">
+                        <fieldset className="space-y-2">
+                          <legend className="font-semibold">
+                            {index + 1}. {question.prompt}
+                          </legend>
+                          <ul className="space-y-1.5">
+                            {question.options.map((option) => (
+                              <li key={option.id}>
+                                <label className="flex items-start gap-2">
+                                  <input
+                                    type={question.several ? "checkbox" : "radio"}
+                                    name={`preview.${question.id}`}
+                                    className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+                                  />
+                                  {option.text}
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        </fieldset>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </section>
             )}
           </article>
