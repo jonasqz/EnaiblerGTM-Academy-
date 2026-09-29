@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarX,
   CircleCheck,
+  Clapperboard,
   Clock,
   Download,
   Globe,
@@ -278,6 +279,14 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
                       </SubmitButton>
                     </form>
                   </>
+                )}
+                {webinar.relive === "ready" && (
+                  <Link
+                    href={`/webinars/${webinar.slug}#recording`}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <Clapperboard aria-hidden size={16} /> {t.t("me.webinar.recording")}
+                  </Link>
                 )}
               </li>
             ))}

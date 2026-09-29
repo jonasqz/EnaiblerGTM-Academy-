@@ -2,6 +2,7 @@ import { localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import { capacityState, seatsLeft } from "@/core/webinars/capacity";
 import type { LandingBlock, Presenter } from "@/core/webinars/landing";
 import { webinarPhase, type WebinarStatus } from "@/core/webinars/phase";
+import type { ReliveState } from "@/core/webinars/relive";
 import type { LandingView } from "@/components/webinars/landing";
 
 /** The landing page's view of a webinar, from what the page (or the Studio's preview) has. */
@@ -22,6 +23,8 @@ export function landingView(input: {
   taken: number;
   fallback: Locale;
   now: Date;
+  /** After the end: its recording, ready or being prepared (core/webinars/relive). */
+  relive?: ReliveState;
 }): LandingView {
   const { webinar } = input;
   // The course is named in the webinar's language, like the rest of its page.
@@ -49,5 +52,6 @@ export function landingView(input: {
     },
     phase: webinarPhase(webinar, input.now),
     status: webinar.status,
+    relive: input.relive ?? "none",
   };
 }
