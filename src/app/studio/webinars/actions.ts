@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { FormState } from "@/app/studio/actions";
-import { text } from "@/app/studio/form-data";
+import { text, wording } from "@/app/studio/form-data";
+import { addVideoFromForm } from "@/app/studio/videos/create";
 import { wordingText } from "@/core/i18n/studio/helpers";
 import type { StudioKey } from "@/core/i18n/studio/index";
 import type { StudioText } from "@/core/i18n/studio/translator";
@@ -19,10 +20,12 @@ import {
   presentersSchema,
   registrationFormSchema,
 } from "@/core/webinars/landing";
+import { isReliveAccess } from "@/core/webinars/relive";
 import { validateSetup, type WebinarSetupInput } from "@/core/webinars/setup";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { getStudioText } from "@/server/studio-text";
+import { attachRecording, detachRecording, setReliveAccess } from "@/server/webinars/recording";
 import {
   cancelWebinar,
   createWebinar,
@@ -39,8 +42,8 @@ import {
 
 /*
  * Studio actions for webinars. Each re-checks its capability (courses.edit
- * to set one up, courses.publish to publish or cancel it) and takes the
- * academy from the host, never from the form.
+ * to set one up and manage its recording, courses.publish to publish or
+ * cancel it) and takes the academy from the host, never from the form.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -231,6 +234,74 @@ export async function setAttendanceAction(formData: FormData): Promise<void> {
     );
   }
   revalidatePath(`/studio/webinars/${webinarId}/registrants`);
+}
+
+const recordingPath = (webinarId: string) => `/studio/webinars/${webinarId}/recording`;
+
+function recordingSaved(webinarId: string) {
+  revalidatePath(`/studio/webinars/${webinarId}`, "layout");
+  // Studio → Videos shows whose recording a video is and its access.
+  revalidatePath("/studio/videos", "layout");
+}
+
+/** A video of the library becomes the webinar's recording (webinar brief §2.4). */
+export async function attachRecordingAction(_: FormState, formData: FormData): Promise<FormState> {
+  const webinarId = webinarIdOf(formData);
+  const { tenant } = await requireCapability("courses.edit", recordingPath(webinarId));
+  const t = await getStudioText();
+  const result = await attachRecording(getDb(), tenant.id, webinarId, text(formData, "assetId"));
+  if (!result.ok) return { errors: [t.t(`webinars.recording.error.${result.issue}`)] };
+  recordingSaved(webinarId);
+  return { ok: true, message: t.t("webinars.recording.attached") };
+}
+
+/** Uploads a video, makes one of a course recording or embeds one, as the webinar's recording. */
+export async function addRecordingAction(_: FormState, formData: FormData): Promise<FormState> {
+  const webinarId = webinarIdOf(formData);
+  const { tenant, viewer } = await requireCapability("courses.edit", recordingPath(webinarId));
+  const t = await getStudioText();
+  const loaded = await loadStudioWebinar(getDb(), tenant.id, webinarId);
+  if (!loaded) return { errors: [t.t("webinars.recording.error.not_found")] };
+  // Checked before the video is made, so none is left behind in the library.
+  if (loaded.webinar.status === "cancelled") {
+    return { errors: [t.t("webinars.recording.error.cancelled")] };
+  }
+  const added = await addVideoFromForm(tenant, viewer.userId, t, formData);
+  if (!added.ok) return { errors: [added.error] };
+  const attached = await attachRecording(getDb(), tenant.id, webinarId, added.id);
+  recordingSaved(webinarId);
+  if (!attached.ok) return { errors: [t.t(`webinars.recording.error.${attached.issue}`)] };
+  return {
+    ok: true,
+    message: t.t(
+      added.kind === "embed" ? "webinars.recording.addedEmbed" : "webinars.recording.added",
+    ),
+    warnings: wording(t, [[added.title, "lesson_text"]]).warnings,
+  };
+}
+
+export async function removeRecordingAction(formData: FormData): Promise<void> {
+  const webinarId = webinarIdOf(formData);
+  const { tenant } = await requireCapability("courses.edit", recordingPath(webinarId));
+  await detachRecording(getDb(), tenant.id, webinarId);
+  recordingSaved(webinarId);
+  redirect(`${recordingPath(webinarId)}?removed=1`);
+}
+
+/** Who may watch: widening needs the confirmation ticked, and records who and when. */
+export async function saveReliveAccessAction(_: FormState, formData: FormData): Promise<FormState> {
+  const webinarId = webinarIdOf(formData);
+  const { tenant, viewer } = await requireCapability("courses.edit", recordingPath(webinarId));
+  const t = await getStudioText();
+  const access = text(formData, "access");
+  if (!isReliveAccess(access)) return { errors: [t.t("webinars.recording.error.not_found")] };
+  const result = await setReliveAccess(getDb(), tenant.id, webinarId, access, {
+    confirmed: formData.get("confirm") === "on",
+    userId: viewer.userId,
+  });
+  if (!result.ok) return { errors: [t.t(`webinars.recording.error.${result.issue}`)] };
+  recordingSaved(webinarId);
+  return { ok: true, message: t.t("webinars.recording.saved") };
 }
 
 export type AttendanceFileState =

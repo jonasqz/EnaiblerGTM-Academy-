@@ -47,14 +47,16 @@ export function isConfirmed(status: RegistrationStatus): boolean {
 
 /**
  * The webinar funnel (webinar brief §3): page views, registrations sent,
- * confirmed addresses, attendance, then the linked course (started, handed
- * in, passed) among those who came through the webinar.
+ * confirmed addresses, attendance, the recording watched past the academy's
+ * threshold, then the linked course (started, handed in, passed) among
+ * those who came through the webinar.
  */
 export const WEBINAR_FUNNEL_STEPS = [
   "views",
   "registrations",
   "confirmed",
   "attended",
+  "relive_watched",
   "course_started",
   "course_submitted",
   "course_passed",

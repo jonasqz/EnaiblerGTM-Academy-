@@ -117,6 +117,8 @@ export const en = {
   "media.field.access.registrants": "People registered for its webinar",
   "media.field.access.registrantsHint":
     "Set on the webinar that shows this video as its recording.",
+  "media.field.access.registrantsDetached":
+    "It's no webinar's recording any more, so only your team can watch it until you choose who may.",
   "media.field.access.public": "Anyone on your academy's site",
   "media.field.access.publicHint":
     "Before you make a recording public, make sure everyone seen or heard in it agreed.",
@@ -160,7 +162,15 @@ export const en = {
   "media.delete": "Delete video",
   "media.deleteConfirm":
     "Delete this video for good? Its files are removed, and lessons that show it will show nothing in its place.",
+  "media.deleteConfirmWebinar":
+    "Delete this video for good? It's the recording of the webinar “{webinar}”: it comes off the webinar first, and the webinar's page then only says it has ended. Its files are removed, and lessons that show it will show nothing in its place.",
   "media.deleted": "Video deleted.",
+
+  // A webinar's recording: managed on the webinar (server/webinars/recording.ts)
+  "media.webinar.heading": "Webinar recording",
+  "media.webinar.body":
+    "This is the recording of “{webinar}”. Who may watch it is set there: {access}.",
+  "media.webinar.link": "Open the webinar's recording settings",
 
   // The lesson editor's video picker
   "media.lesson.label": "Video",
@@ -292,6 +302,8 @@ export const de: Record<keyof typeof en, string> = {
   "media.field.access.registrants": "Wer sich für sein Webinar angemeldet hat",
   "media.field.access.registrantsHint":
     "Wird beim Webinar eingestellt, das dieses Video als Aufzeichnung zeigt.",
+  "media.field.access.registrantsDetached":
+    "Es ist keine Webinar-Aufzeichnung mehr, deshalb sieht es nur dein Team, bis du wählst, wer es sehen darf.",
   "media.field.access.public": "Alle auf der Seite deiner Akademie",
   "media.field.access.publicHint":
     "Bevor du eine Aufnahme öffentlich machst, stell sicher, dass alle, die darin zu sehen oder zu hören sind, zugestimmt haben.",
@@ -335,7 +347,14 @@ export const de: Record<keyof typeof en, string> = {
   "media.delete": "Video löschen",
   "media.deleteConfirm":
     "Dieses Video endgültig löschen? Seine Dateien werden entfernt, und Lektionen, die es zeigen, zeigen an seiner Stelle nichts.",
+  "media.deleteConfirmWebinar":
+    "Dieses Video endgültig löschen? Es ist die Aufzeichnung des Webinars „{webinar}“: Es wird zuerst vom Webinar entfernt, dessen Seite dann nur noch sagt, dass es vorbei ist. Seine Dateien werden entfernt, und Lektionen, die es zeigen, zeigen an seiner Stelle nichts.",
   "media.deleted": "Video gelöscht.",
+
+  "media.webinar.heading": "Webinar-Aufzeichnung",
+  "media.webinar.body":
+    "Das ist die Aufzeichnung von „{webinar}“. Wer sie ansehen darf, stellst du dort ein: {access}.",
+  "media.webinar.link": "Einstellungen der Aufzeichnung öffnen",
 
   "media.lesson.label": "Video",
   "media.lesson.none": "Kein Video",

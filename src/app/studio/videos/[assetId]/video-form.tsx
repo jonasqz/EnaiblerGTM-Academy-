@@ -12,15 +12,23 @@ import type { Chapter } from "@/core/media/chapters";
 
 const ACCESS: MediaAccess[] = ["learners", "public"];
 
-/** Title, who can watch, and the chapters' names (they start where the topics change). */
+/**
+ * Title, who can watch, and the chapters' names (they start where the
+ * topics change). A webinar's recording has who may watch set on the
+ * webinar; a former recording keeps "registrants" until someone chooses.
+ */
 export function VideoForm(props: {
   assetId: string;
   title: string;
   access: MediaAccess;
   chapters: Chapter[];
+  /** Shown by a webinar as its recording: access is managed there. */
+  webinar?: boolean;
 }) {
   const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(saveVideoAction, {});
+  const options: MediaAccess[] =
+    props.access === "registrants" ? ["registrants", ...ACCESS] : ACCESS;
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="assetId" value={props.assetId} />
@@ -38,30 +46,36 @@ export function VideoForm(props: {
         />
       </div>
 
-      <fieldset className="field">
-        <legend className="label mb-1.5">{t.t("media.field.access")}</legend>
-        <div className="grid gap-2">
-          {ACCESS.map((access) => (
-            <label key={access} className="flex gap-3 rounded-control border border-line p-3">
-              <input
-                type="radio"
-                name="access"
-                value={access}
-                defaultChecked={props.access === access}
-                className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
-              />
-              <span>
-                <span className="block text-sm font-semibold">
-                  {t.t(`media.field.access.${access}`)}
+      {!props.webinar && (
+        <fieldset className="field">
+          <legend className="label mb-1.5">{t.t("media.field.access")}</legend>
+          <div className="grid gap-2">
+            {options.map((access) => (
+              <label key={access} className="flex gap-3 rounded-control border border-line p-3">
+                <input
+                  type="radio"
+                  name="access"
+                  value={access}
+                  defaultChecked={props.access === access}
+                  className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+                />
+                <span>
+                  <span className="block text-sm font-semibold">
+                    {t.t(`media.field.access.${access}`)}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {t.t(
+                      access === "registrants"
+                        ? "media.field.access.registrantsDetached"
+                        : `media.field.access.${access}Hint`,
+                    )}
+                  </span>
                 </span>
-                <span className="text-xs text-muted">
-                  {t.t(`media.field.access.${access}Hint`)}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       {props.chapters.length > 0 && (
         <fieldset className="space-y-2">

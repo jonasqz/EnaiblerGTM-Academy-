@@ -30,6 +30,7 @@ import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { lessonsShowing, loadVideo, watchRows, type MediaAsset } from "@/server/media/library";
 import { getStudioText } from "@/server/studio-text";
+import { webinarShowing } from "@/server/webinars/recording";
 
 export async function generateMetadata({
   params,
@@ -66,7 +67,8 @@ function captionsText(t: StudioText, video: MediaAsset): string {
 
 /**
  * One video: a preview as learners see it, its details and chapters, where
- * lessons show it, and who watched how far (drop-off by minute, brief §3).
+ * lessons and a webinar show it, and who watched how far (drop-off by
+ * minute, brief §3).
  */
 export default async function VideoPage({ params }: PageProps<"/studio/videos/[assetId]">) {
   const { assetId } = await params;
@@ -74,9 +76,10 @@ export default async function VideoPage({ params }: PageProps<"/studio/videos/[a
   const video = await loadVideo(getDb(), tenant.id, assetId);
   if (!video) notFound();
   const t = await getStudioText();
-  const [rows, lessons] = await Promise.all([
+  const [rows, lessons, webinar] = await Promise.all([
     watchRows(getDb(), tenant.id, video.id),
     lessonsShowing(getDb(), tenant.id, video.id),
+    webinarShowing(getDb(), tenant.id, video.id),
   ]);
   // An embed's length comes from its viewers' players.
   const duration = video.durationSec ?? Math.max(0, ...rows.map((row) => row.durationSec ?? 0));
@@ -224,8 +227,29 @@ export default async function VideoPage({ params }: PageProps<"/studio/videos/[a
               title={video.title}
               access={video.access}
               chapters={video.chapters}
+              webinar={webinar !== null}
             />
           </section>
+
+          {webinar && (
+            <section aria-labelledby="webinar-heading" className="card-flat space-y-2 p-5">
+              <h2 id="webinar-heading" className="font-semibold">
+                {t.t("media.webinar.heading")}
+              </h2>
+              <p className="text-sm text-muted">
+                {t.t("media.webinar.body", {
+                  webinar: webinar.title,
+                  access: t.t(`webinars.recording.access.${webinar.reliveAccess}`),
+                })}
+              </p>
+              <Link
+                href={`/studio/webinars/${webinar.id}/recording` as Route}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold underline-offset-4 hover:underline"
+              >
+                {t.t("media.webinar.link")}
+              </Link>
+            </section>
+          )}
 
           <section aria-labelledby="captions-heading" className="card-flat space-y-2 p-5">
             <h2 id="captions-heading" className="font-semibold">
@@ -261,7 +285,11 @@ export default async function VideoPage({ params }: PageProps<"/studio/videos/[a
             <input type="hidden" name="assetId" value={video.id} />
             <SubmitButton
               className="btn btn-danger btn-sm"
-              confirm={t.t("media.deleteConfirm")}
+              confirm={
+                webinar
+                  ? t.t("media.deleteConfirmWebinar", { webinar: webinar.title })
+                  : t.t("media.deleteConfirm")
+              }
               pendingLabel={t.t("common.saving")}
             >
               <Trash2 aria-hidden size={16} /> {t.t("media.delete")}

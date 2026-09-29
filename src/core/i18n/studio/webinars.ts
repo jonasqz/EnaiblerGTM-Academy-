@@ -23,6 +23,7 @@ export const en = {
   "webinars.tab.page": "Page",
   "webinars.tab.form": "Form",
   "webinars.tab.registrants": "Registrants",
+  "webinars.tab.recording": "Recording",
 
   "webinars.field.title": "Title",
   "webinars.field.language": "Held in",
@@ -118,6 +119,7 @@ export const en = {
   "webinars.funnel.registrations": "Registrations sent",
   "webinars.funnel.confirmed": "Confirmed",
   "webinars.funnel.attended": "Attended",
+  "webinars.funnel.relive_watched": "Watched the recording",
   "webinars.funnel.course_started": "Started the course",
   "webinars.funnel.course_submitted": "Handed in",
   "webinars.funnel.course_passed": "Passed",
@@ -250,6 +252,84 @@ export const en = {
   "webinars.import.done": "Imported: {added} new, {updated} updated.",
   "webinars.import.empty": "The file has no rows with an e-mail address.",
   "webinars.import.unreadable": "The file could not be read. Export it as CSV and try again.",
+
+  // The recording (webinar brief §2.4 re-live, §3 evergreen pages, §5 recording consent)
+  "webinars.recording.title": "Recording",
+  "webinars.recording.intro":
+    "Once the webinar has ended, its page shows the recording to those who may watch it and leads on to the course. Anyone else can register there to get it.",
+  "webinars.recording.none": "No recording yet",
+  "webinars.recording.noneBody":
+    "Choose a video from your library, upload the recording, or make it from a course recording.",
+  "webinars.recording.choose": "Choose from your videos",
+  "webinars.recording.replace": "Use another video instead",
+  "webinars.recording.replaceHint":
+    "Another video starts over with registrants only: a confirmation given for this one does not carry over.",
+  "webinars.recording.video": "Video",
+  "webinars.recording.optionProcessing": "{title} (being prepared)",
+  "webinars.recording.use": "Use as the recording",
+  "webinars.recording.noVideos": "No video in your library is free for this: add one below.",
+  "webinars.recording.add": "Add a new video as the recording",
+  "webinars.recording.added":
+    "Added as the recording. It is being prepared; the webinar's page shows it once it's ready.",
+  "webinars.recording.addedEmbed": "Added as the recording.",
+  "webinars.recording.attached": "It's the recording now.",
+  "webinars.recording.open": "Open in Videos",
+  "webinars.recording.remove": "Remove from the webinar",
+  "webinars.recording.removeConfirm":
+    "Take this video off the webinar? It stays in your videos, and who may watch goes back to registrants only.",
+  "webinars.recording.removed": "Removed from the webinar. The video is still in your videos.",
+  "webinars.recording.status.processing":
+    "Being prepared. Until it's ready, the page says the recording is coming.",
+  "webinars.recording.status.ready": "Ready to watch.",
+  "webinars.recording.status.failed":
+    "Preparing it failed: open it in Videos to see why. Until then the page only says the webinar has ended.",
+  "webinars.recording.upcoming": "The page switches to the recording when the webinar has ended.",
+  "webinars.recording.cancelled": "A cancelled webinar shows no recording.",
+  "webinars.recording.mails":
+    "When it's ready after the webinar, every registrant gets it once by mail: those who attended “the recording is ready”, the others “missed it? here's the recording”, each with the linked course. A follow-up mail that hasn't gone out yet brings the recording instead.",
+  "webinars.recording.mailed.one": "{n} registrant has got it by mail so far.",
+  "webinars.recording.mailed.other": "{n} registrants have got it by mail so far.",
+  "webinars.recording.access": "Who may watch",
+  "webinars.recording.access.registrants": "People who registered",
+  "webinars.recording.access.registrantsHint":
+    "The default. Anyone can still register on the page to get it.",
+  "webinars.recording.access.learners": "Every learner of your academy",
+  "webinars.recording.access.learnersHint": "Signed in, registered or not: like course material.",
+  "webinars.recording.access.public": "Anyone on the page",
+  "webinars.recording.access.publicHint": "No sign-in needed.",
+  "webinars.recording.confirm":
+    "Attendees' faces, voices and names are out of this recording, or everyone seen or heard in it agreed to this wider audience.",
+  "webinars.recording.confirmHint":
+    "Needed each time you show it beyond those who registered. We keep who confirmed it and when.",
+  "webinars.recording.confirmed": "Confirmed on {date} by {who}.",
+  "webinars.recording.confirmedOn": "Confirmed on {date}.",
+  "webinars.recording.save": "Save",
+  "webinars.recording.saved": "Saved. The video follows this setting.",
+  "webinars.recording.needsRecording":
+    "Choose the recording first: the confirmation is about one video.",
+  "webinars.recording.embedNote":
+    "This video is on {provider}. Whatever you choose here, anyone with its link can watch it on {provider}: set it to unlisted or private there if that matters.",
+  "webinars.recording.lessons.one":
+    "It's also in {n} lesson: learners who didn't register can't watch it there while only registrants may.",
+  "webinars.recording.lessons.other":
+    "It's also in {n} lessons: learners who didn't register can't watch it there while only registrants may.",
+  "webinars.recording.error.confirmation_missing":
+    "Tick the confirmation to show it to more people than those who registered.",
+  "webinars.recording.error.no_recording": "Choose the recording first.",
+  "webinars.recording.error.in_use": "This video is already another webinar's recording.",
+  "webinars.recording.error.video_not_found": "That video isn't available.",
+  "webinars.recording.error.not_found": "This webinar no longer exists.",
+  "webinars.recording.error.cancelled": "A cancelled webinar has no recording.",
+  "webinars.recording.numbers": "Who watched",
+  "webinars.recording.numbersIntro":
+    "Registrants only, counted against your academy's threshold of {percent} % of the video.",
+  "webinars.recording.watched": "Watched the recording",
+  "webinars.recording.watchedHint": "registrants, at least {percent} % of it",
+  "webinars.recording.catchUp": "No-shows who caught up",
+  "webinars.recording.catchUpHint": "{caughtUp} of {missed} who registered and missed it",
+  "webinars.recording.catchUpNone": "Nobody who registered missed it (yet)",
+  "webinars.recording.dropOff": "Where viewers drop off",
+  "webinars.recording.settings": "Recording settings",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -277,6 +357,7 @@ export const de: Record<keyof typeof en, string> = {
   "webinars.tab.page": "Seite",
   "webinars.tab.form": "Formular",
   "webinars.tab.registrants": "Anmeldungen",
+  "webinars.tab.recording": "Aufzeichnung",
 
   "webinars.field.title": "Titel",
   "webinars.field.language": "Sprache",
@@ -379,6 +460,7 @@ export const de: Record<keyof typeof en, string> = {
   "webinars.funnel.registrations": "Gesendete Anmeldungen",
   "webinars.funnel.confirmed": "Bestätigt",
   "webinars.funnel.attended": "Teilgenommen",
+  "webinars.funnel.relive_watched": "Aufzeichnung angesehen",
   "webinars.funnel.course_started": "Kurs begonnen",
   "webinars.funnel.course_submitted": "Abgegeben",
   "webinars.funnel.course_passed": "Bestanden",
@@ -514,4 +596,86 @@ export const de: Record<keyof typeof en, string> = {
   "webinars.import.empty": "Die Datei hat keine Zeilen mit E-Mail-Adresse.",
   "webinars.import.unreadable":
     "Die Datei ließ sich nicht lesen. Exportier sie als CSV und versuch es noch einmal.",
+
+  "webinars.recording.title": "Aufzeichnung",
+  "webinars.recording.intro":
+    "Sobald das Webinar vorbei ist, zeigt seine Seite die Aufzeichnung allen, die sie ansehen dürfen, und führt weiter in den Kurs. Alle anderen können sich dort anmelden, um sie zu bekommen.",
+  "webinars.recording.none": "Noch keine Aufzeichnung",
+  "webinars.recording.noneBody":
+    "Wähl ein Video aus deiner Bibliothek, lade die Aufzeichnung hoch oder mach sie aus einer Kursaufnahme.",
+  "webinars.recording.choose": "Aus deinen Videos wählen",
+  "webinars.recording.replace": "Stattdessen ein anderes Video nehmen",
+  "webinars.recording.replaceHint":
+    "Ein anderes Video beginnt wieder nur für Angemeldete: Eine Bestätigung für dieses gilt nicht für das neue.",
+  "webinars.recording.video": "Video",
+  "webinars.recording.optionProcessing": "{title} (wird vorbereitet)",
+  "webinars.recording.use": "Als Aufzeichnung nehmen",
+  "webinars.recording.noVideos":
+    "Kein Video deiner Bibliothek ist dafür frei: Füg unten eins hinzu.",
+  "webinars.recording.add": "Neues Video als Aufzeichnung hinzufügen",
+  "webinars.recording.added":
+    "Als Aufzeichnung hinzugefügt. Es wird vorbereitet; die Seite des Webinars zeigt es, sobald es fertig ist.",
+  "webinars.recording.addedEmbed": "Als Aufzeichnung hinzugefügt.",
+  "webinars.recording.attached": "Das ist jetzt die Aufzeichnung.",
+  "webinars.recording.open": "In Videos öffnen",
+  "webinars.recording.remove": "Vom Webinar entfernen",
+  "webinars.recording.removeConfirm":
+    "Dieses Video vom Webinar entfernen? Es bleibt in deinen Videos, und ansehen dürfen es wieder nur Angemeldete.",
+  "webinars.recording.removed": "Vom Webinar entfernt. Das Video ist noch in deinen Videos.",
+  "webinars.recording.status.processing":
+    "Wird vorbereitet. Bis es fertig ist, sagt die Seite, dass die Aufzeichnung kommt.",
+  "webinars.recording.status.ready": "Bereit zum Ansehen.",
+  "webinars.recording.status.failed":
+    "Die Vorbereitung ist fehlgeschlagen: Öffne es in Videos, um zu sehen, warum. Bis dahin sagt die Seite nur, dass das Webinar vorbei ist.",
+  "webinars.recording.upcoming":
+    "Die Seite wechselt zur Aufzeichnung, sobald das Webinar vorbei ist.",
+  "webinars.recording.cancelled": "Ein abgesagtes Webinar zeigt keine Aufzeichnung.",
+  "webinars.recording.mails":
+    "Ist sie nach dem Webinar fertig, bekommen alle Angemeldeten sie einmal per E-Mail: wer dabei war „Die Aufzeichnung ist da“, alle anderen „Verpasst? Hier ist die Aufzeichnung“, jeweils mit dem verknüpften Kurs. Eine Nachfass-E-Mail, die noch nicht raus ist, bringt stattdessen die Aufzeichnung mit.",
+  "webinars.recording.mailed.one": "{n} angemeldete Person hat sie bisher per E-Mail bekommen.",
+  "webinars.recording.mailed.other": "{n} Angemeldete haben sie bisher per E-Mail bekommen.",
+  "webinars.recording.access": "Wer sie ansehen darf",
+  "webinars.recording.access.registrants": "Wer sich angemeldet hat",
+  "webinars.recording.access.registrantsHint":
+    "Die Voreinstellung. Alle anderen können sich auf der Seite anmelden, um sie zu bekommen.",
+  "webinars.recording.access.learners": "Alle Lernenden deiner Akademie",
+  "webinars.recording.access.learnersHint":
+    "Mit Konto in deiner Akademie, fürs Webinar angemeldet oder nicht: wie Kursmaterial.",
+  "webinars.recording.access.public": "Alle auf der Seite",
+  "webinars.recording.access.publicHint": "Ohne Anmeldung.",
+  "webinars.recording.confirm":
+    "Gesichter, Stimmen und Namen der Teilnehmenden sind nicht in dieser Aufzeichnung, oder alle, die darin zu sehen oder zu hören sind, haben diesem größeren Publikum zugestimmt.",
+  "webinars.recording.confirmHint":
+    "Nötig, sobald du sie mehr Menschen zeigst als den Angemeldeten, jedes Mal. Wir speichern, wer das wann bestätigt hat.",
+  "webinars.recording.confirmed": "Bestätigt am {date} von {who}.",
+  "webinars.recording.confirmedOn": "Bestätigt am {date}.",
+  "webinars.recording.save": "Speichern",
+  "webinars.recording.saved": "Gespeichert. Das Video folgt dieser Einstellung.",
+  "webinars.recording.needsRecording":
+    "Wähl zuerst die Aufzeichnung: Die Bestätigung gilt für ein bestimmtes Video.",
+  "webinars.recording.embedNote":
+    "Dieses Video liegt bei {provider}. Was du hier auch wählst: Wer seinen Link hat, kann es bei {provider} ansehen. Stell es dort auf „nicht gelistet“ oder privat, wenn das wichtig ist.",
+  "webinars.recording.lessons.one":
+    "Es steckt auch in {n} Lektion: Lernende ohne Anmeldung können es dort nicht ansehen, solange nur Angemeldete dürfen.",
+  "webinars.recording.lessons.other":
+    "Es steckt auch in {n} Lektionen: Lernende ohne Anmeldung können es dort nicht ansehen, solange nur Angemeldete dürfen.",
+  "webinars.recording.error.confirmation_missing":
+    "Setz den Haken bei der Bestätigung, um sie mehr Menschen zu zeigen als den Angemeldeten.",
+  "webinars.recording.error.no_recording": "Wähl zuerst die Aufzeichnung.",
+  "webinars.recording.error.in_use":
+    "Dieses Video ist schon die Aufzeichnung eines anderen Webinars.",
+  "webinars.recording.error.video_not_found": "Dieses Video ist nicht verfügbar.",
+  "webinars.recording.error.not_found": "Dieses Webinar gibt es nicht mehr.",
+  "webinars.recording.error.cancelled": "Ein abgesagtes Webinar hat keine Aufzeichnung.",
+  "webinars.recording.numbers": "Wer zugesehen hat",
+  "webinars.recording.numbersIntro":
+    "Nur Angemeldete, gezählt gegen die Schwelle deiner Akademie von {percent} % des Videos.",
+  "webinars.recording.watched": "Aufzeichnung angesehen",
+  "webinars.recording.watchedHint": "Angemeldete, mindestens {percent} % davon",
+  "webinars.recording.catchUp": "Nachgeholt",
+  "webinars.recording.catchUpHint":
+    "{caughtUp} von {missed}, die angemeldet waren und es verpasst haben",
+  "webinars.recording.catchUpNone": "Niemand, der angemeldet war, hat es (bisher) verpasst",
+  "webinars.recording.dropOff": "Wo Zuschauende abspringen",
+  "webinars.recording.settings": "Einstellungen der Aufzeichnung",
 };

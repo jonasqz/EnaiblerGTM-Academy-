@@ -826,7 +826,7 @@ describe.skipIf(!hasDatabase)("webinars", () => {
         },
       ]);
     });
-    expect(await webinarFunnel(dbs.app.db, tenant.id, id)).toEqual([
+    expect(await webinarFunnel(dbs.app.db, tenant, id)).toEqual([
       { step: "views", count: 3 },
       { step: "registrations", count: 2 },
       { step: "confirmed", count: 1 },

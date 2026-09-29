@@ -52,6 +52,7 @@ export default async function StudioWebinarLayout({
           },
         ]
       : []),
+    ...(edit ? [{ href: `${base}/recording` as Route, label: t.t("webinars.tab.recording") }] : []),
   ];
   return (
     <div className="space-y-6">
