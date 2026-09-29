@@ -14,6 +14,18 @@ describe("who may watch", () => {
     expect(canWatch("learners", author)).toBe(true);
   });
 
+  it("plays a webinar's recording for its registrants, signed in, and its authors", () => {
+    expect(canWatch("registrants", null)).toBe(false);
+    expect(canWatch("registrants", learner)).toBe(false);
+    expect(canWatch("registrants", { ...learner, signedUp: false })).toBe(false);
+    expect(canWatch("registrants", { ...learner, signedUp: true })).toBe(true);
+    // Signed up somewhere but no member of this academy (another academy's session).
+    expect(canWatch("registrants", { member: false, canEditCourses: false, signedUp: true })).toBe(
+      false,
+    );
+    expect(canWatch("registrants", author)).toBe(true);
+  });
+
   it("tracks signed-in viewers only", () => {
     expect(tracksViewer(null)).toBe(false);
     expect(tracksViewer(learner)).toBe(true);

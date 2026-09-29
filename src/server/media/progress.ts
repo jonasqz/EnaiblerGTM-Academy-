@@ -7,6 +7,7 @@ import type { Database } from "@/db/client";
 import { mediaAssets, watchProgress } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { trackEvent } from "@/server/events";
+import { signedUpIn } from "@/server/media/viewer";
 
 /*
  * Watch tracking (webinar brief §2.4). The player reports every range it
@@ -44,7 +45,13 @@ export async function recordProgress(
       })
       .from(mediaAssets)
       .where(eq(mediaAssets.id, report.asset));
-    if (!asset || asset.status !== "ready" || !canWatch(asset.access, viewer)) return null;
+    if (!asset || asset.status !== "ready") return null;
+    // A webinar's recording: whether they registered for it is looked up here, like on its page.
+    const signedUp =
+      viewer.signedUp ??
+      (asset.access === "registrants" &&
+        (await signedUpIn(tx, viewer.userId, [asset.id])).size > 0);
+    if (!canWatch(asset.access, { ...viewer, signedUp })) return null;
 
     const created = await tx
       .insert(watchProgress)
