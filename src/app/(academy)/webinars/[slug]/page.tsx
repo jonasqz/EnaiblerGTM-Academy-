@@ -22,6 +22,7 @@ import {
   parseEntryParams,
 } from "@/core/entry/context";
 import type { Translator } from "@/core/i18n/translator";
+import { canWatch } from "@/core/media/access";
 import { isBot } from "@/core/shared/bots";
 import {
   checkinOpen,
@@ -250,6 +251,22 @@ export default async function WebinarPageView({
   const checkIn = active?.status === "registered" &&
     !active.attended &&
     checkinOpen(webinar, now) && <CheckInForm slug={webinar.slug} labels={checkInLabels(t)} />;
+  // Whether this viewer may watch the recording (registrants: a seat or the waitlist).
+  const recordingViewer =
+    relive !== "none" && page.recording
+      ? (
+          await mediaViewers(
+            getDb(),
+            tenant.id,
+            session && { userId: session.viewer.userId, roles: session.roles },
+            [page.recording],
+          )
+        )(page.recording.id)
+      : null;
+  const mayWatch =
+    relive === "ready" &&
+    page.recording !== null &&
+    canWatch(page.recording.access, recordingViewer);
 
   let register;
   if (webinar.status === "cancelled") {
@@ -263,22 +280,17 @@ export default async function WebinarPageView({
     );
   } else if (relive !== "none" && page.recording) {
     // Over, with a recording: watch it and build the artifact (webinar brief §3).
-    const viewerOf = await mediaViewers(
-      getDb(),
-      tenant.id,
-      session && { userId: session.viewer.userId, roles: session.roles },
-      [page.recording],
-    );
-    const watched = session
-      ? await progressOf(getDb(), tenant.id, session.viewer.userId, [page.recording.id])
-      : null;
+    const watched =
+      session && mayWatch
+        ? await progressOf(getDb(), tenant.id, session.viewer.userId, [page.recording.id])
+        : null;
     register = (
       <RecordingBlock
         t={t}
         slug={webinar.slug}
         relive={relive}
         recording={page.recording}
-        viewer={viewerOf(page.recording.id)}
+        viewer={recordingViewer}
         progress={watched?.get(page.recording.id) ?? null}
         registered={active !== null}
         attended={active?.attended ?? false}
@@ -388,15 +400,15 @@ export default async function WebinarPageView({
     ) : null;
 
   const cta =
-    relive === "ready"
-      ? t.t("webinar.relive.cta")
-      : relive === "coming"
-        ? active
+    relive !== "none"
+      ? mayWatch
+        ? t.t("webinar.relive.cta")
+        : active
           ? null
           : t.t("webinar.relive.getCta")
-        : webinar.status === "published" && phase !== "ended" && !active && open
-          ? t.t(view.seats.state === "full" ? "webinar.waitlistCta" : "webinar.registerCta")
-          : null;
+      : webinar.status === "published" && phase !== "ended" && !active && open
+        ? t.t(view.seats.state === "full" ? "webinar.waitlistCta" : "webinar.registerCta")
+        : null;
 
   return (
     <WebinarLanding

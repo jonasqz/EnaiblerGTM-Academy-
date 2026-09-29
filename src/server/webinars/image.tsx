@@ -55,9 +55,9 @@ export async function renderWebinarImage(
   const time =
     relive === "none"
       ? formatWebinarTime(webinar.startsAt, webinar.durationMinutes, webinar.timeZone, t.locale)
-      : `${t.t("webinar.recordingBadge")} · ${t.t("webinar.recordedOn", {
+      : t.t("webinar.recordedOn", {
           date: formatWebinarDate(webinar.startsAt, webinar.timeZone, t.locale),
-        })}`;
+        });
   const academy = tenant.settings.author_display_name;
   const element = (
     <div

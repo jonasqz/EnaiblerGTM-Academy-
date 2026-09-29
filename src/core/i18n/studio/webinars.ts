@@ -267,7 +267,6 @@ export const en = {
   "webinars.recording.video": "Video",
   "webinars.recording.optionProcessing": "{title} (being prepared)",
   "webinars.recording.use": "Use as the recording",
-  "webinars.recording.noVideos": "No video in your library is free for this: add one below.",
   "webinars.recording.add": "Add a new video as the recording",
   "webinars.recording.added":
     "Added as the recording. It is being prepared; the webinar's page shows it once it's ready.",
@@ -610,8 +609,6 @@ export const de: Record<keyof typeof en, string> = {
   "webinars.recording.video": "Video",
   "webinars.recording.optionProcessing": "{title} (wird vorbereitet)",
   "webinars.recording.use": "Als Aufzeichnung nehmen",
-  "webinars.recording.noVideos":
-    "Kein Video deiner Bibliothek ist dafür frei: Füg unten eins hinzu.",
   "webinars.recording.add": "Neues Video als Aufzeichnung hinzufügen",
   "webinars.recording.added":
     "Als Aufzeichnung hinzugefügt. Es wird vorbereitet; die Seite des Webinars zeigt es, sobald es fertig ist.",
@@ -672,7 +669,7 @@ export const de: Record<keyof typeof en, string> = {
     "Nur Angemeldete, gezählt gegen die Schwelle deiner Akademie von {percent} % des Videos.",
   "webinars.recording.watched": "Aufzeichnung angesehen",
   "webinars.recording.watchedHint": "Angemeldete, mindestens {percent} % davon",
-  "webinars.recording.catchUp": "Nachgeholt",
+  "webinars.recording.catchUp": "Verpasst und nachgeholt",
   "webinars.recording.catchUpHint":
     "{caughtUp} von {missed}, die angemeldet waren und es verpasst haben",
   "webinars.recording.catchUpNone": "Niemand, der angemeldet war, hat es (bisher) verpasst",

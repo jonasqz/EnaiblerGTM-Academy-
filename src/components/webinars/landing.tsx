@@ -15,6 +15,7 @@ import { LocalTime } from "@/components/webinars/local-time";
 import { Badge } from "@/components/ui/badge";
 import type { Locale } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
+import { clockTime } from "@/core/media/captions";
 import type { CapacityState } from "@/core/webinars/capacity";
 import { shownPresenters, type LandingBlock, type Presenter } from "@/core/webinars/landing";
 import type { WebinarPhase, WebinarStatus } from "@/core/webinars/phase";
@@ -160,18 +161,24 @@ export function WebinarLanding(props: {
             <ol className="card-flat divide-y divide-line">
               {item.items.map((entry, position) => (
                 <li key={position} className="flex gap-4 p-4">
-                  {entry.minute !== undefined && (
-                    <time
-                      className="w-14 shrink-0 font-semibold tabular-nums"
-                      dateTime={new Date(start.getTime() + entry.minute * 60_000).toISOString()}
-                    >
-                      {formatClock(
-                        new Date(start.getTime() + entry.minute * 60_000),
-                        view.timeZone,
-                        t.locale,
-                      )}
-                    </time>
-                  )}
+                  {entry.minute !== undefined &&
+                    (recorded ? (
+                      // Where it is in the recording, not a time of day to be there.
+                      <span className="w-14 shrink-0 font-semibold tabular-nums">
+                        {clockTime(entry.minute * 60)}
+                      </span>
+                    ) : (
+                      <time
+                        className="w-14 shrink-0 font-semibold tabular-nums"
+                        dateTime={new Date(start.getTime() + entry.minute * 60_000).toISOString()}
+                      >
+                        {formatClock(
+                          new Date(start.getTime() + entry.minute * 60_000),
+                          view.timeZone,
+                          t.locale,
+                        )}
+                      </time>
+                    ))}
                   <span lang={view.locale}>{entry.title}</span>
                 </li>
               ))}

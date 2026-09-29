@@ -14,14 +14,9 @@ import { RELIVE_ACCESS, widensAccess, type ReliveAccess } from "@/core/webinars/
 export function AttachRecordingForm(props: {
   webinarId: string;
   videos: Array<{ id: string; title: string; processing: boolean }>;
-  current: string | null;
 }) {
   const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(attachRecordingAction, {});
-  const choices = props.videos.filter((video) => video.id !== props.current);
-  if (choices.length === 0) {
-    return <p className="text-sm text-muted">{t.t("webinars.recording.noVideos")}</p>;
-  }
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <input type="hidden" name="webinarId" value={props.webinarId} />
@@ -30,7 +25,7 @@ export function AttachRecordingForm(props: {
           {t.t("webinars.recording.video")}
         </label>
         <select id="recording-video" name="assetId" className="select" required>
-          {choices.map((video) => (
+          {props.videos.map((video) => (
             <option key={video.id} value={video.id}>
               {video.processing
                 ? t.t("webinars.recording.optionProcessing", { title: video.title })
@@ -60,7 +55,8 @@ export function ReliveAccessForm(props: { webinarId: string; current: ReliveAcce
     <form onSubmit={onSubmit} className="space-y-4">
       <input type="hidden" name="webinarId" value={props.webinarId} />
       <fieldset className="field">
-        <legend className="label mb-1.5">{t.t("webinars.recording.access")}</legend>
+        {/* The section's heading says it already. */}
+        <legend className="sr-only">{t.t("webinars.recording.access")}</legend>
         <div className="grid gap-2">
           {RELIVE_ACCESS.map((access) => (
             <label key={access} className="flex gap-3 rounded-control border border-line p-3">

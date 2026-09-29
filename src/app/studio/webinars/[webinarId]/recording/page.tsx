@@ -41,7 +41,7 @@ export default async function WebinarRecordingPage({
   searchParams,
 }: PageProps<"/studio/webinars/[webinarId]/recording">) {
   const { webinarId } = await params;
-  const { removed } = await searchParams;
+  const { removed, attached } = await searchParams;
   const { tenant } = await requireCapability(
     "courses.edit",
     `/studio/webinars/${webinarId}/recording`,
@@ -58,6 +58,7 @@ export default async function WebinarRecordingPage({
     confirmerOf(getDb(), webinar),
   ]);
   const lessons = video ? await lessonsShowing(getDb(), tenant.id, video.id) : [];
+  const choices = videos.filter((row) => row.id !== video?.id);
   const phase = webinarPhase(webinar, new Date());
   const cancelled = webinar.status === "cancelled";
   const percent = tenant.settings.video.watched_percent;
@@ -67,6 +68,9 @@ export default async function WebinarRecordingPage({
     <div className="space-y-8">
       <AutoRefresh active={video?.status === "processing"} everyMs={5_000} />
       {removed === "1" && <Notice tone="good" title={t.t("webinars.recording.removed")} />}
+      {attached === "1" && video && (
+        <Notice tone="good" title={t.t("webinars.recording.attached")} />
+      )}
       {cancelled && <Notice tone="warning" title={t.t("webinars.recording.cancelled")} />}
 
       <section className="space-y-4" aria-labelledby="recording-heading">
@@ -176,25 +180,26 @@ export default async function WebinarRecordingPage({
 
       {!cancelled && (
         <>
-          <section className="card-flat space-y-4 p-5 sm:p-6" aria-labelledby="choose-heading">
-            <div className="space-y-1">
-              <h2 id="choose-heading" className="text-lg font-semibold">
-                {t.t(video ? "webinars.recording.replace" : "webinars.recording.choose")}
-              </h2>
-              {video && (
-                <p className="text-sm text-muted">{t.t("webinars.recording.replaceHint")}</p>
-              )}
-            </div>
-            <AttachRecordingForm
-              webinarId={webinar.id}
-              current={video?.id ?? null}
-              videos={videos.map((row) => ({
-                id: row.id,
-                title: row.title,
-                processing: row.status === "processing",
-              }))}
-            />
-          </section>
+          {choices.length > 0 && (
+            <section className="card-flat space-y-4 p-5 sm:p-6" aria-labelledby="choose-heading">
+              <div className="space-y-1">
+                <h2 id="choose-heading" className="text-lg font-semibold">
+                  {t.t(video ? "webinars.recording.replace" : "webinars.recording.choose")}
+                </h2>
+                {video && (
+                  <p className="text-sm text-muted">{t.t("webinars.recording.replaceHint")}</p>
+                )}
+              </div>
+              <AttachRecordingForm
+                webinarId={webinar.id}
+                videos={choices.map((row) => ({
+                  id: row.id,
+                  title: row.title,
+                  processing: row.status === "processing",
+                }))}
+              />
+            </section>
+          )}
           <AddVideo
             heading={t.t("webinars.recording.add")}
             action={addRecordingAction}

@@ -252,7 +252,8 @@ export async function attachRecordingAction(_: FormState, formData: FormData): P
   const result = await attachRecording(getDb(), tenant.id, webinarId, text(formData, "assetId"));
   if (!result.ok) return { errors: [t.t(`webinars.recording.error.${result.issue}`)] };
   recordingSaved(webinarId);
-  return { ok: true, message: t.t("webinars.recording.attached") };
+  // The picker may have no video left to offer: the page says it instead of the form.
+  redirect(`${recordingPath(webinarId)}?attached=1`);
 }
 
 /** Uploads a video, makes one of a course recording or embeds one, as the webinar's recording. */
