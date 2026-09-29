@@ -179,7 +179,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
 - A course that ends with a final test goes through end to end: a failed attempt, a retake and the credential saying "Final Test passed".
-- A webinar goes through end to end: the confirmation's calendar invitation opens in Google Calendar, Outlook and Apple Calendar, a new time updates that entry instead of adding one, and check-in works on a phone.
+- A webinar goes through end to end: the confirmation's calendar invitation opens in Google Calendar, Outlook and Apple Calendar, a new time updates that entry instead of adding one, and check-in works on a phone. Afterwards its recording, attached on the Recording tab, plays on the webinar's page for a registrant and not for a stranger, and each registrant gets one mail with it within a minute or two (the worker's notification run sends it).
 - Mail: the domain of `EMAIL_FROM_ADDRESS` has SPF, DKIM and a DMARC policy at the SMTP relay, and a magic link lands in the inbox (not spam) at Gmail, Outlook and GMX/Web.de.
 - Backups: Postgres and storage from the same night have been restored once into a scratch stack, and that stack starts.
 - After every deploy: `npm run smoke -- --academy https://<an academy> --platform https://<PLATFORM_HOST>` passes (health, pages, security headers, no tracking cookies, link previews, signup, legal pages, content reports).
