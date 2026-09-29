@@ -85,7 +85,7 @@ Environment variables (Coolify → Environment). Required ones are marked; every
 | `ANALYTICS_PROVIDER`, `ANALYTICS_SCRIPT_URL`, `ANALYTICS_WEBSITE_ID`     | web         | Cookieless page views, see §8                                                                                                       |
 | `ERROR_REPORTING_DSN`                                                    | web, worker | GlitchTip project DSN, see §8                                                                                                       |
 | `APP_RELEASE`, `APP_ENV`                                                 | web, worker | Release and environment shown with error reports, e.g. the Git commit and `staging`                                                 |
-| `APP_TIME_ZONE`                                                          | web         | Time zone of dates in the Studio; default `Europe/Berlin`                                                                           |
+| `APP_TIME_ZONE`                                                          | web, worker | Time zone of dates in the Studio and of homework deadlines (their reminder mails too); default `Europe/Berlin`                      |
 | `LOG_FORMAT`                                                             | web, worker | `json` (default in production: one JSON object per line) or `text`                                                                  |
 
 Leave `HOSTNAME=0.0.0.0` as the Dockerfile sets it: the proxy's rewrite to the platform pages only stays inside the server when Next's own origin matches the request. Never set `SAFE_FETCH_ALLOWED_HOSTS` outside local tests, because it exempts hosts from the private-address check of the brand import, source reading and webhooks.

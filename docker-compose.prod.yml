@@ -109,5 +109,7 @@ services:
       ERROR_REPORTING_DSN: ${ERROR_REPORTING_DSN:-}
       APP_RELEASE: ${APP_RELEASE:-}
       APP_ENV: ${APP_ENV:-}
+      # Same zone as the web service: homework reminders state the deadline in it.
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-}
       LOG_FORMAT: ${LOG_FORMAT:-}
     restart: unless-stopped
