@@ -255,7 +255,6 @@ export async function watchRows(db: Database, tenantId: string, assetId: string)
         ranges: watchProgress.ranges,
         percent: watchProgress.percent,
         durationSec: watchProgress.durationSec,
-        thresholdReachedAt: watchProgress.thresholdReachedAt,
       })
       .from(watchProgress)
       .where(and(eq(watchProgress.assetId, assetId), byLearners)),

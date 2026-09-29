@@ -31,22 +31,44 @@ export function viewersPerMinute(
   return counts;
 }
 
+/**
+ * Clean ticks for a count axis: whole numbers in steps of 1, 2 or 5 times a
+ * power of ten, about four of them, the top one at or above the largest value.
+ */
+export function countTicks(max: number): number[] {
+  if (!(max > 0)) return [0, 1];
+  const rough = max / 4;
+  const power = 10 ** Math.floor(Math.log10(Math.max(rough, 1)));
+  const step = Math.max(
+    1,
+    [1, 2, 5, 10].map((factor) => factor * power).find((s) => s >= rough)!,
+  );
+  const top = Math.ceil(max / step) * step;
+  return Array.from({ length: top / step + 1 }, (_, index) => index * step);
+}
+
 export interface WatchSummary {
   /** Signed-in viewers who pressed play. */
   viewers: number;
-  /** Of them, the ones whose watching reached the academy's threshold. */
+  /** Of them, the ones who played at least the academy's threshold as it is now. */
   watched: number;
   /** Average share of the video they played, whole percent. */
   averagePercent: number;
 }
 
+/**
+ * The numbers above the drop-off chart. "Watched" counts against today's
+ * threshold, so a changed setting shows at once; the video_watched events
+ * stay as they were recorded.
+ */
 export function watchSummary(
-  rows: ReadonlyArray<{ percent: number; thresholdReached: boolean }>,
+  rows: ReadonlyArray<{ percent: number }>,
+  thresholdPercent: number,
 ): WatchSummary {
   if (rows.length === 0) return { viewers: 0, watched: 0, averagePercent: 0 };
   return {
     viewers: rows.length,
-    watched: rows.filter((row) => row.thresholdReached).length,
+    watched: rows.filter((row) => row.percent >= thresholdPercent).length,
     averagePercent: Math.round(rows.reduce((sum, row) => sum + row.percent, 0) / rows.length),
   };
 }

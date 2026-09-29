@@ -67,6 +67,9 @@ export async function saveAcademySettingsAction(
     features: Object.fromEntries(
       FEATURE_KEYS.map((key) => [key, formData.get(`feature.${key}`) === "on"]),
     ) as Record<(typeof FEATURE_KEYS)[number], boolean>,
+    videoWatchedPercent: formData.has("videoWatchedPercent")
+      ? Number(text(formData, "videoWatchedPercent"))
+      : undefined,
   });
   if (!result.ok) return { errors: result.errors.map((error) => readable(t, error)) };
   revalidatePath("/", "layout");
@@ -118,6 +121,7 @@ function readable(t: StudioText, error: string): string {
     [/^tenant\.website: /, field("settings.academy.website")],
     [/^tenant\.email_sender\.reply_to: /, field("settings.academy.replyTo")],
     [/^tenant\.verification_cta\.label[.\w]*: /, field("settings.academy.field.cta")],
+    [/^tenant\.video\.watched_percent: .*/, t.t("media.settings.thresholdHint")],
     [/^tenant\.[\w.]+: /, ""],
   ];
   for (const [pattern, label] of labels)

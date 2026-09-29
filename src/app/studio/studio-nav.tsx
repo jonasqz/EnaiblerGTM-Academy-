@@ -3,6 +3,7 @@
 import {
   BookOpen,
   ClipboardCheck,
+  Film,
   LayoutDashboard,
   Milestone,
   Settings,
@@ -17,6 +18,7 @@ import { usePathname } from "next/navigation";
 const ICONS = {
   overview: LayoutDashboard,
   courses: BookOpen,
+  videos: Film,
   paths: Milestone,
   cohorts: UsersRound,
   reviews: ClipboardCheck,

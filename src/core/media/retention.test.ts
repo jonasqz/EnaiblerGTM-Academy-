@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { viewersPerMinute, watchSummary } from "@/core/media/retention";
+import { countTicks, viewersPerMinute, watchSummary } from "@/core/media/retention";
 
 describe("drop-off by minute", () => {
   it("counts a viewer for each minute they watched at least half of", () => {
@@ -29,14 +29,19 @@ describe("drop-off by minute", () => {
     expect(viewersPerMinute([], 125)).toEqual([0, 0, 0]);
   });
 
+  it("puts clean whole-number ticks on the viewer axis", () => {
+    expect(countTicks(2)).toEqual([0, 1, 2]);
+    expect(countTicks(12)).toEqual([0, 5, 10, 15]);
+    expect(countTicks(40)).toEqual([0, 10, 20, 30, 40]);
+    expect(countTicks(1234)).toEqual([0, 500, 1000, 1500]);
+    expect(countTicks(0)).toEqual([0, 1]);
+  });
+
   it("sums up viewers, those who reached the threshold and the average share", () => {
-    expect(
-      watchSummary([
-        { percent: 100, thresholdReached: true },
-        { percent: 40, thresholdReached: false },
-        { percent: 85, thresholdReached: true },
-      ]),
-    ).toEqual({ viewers: 3, watched: 2, averagePercent: 75 });
-    expect(watchSummary([])).toEqual({ viewers: 0, watched: 0, averagePercent: 0 });
+    const rows = [{ percent: 100 }, { percent: 40 }, { percent: 85 }];
+    expect(watchSummary(rows, 80)).toEqual({ viewers: 3, watched: 2, averagePercent: 75 });
+    // A stricter academy sees it at once.
+    expect(watchSummary(rows, 90).watched).toBe(1);
+    expect(watchSummary([], 80)).toEqual({ viewers: 0, watched: 0, averagePercent: 0 });
   });
 });
