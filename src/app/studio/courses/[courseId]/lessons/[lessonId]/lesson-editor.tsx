@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarDays,
   Circle,
   CircleCheck,
   Columns2,
@@ -71,6 +72,8 @@ export interface LessonEditorProps {
   aiAvailable: boolean;
   /** The media library's video the lesson shows ("" for none), and the videos to pick from. */
   video: { selected: string; options: Array<{ id: string; title: string; ready: boolean }> };
+  /** The webinar the lesson is ("" for none), and the webinars it may become. */
+  session: { selected: string; options: Array<{ id: string; label: string; title: string }> };
 }
 
 export function LessonEditor(props: LessonEditorProps) {
@@ -82,12 +85,14 @@ export function LessonEditor(props: LessonEditorProps) {
   // Questions the AI drafted: marked until a save keeps them.
   const [drafted, setDrafted] = useState<ReadonlySet<string>>(new Set());
   const [video, setVideo] = useState(props.video.selected);
+  const [session, setSession] = useState(props.session.selected);
   const [saved, setSaved] = useState({
     title: props.title,
     markdown: props.markdown,
     selected: props.selected,
     questions: cleanCheckQuestions(props.questions),
     video: props.video.selected,
+    session: props.session.selected,
   });
   const [mode, setMode] = useState<Mode>("write");
   const formRef = useRef<HTMLFormElement>(null);
@@ -130,6 +135,7 @@ export function LessonEditor(props: LessonEditorProps) {
         selected: formData.getAll("criteria").map(String),
         questions: JSON.parse(String(formData.get("questions") ?? "[]")) as CheckQuestion[],
         video: String(formData.get("mediaAssetId") ?? ""),
+        session: String(formData.get("webinarId") ?? ""),
       });
     }
     return result;
@@ -143,8 +149,10 @@ export function LessonEditor(props: LessonEditorProps) {
     markdown !== saved.markdown ||
     [...selected].sort().join() !== [...saved.selected].sort().join() ||
     !sameJson(cleanQuestions, saved.questions) ||
-    video !== saved.video;
+    video !== saved.video ||
+    session !== saved.session;
   const videoTitle = props.video.options.find((option) => option.id === video)?.title;
+  const sessionTitle = props.session.options.find((option) => option.id === session)?.title;
   const words = markdown.trim() ? markdown.trim().split(/\s+/).length : 0;
   const findings = lintWording(`${title}\n${markdown}`, "lesson_text");
   const savedIds = new Set(saved.questions.map((question) => question.id));
@@ -206,6 +214,41 @@ export function LessonEditor(props: LessonEditorProps) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
+      </div>
+
+      <div className="field">
+        <label htmlFor="lesson-session" className="label">
+          {t.t("series.lesson.label")}
+        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            id="lesson-session"
+            name="webinarId"
+            className="select w-auto max-w-full min-w-60"
+            value={session}
+            onChange={(event) => setSession(event.target.value)}
+            aria-describedby="lesson-session-hint"
+          >
+            <option value="">{t.t("series.lesson.none")}</option>
+            {props.session.options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {/* A new tab: the lesson may have unsaved changes. */}
+          <a
+            href="/studio/webinars"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-semibold underline"
+          >
+            {t.t("series.lesson.manage")} <ExternalLink aria-hidden size={14} />
+          </a>
+        </div>
+        <p id="lesson-session-hint" className="hint">
+          {t.t("series.lesson.hint")}
+        </p>
       </div>
 
       <div className="field">
@@ -332,6 +375,12 @@ export function LessonEditor(props: LessonEditorProps) {
                 <h2 className="mb-4 font-display text-2xl leading-tight">
                   {title || t.t("common.actions.untitledLesson")}
                 </h2>
+                {sessionTitle && (
+                  <p className="mb-4 flex items-center gap-2 rounded-control bg-subtle p-3 text-sm text-muted">
+                    <CalendarDays aria-hidden size={16} className="shrink-0" />
+                    {t.t("series.lesson.previewNote", { title: sessionTitle })}
+                  </p>
+                )}
                 {videoTitle && (
                   <p className="mb-4 flex items-center gap-2 rounded-control bg-subtle p-3 text-sm text-muted">
                     <Film aria-hidden size={16} />

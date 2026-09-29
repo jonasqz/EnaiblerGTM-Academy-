@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, Hammer, RotateCcw } from "lucide-react";
+import { Award, CalendarDays, Hammer, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import {
   useEffect,
@@ -47,6 +47,8 @@ export interface TestLabels {
   workMissing: string;
   workInReview: string;
   openAssignment: string;
+  sessionsMissing: string;
+  sessionsTitle: string;
   /** "Attempt {n} of {max}", where the authors limit attempts. */
   attemptOf: string;
   attemptsLeft: string;
@@ -87,6 +89,8 @@ export function TestForm(props: {
   standing: TestStanding;
   /** Whether a pass still waits for the work, and whether that work is being reviewed. */
   work: { missing: boolean; inReview: boolean };
+  /** Whether a pass still waits for the live sessions of a series. */
+  sessionsMissing: boolean;
   labels: TestLabels;
 }) {
   const { labels, questions } = props;
@@ -153,6 +157,7 @@ export function TestForm(props: {
             credentialPublic={false}
             levelLine={result.credential?.levelLine ?? null}
             work={{ ...props.work, missing: result.missing.includes("work") }}
+            sessionsMissing={result.missing.includes("sessions")}
             labels={labels}
           />
         ) : (
@@ -212,6 +217,7 @@ export function TestForm(props: {
           credentialPublic={props.standing.credentialPublic}
           levelLine={null}
           work={props.work}
+          sessionsMissing={props.sessionsMissing}
           labels={labels}
         />
       </section>
@@ -375,6 +381,7 @@ function PassedNext(props: {
   credentialPublic: boolean;
   levelLine: string | null;
   work: { missing: boolean; inReview: boolean };
+  sessionsMissing: boolean;
   labels: TestLabels;
 }) {
   const { labels } = props;
@@ -393,7 +400,23 @@ function PassedNext(props: {
       />
     );
   }
-  if (!props.work.missing) return null;
+  if (!props.work.missing) {
+    // A series: the credential waits for its live sessions.
+    if (!props.sessionsMissing) return null;
+    return (
+      <Notice tone="info" title={labels.oneStepLeft}>
+        <div className="space-y-2">
+          <p>{labels.sessionsMissing}</p>
+          <Link
+            href={`/courses/${props.slug}`}
+            className="inline-flex items-center gap-1.5 font-semibold underline"
+          >
+            <CalendarDays aria-hidden size={16} /> {labels.sessionsTitle}
+          </Link>
+        </div>
+      </Notice>
+    );
+  }
   return (
     <Notice tone="info" title={labels.oneStepLeft}>
       <div className="space-y-2">

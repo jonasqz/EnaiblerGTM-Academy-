@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { TestForm, type TestStanding } from "@/app/(academy)/courses/[slug]/test/test-form";
 import { requiresWork } from "@/core/courses/completion";
+import { requiresSessions, sessionsOverview } from "@/core/courses/sessions";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
@@ -46,6 +47,7 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
         ? { kind: "closed", last }
         : { kind: "open", last };
   const count = test.questions.length;
+  const sessions = sessionsOverview(data.sessions);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -89,6 +91,11 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
             requiresWork(data.completionMode) && !data.workPassed && data.credential === null,
           inReview: data.attempts[0]?.outcome === "pending",
         }}
+        sessionsMissing={
+          data.credential === null &&
+          requiresSessions(data.sessionRequirement.rule) &&
+          sessions.done < sessions.total
+        }
         labels={{
           questionOf: t.t("test.questionOf"),
           questionN: t.t("test.questionN"),
@@ -128,6 +135,8 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
           workMissing: t.t("test.workMissing"),
           workInReview: t.t("test.workInReview"),
           openAssignment: t.t("course.openAssignment"),
+          sessionsMissing: t.t("series.sessionsMissing"),
+          sessionsTitle: t.t("series.sessionsTitle"),
         }}
       />
     </div>

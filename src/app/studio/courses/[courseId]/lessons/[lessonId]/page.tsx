@@ -24,7 +24,13 @@ import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { listVideos } from "@/server/media/library";
-import { loadLessonEditor, markdownOf, mediaAssetIdsOf } from "@/server/studio/lessons";
+import { webinarIdOf } from "@/server/courses/sessions";
+import {
+  loadLessonEditor,
+  markdownOf,
+  mediaAssetIdsOf,
+  sessionOptions,
+} from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -57,6 +63,26 @@ export default async function LessonEditorPage({
   const changedSource = data.sources.find((row) => row.id === changedSourceOf(lesson.flagReason));
   const videos = await listVideos(getDb(), tenant.id);
   const t = await getStudioText();
+  const session = webinarIdOf(lesson.blocks) ?? "";
+  const webinarChoices = await sessionOptions(getDb(), tenant.id, lesson);
+  // A cancelled webinar is no choice, unless the lesson already is it.
+  const sessionChoices = webinarChoices
+    .filter((row) => row.status !== "cancelled" || row.id === session)
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      label: t.t(
+        row.status === "draft"
+          ? "series.lesson.optionDraft"
+          : row.status === "cancelled"
+            ? "series.lesson.optionCancelled"
+            : "series.lesson.option",
+        { title: row.title, date: t.date(row.startsAt, "dateTime") },
+      ),
+    }));
+  if (session && !sessionChoices.some((row) => row.id === session)) {
+    sessionChoices.unshift({ id: session, title: "", label: t.t("series.lesson.gone") });
+  }
   // The source's link sits inside the sentence, wherever the language puts it.
   const [changedBefore, changedAfter] = lesson.flaggedAt
     ? t
@@ -152,6 +178,7 @@ export default async function LessonEditorPage({
                 ready: video.status === "ready",
               })),
           }}
+          session={{ selected: session, options: sessionChoices }}
           reference={
             reference && isLocale(reference.locale)
               ? {

@@ -51,6 +51,8 @@ export interface OutcomeFormProps {
   /** Lessons point at criteria; replacing the rubric unlinks them. */
   lessonCount: number;
   aiAvailable: boolean;
+  /** The homework deadline as the inputs take it, in the academy's zone ("" for none). */
+  deadline: { date: string; time: string; zone: string; refusesLate: boolean };
 }
 
 /** "Draft with AI" (brief §7, step 1): a rubric from the outcome and one example of good work. */
@@ -451,6 +453,46 @@ export function OutcomeForm(props: OutcomeFormProps) {
           </select>
           <p className="hint">{t.t("authoring.outcome.maxMbHint")}</p>
         </div>
+        <fieldset className="field border-t border-line pt-4">
+          <legend className="label mb-1.5">{t.t("series.deadline.title")}</legend>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="field">
+              <label htmlFor="dueDate" className="label text-sm font-normal">
+                {t.t("series.deadline.date")}
+              </label>
+              <input
+                id="dueDate"
+                name="dueDate"
+                type="date"
+                className="input w-auto"
+                defaultValue={props.deadline.date}
+                aria-describedby="due-hint"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="dueTime" className="label text-sm font-normal">
+                {t.t("series.deadline.time")}
+              </label>
+              <input
+                id="dueTime"
+                name="dueTime"
+                type="time"
+                className="input w-auto"
+                defaultValue={props.deadline.time}
+                aria-describedby="due-hint"
+              />
+            </div>
+          </div>
+          <p id="due-hint" className="hint">
+            {t.t("series.deadline.hint", { zone: props.deadline.zone })}{" "}
+            {t.t(
+              props.deadline.refusesLate ? "series.deadline.refused" : "series.deadline.accepted",
+            )}{" "}
+            <a href="/studio/settings#homework-heading" className="underline">
+              {t.t("series.deadline.settings")}
+            </a>
+          </p>
+        </fieldset>
       </section>
 
       <section

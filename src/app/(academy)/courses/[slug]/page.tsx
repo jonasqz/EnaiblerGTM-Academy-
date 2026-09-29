@@ -1,6 +1,8 @@
 import {
   Award,
   BookOpen,
+  CalendarClock,
+  CalendarDays,
   CircleCheck,
   Circle,
   Hammer,
@@ -13,21 +15,26 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { SessionBadge } from "@/app/(academy)/courses/[slug]/learn/[key]/session-panel";
 import { cohortDateLine } from "@/components/cohort-dates";
 import { continueUrl } from "@/components/entry-links";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
+import { deadlineState, formatDeadline } from "@/core/assignments/deadline";
 import { requiresWork } from "@/core/courses/completion";
 import { courseProgress, resumeLessonKey, type LessonProgressMap } from "@/core/courses/lessons";
 import { nextStep, nextStepHref } from "@/core/courses/next-step";
+import { requiresSessions, sessionsOverview, waitingSessionKeys } from "@/core/courses/sessions";
 import { decodeEntryContext } from "@/core/entry/context";
 import { localize } from "@/core/i18n/locales";
+import { formatWebinarTime } from "@/core/webinars/time";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
 import { learnerCohorts } from "@/server/cohorts";
 import { loadLearnerCourse } from "@/server/learning";
 import { getTenant, getTranslator } from "@/server/request";
+import { appTimeZone } from "@/server/time-zone";
 
 export async function generateMetadata({ params }: PageProps<"/courses/[slug]">) {
   const { slug } = await params;
@@ -64,11 +71,32 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
   const keys = data.lessons.map((lesson) => lesson.key);
   const progressMap = (data.enrollment?.lessonProgress ?? {}) as LessonProgressMap;
   const progress = courseProgress(keys, progressMap);
-  const resume = resumeLessonKey(keys, progressMap);
+  // A series: "continue" skips sessions still to come (or gone); they complete themselves.
+  const waiting = waitingSessionKeys(data.sessions);
+  const resume = resumeLessonKey(
+    keys.filter((key) => !waiting.has(key)),
+    progressMap,
+  );
+  const sessionOf = new Map(data.sessions.map((session) => [session.lessonKey, session]));
+  const sessions = sessionsOverview(data.sessions);
+  const sessionRule = data.sessionRequirement.rule;
   // What learners finish with follows the authors' choice: the work, the test or both.
   const work = requiresWork(data.completionMode) && data.assignment !== null;
   const { test } = data;
   const both = work && test !== null;
+  const needsSessions = requiresSessions(sessionRule) && sessions.total > 0;
+  // More than one part: the aside lists them, each with where the learner stands.
+  const parts = [work, test !== null, needsSessions].filter(Boolean).length;
+  const dueAt = work && data.assignment ? data.assignment.dueAt : null;
+  const deadline = deadlineState(dueAt, new Date());
+  const zone = appTimeZone();
+  const { catchUpDays } = data.sessionRequirement;
+  const ruleText =
+    sessionRule === "attended"
+      ? t.t("series.rule.attended")
+      : catchUpDays === null
+        ? t.t("series.rule.attended_or_watchedOpen")
+        : t.t("series.rule.attended_or_watched", { days: catchUpDays });
   const workOutcome = data.attempts[0]?.outcome ?? null;
   const next = nextStep({
     mode: data.completionMode,
@@ -187,15 +215,37 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
           <ol className="card-flat divide-y divide-line overflow-hidden">
             {data.lessons.map((lesson, index) => {
               const done = Boolean(progressMap[lesson.key]);
+              const session = sessionOf.get(lesson.key);
               const label = (
                 <>
                   <span className="w-6 text-sm text-muted">{index + 1}</span>
-                  <span className="flex-1">{lesson.title}</span>
+                  <span className="min-w-0 flex-1">
+                    {lesson.title}
+                    {session && (
+                      <span className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+                        <span>
+                          {formatWebinarTime(
+                            session.webinar.startsAt,
+                            session.webinar.durationMinutes,
+                            session.webinar.timeZone,
+                            t.locale,
+                          )}
+                        </span>
+                        {data.enrollment && <SessionBadge t={t} session={session} />}
+                      </span>
+                    )}
+                  </span>
                   {done ? (
                     <CircleCheck
                       aria-label={t.t("lesson.done")}
                       size={18}
                       style={{ color: "var(--status-good)" }}
+                    />
+                  ) : session ? (
+                    <CalendarDays
+                      aria-label={t.t("session.eyebrow")}
+                      size={18}
+                      className="text-muted"
                     />
                   ) : (
                     <Circle aria-hidden size={18} className="text-muted" />
@@ -279,37 +329,96 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
               value={progress.percent}
               label={t.t("course.progress", { done: progress.done, total: progress.total })}
             />
-            {both && test && (
+            {/* The progress view of a series (webinar brief §2.7): sessions, the next date, homework. */}
+            {(sessions.total > 0 || (dueAt && !data.workPassed)) && (
+              <ul className="space-y-2 border-t border-line pt-4 text-sm">
+                {sessions.total > 0 && (
+                  <li className="flex items-start gap-2">
+                    <CalendarDays aria-hidden size={16} className="mt-0.5 shrink-0" />
+                    <span>
+                      <span className="block font-semibold">
+                        {t.t("series.progress", { done: sessions.done, total: sessions.total })}
+                      </span>
+                      {sessions.next && (
+                        <Link
+                          href={`/courses/${slug}/learn/${sessions.next.lessonKey}`}
+                          className="text-muted hover:underline"
+                        >
+                          {t.t("series.next", {
+                            time: formatWebinarTime(
+                              sessions.next.webinar.startsAt,
+                              sessions.next.webinar.durationMinutes,
+                              sessions.next.webinar.timeZone,
+                              t.locale,
+                            ),
+                          })}
+                        </Link>
+                      )}
+                    </span>
+                  </li>
+                )}
+                {dueAt && !data.workPassed && (
+                  <li className="flex items-start gap-2">
+                    <CalendarClock aria-hidden size={16} className="mt-0.5 shrink-0" />
+                    <Link href={`/courses/${slug}/assignment`} className="hover:underline">
+                      <span className="block font-semibold">{t.term("assignment")}</span>
+                      <span className={deadline === "passed" ? "text-muted" : ""}>
+                        {t.t(deadline === "passed" ? "deadline.passed" : "deadline.due", {
+                          date: formatDeadline(dueAt, zone, t.locale),
+                        })}
+                      </span>
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            )}
+            {parts > 1 && (
               <div className="space-y-2 border-t border-line pt-4">
-                <p className="text-sm font-semibold">{t.t("course.test.needsBothTitle")}</p>
+                <p className="text-sm font-semibold">
+                  {both && !needsSessions
+                    ? t.t("course.test.needsBothTitle")
+                    : t.t("course.needsTitle")}
+                </p>
                 <ul className="space-y-1.5 text-sm">
-                  <PartState
-                    label={t.term("artifact")}
-                    passed={data.workPassed}
-                    state={
-                      workOutcome === "passed"
-                        ? t.t("assignment.passed")
-                        : workOutcome === "pending"
-                          ? t.t("assignment.inReview")
-                          : workOutcome === "needs_revision"
-                            ? t.t("assignment.needsRevision")
-                            : t.t("course.test.workToDo")
-                    }
-                  />
-                  <PartState
-                    label={t.term("test")}
-                    passed={Boolean(test.attempts.passed)}
-                    state={
-                      test.attempts.passed
-                        ? t.t("assignment.passed")
-                        : test.attempts.latest
-                          ? t.t("course.test.lastAttempt", {
-                              percent: test.attempts.latest.percent,
-                            })
-                          : t.t("course.test.notTaken")
-                    }
-                  />
+                  {work && (
+                    <PartState
+                      label={t.term("artifact")}
+                      passed={data.workPassed}
+                      state={
+                        workOutcome === "passed"
+                          ? t.t("assignment.passed")
+                          : workOutcome === "pending"
+                            ? t.t("assignment.inReview")
+                            : workOutcome === "needs_revision"
+                              ? t.t("assignment.needsRevision")
+                              : t.t("course.test.workToDo")
+                      }
+                    />
+                  )}
+                  {test && (
+                    <PartState
+                      label={t.term("test")}
+                      passed={Boolean(test.attempts.passed)}
+                      state={
+                        test.attempts.passed
+                          ? t.t("assignment.passed")
+                          : test.attempts.latest
+                            ? t.t("course.test.lastAttempt", {
+                                percent: test.attempts.latest.percent,
+                              })
+                            : t.t("course.test.notTaken")
+                      }
+                    />
+                  )}
+                  {needsSessions && (
+                    <PartState
+                      label={t.t("series.sessionsTitle")}
+                      passed={sessions.done === sessions.total}
+                      state={`${sessions.done} / ${sessions.total}`}
+                    />
+                  )}
                 </ul>
+                {needsSessions && <p className="text-xs text-muted">{ruleText}</p>}
               </div>
             )}
             <Link href={nextStepHref(slug, next)} className="btn btn-primary w-full">
@@ -328,6 +437,27 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
           </>
         ) : (
           <>
+            {/* One registration for the whole series: starting is registering (webinar brief §2.7). */}
+            {sessions.total > 0 && (
+              <div className="space-y-2 text-sm">
+                <p className="flex items-start gap-2">
+                  <CalendarDays aria-hidden size={16} className="mt-0.5 shrink-0" />
+                  <span>
+                    {sessions.total === 1
+                      ? t.t("series.introOne")
+                      : t.t("series.intro", { n: sessions.total })}
+                  </span>
+                </p>
+                {needsSessions && <p className="text-muted">{ruleText}</p>}
+                {data.sessions.some((row) => row.webinar.recorded) && (
+                  <p className="text-xs text-muted">
+                    {t.t("webinar.form.recording", {
+                      academy: tenant.settings.author_display_name,
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
             <a href={continueUrl(entry)} className="btn btn-primary w-full">
               {t.t("home.start")}
             </a>

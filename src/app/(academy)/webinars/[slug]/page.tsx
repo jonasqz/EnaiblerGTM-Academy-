@@ -1,4 +1,4 @@
-import { CalendarPlus, CircleCheck, Clock, ExternalLink, Video } from "lucide-react";
+import { CalendarDays, CalendarPlus, CircleCheck, Clock, ExternalLink, Video } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -20,6 +20,7 @@ import {
   isEmptyEntryContext,
   parseEntryParams,
 } from "@/core/entry/context";
+import { localize } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import { isBot } from "@/core/shared/bots";
 import {
@@ -29,6 +30,7 @@ import {
   webinarPhase,
   JOIN_OPENS_MINUTES,
 } from "@/core/webinars/phase";
+import { formatWebinarTime } from "@/core/webinars/time";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
 import { MAGIC_LINK_TTL_MINUTES } from "@/server/auth";
@@ -40,6 +42,7 @@ import {
   type ViewerRegistration,
   type WebinarPage,
 } from "@/server/webinars/public";
+import { seriesOverview, type SeriesOverview } from "@/server/webinars/series";
 
 async function load(slug: string) {
   const tenant = await getTenant();
@@ -175,6 +178,74 @@ function Registered(props: {
   );
 }
 
+/** The series this session belongs to: its sessions, and what registering here does. */
+function SeriesNote(props: {
+  t: Translator;
+  series: SeriesOverview;
+  current: string;
+  /** The viewer has this session already. */
+  registered: boolean;
+}) {
+  const { t, series } = props;
+  const course = localize(series.course.title, t.locale);
+  const count = series.sessions.filter((session) => session.status !== "cancelled").length;
+  return (
+    <div className="space-y-3 rounded-card border border-line p-4 text-sm">
+      <p className="flex items-start gap-2 font-semibold">
+        <CalendarDays aria-hidden size={18} className="mt-0.5 shrink-0" />
+        {t.t("webinar.series.title", { course })}
+      </p>
+      {!series.enrolled && !props.registered && <p>{t.t("webinar.series.body", { n: count })}</p>}
+      <ol className="space-y-1">
+        {series.sessions.map((session) => (
+          <li
+            key={session.webinarId}
+            className={session.status === "cancelled" ? "line-through" : ""}
+          >
+            {session.webinarId === props.current ? (
+              <span className="font-semibold" lang={session.locale}>
+                {session.title}
+              </span>
+            ) : (
+              <Link href={`/webinars/${session.slug}`} className="underline" lang={session.locale}>
+                {session.title}
+              </Link>
+            )}
+            <span className="text-muted">
+              {" "}
+              ·{" "}
+              {formatWebinarTime(
+                session.startsAt,
+                session.durationMinutes,
+                session.timeZone,
+                t.locale,
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {series.enrolled ? (
+        <p className="space-x-2">
+          <span>{t.t("webinar.series.enrolled")}</span>
+          <Link href={`/courses/${series.course.slug}`} className="font-semibold underline">
+            {t.t("webinar.series.open")}
+          </Link>
+        </p>
+      ) : (
+        props.registered && (
+          // Registered before the session joined a series: the course is one step away.
+          <a
+            href={`/start?${entryQuery({ course: series.course.slug })}`}
+            className="btn btn-secondary btn-sm"
+          >
+            {t.t("webinar.series.start")}
+          </a>
+        )
+      )}
+    </div>
+  );
+}
+
 /**
  * A webinar's landing page (webinar brief §2.2): the academy's theme, the
  * blocks the authors chose, the time in the webinar's zone and the viewer's,
@@ -305,6 +376,17 @@ export default async function WebinarPageView({
           ctx={isEmptyEntryContext(entry) ? null : encodeEntryContext(entry)}
           privacyUrl={tenant.settings.legal_links.privacy}
         />
+      </div>
+    );
+  }
+
+  // A session of a series (webinar brief §2.7): registering here starts the whole course.
+  const series = await seriesOverview(getDb(), tenant.id, webinar, session?.viewer.userId ?? null);
+  if (series && webinar.status !== "cancelled") {
+    register = (
+      <div className="space-y-5">
+        <SeriesNote t={t} series={series} current={webinar.id} registered={active !== null} />
+        {register}
       </div>
     );
   }

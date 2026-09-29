@@ -1,12 +1,14 @@
-import { ArrowLeft, Circle, CircleCheck, Hammer, ListChecks } from "lucide-react";
+import { ArrowLeft, CalendarDays, Circle, CircleCheck, Hammer, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { completeLessonAction } from "@/app/(academy)/courses/[slug]/actions";
+import { SessionPanel } from "@/app/(academy)/courses/[slug]/learn/[key]/session-panel";
 import { KnowledgeCheck } from "@/components/knowledge-check";
 import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { MediaBlock } from "@/components/media/media-block";
 import { Markdown } from "@/components/ui/markdown";
+import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { can } from "@/core/access/roles";
 import { requiresTest, requiresWork } from "@/core/courses/completion";
@@ -21,8 +23,12 @@ import { checkQuestionsOf, markdownOf, mediaAssetIdsOf } from "@/server/studio/l
 import { getTranslator } from "@/server/request";
 
 /** Lesson player (brief §5): short, resumable, works on a phone. */
-export default async function LessonPage({ params }: PageProps<"/courses/[slug]/learn/[key]">) {
+export default async function LessonPage({
+  params,
+  searchParams,
+}: PageProps<"/courses/[slug]/learn/[key]">) {
   const { slug, key } = await params;
+  const { session: registered } = await searchParams;
   const { tenant, viewer, roles } = await requireViewer(`/courses/${slug}/learn/${key}`);
   const t = await getTranslator();
   const data = await loadLearnerCourse(getDb(), tenant, slug, viewer.userId, t.locale);
@@ -34,14 +40,19 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
   const keys = data.lessons.map((row) => row.key);
   const progressMap = data.enrollment.lessonProgress as LessonProgressMap;
   const progress = courseProgress(keys, progressMap);
-  const { previous } = neighbours(keys, key);
+  const { previous, next } = neighbours(keys, key);
   const done = Boolean(progressMap[key]);
   const body = markdownOf(lesson.blocks);
   // Answer key included: knowledge checks are practice, checked in the browser.
   const questions = checkQuestionsOf(lesson.blocks);
   const mediaIds = mediaAssetIdsOf(lesson.blocks);
-  const videos = await videosById(getDb(), tenant.id, mediaIds);
-  const watched = await progressOf(getDb(), tenant.id, viewer.userId, mediaIds);
+  // A live session (webinar brief §2.5): the webinar is the lesson, its recording comes after.
+  const session = data.sessions.find((row) => row.lessonKey === key) ?? null;
+  const sessionKeys = new Set(data.sessions.map((row) => row.lessonKey));
+  const recordingId = session?.webinar.recordingAssetId ?? null;
+  const videoIds = recordingId ? [...mediaIds, recordingId] : mediaIds;
+  const videos = await videosById(getDb(), tenant.id, videoIds);
+  const watched = await progressOf(getDb(), tenant.id, viewer.userId, videoIds);
   const mediaViewer = { member: roles.length > 0, canEditCourses: can(roles, "courses.edit") };
   const courseTitle = localize(data.course.title, data.locale, [tenant.settings.default_locale]);
 
@@ -62,6 +73,12 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
                   size={16}
                   className="shrink-0"
                   style={{ color: "var(--status-good)" }}
+                />
+              ) : sessionKeys.has(row.key) ? (
+                <CalendarDays
+                  aria-label={t.t("session.eyebrow")}
+                  size={16}
+                  className="shrink-0 text-muted"
                 />
               ) : (
                 <Circle aria-hidden size={16} className="shrink-0 text-muted" />
@@ -129,10 +146,42 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
 
       <article className="card min-w-0 p-6 sm:p-10">
         <p className="eyebrow">
+          {session ? `${t.t("session.eyebrow")} · ` : ""}
           {t.term("lesson")} {keys.indexOf(key) + 1} / {keys.length}
         </p>
         <h1 className="mt-2 font-display text-3xl leading-tight">{lesson.title}</h1>
+        {session && registered === "registered" && (
+          <div className="mt-4">
+            <Notice tone="good" title={t.t("session.registered")} />
+          </div>
+        )}
+        {session && registered === "closed" && (
+          <div className="mt-4">
+            <Notice tone="warning" title={t.t("session.closed")} />
+          </div>
+        )}
+        {session && (
+          <div className="mt-6">
+            <SessionPanel
+              t={t}
+              session={session}
+              courseSlug={slug}
+              lessonKey={key}
+              academy={tenant.settings.author_display_name}
+              requirement={data.sessionRequirement}
+              watchedPercent={tenant.settings.video.watched_percent}
+              recording={recordingId ? videos.get(recordingId) : undefined}
+              // Learners of the series count as signed up for each of its sessions.
+              viewer={{ ...mediaViewer, signedUp: true }}
+              progress={recordingId ? (watched.get(recordingId) ?? null) : null}
+              now={new Date()}
+            />
+          </div>
+        )}
         <div className="mt-6 space-y-8">
+          {session && body.trim() && (
+            <h2 className="font-display text-xl">{t.t("session.preparation")}</h2>
+          )}
           {mediaIds.map((id) => (
             <MediaBlock
               key={id}
@@ -144,7 +193,7 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
           ))}
           {body.trim() ? (
             <Markdown source={body} />
-          ) : mediaIds.length === 0 ? (
+          ) : mediaIds.length === 0 && !session ? (
             <p className="text-muted">{t.t("lesson.empty")}</p>
           ) : null}
         </div>
@@ -164,13 +213,37 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
           ) : (
             <span />
           )}
-          <form action={completeLessonAction}>
-            <input type="hidden" name="slug" value={slug} />
-            <input type="hidden" name="key" value={key} />
-            <button type="submit" className="btn btn-primary">
-              {done ? t.t("lesson.next") : t.t("lesson.markDone")} →
-            </button>
-          </form>
+          {session ? (
+            // A session is done by being there or watching it: no button marks it.
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {!done && (
+                <p className="max-w-sm text-sm text-muted">
+                  {t.t(
+                    data.sessionRequirement.rule === "attended"
+                      ? "session.doneAutoLive"
+                      : "session.doneAuto",
+                  )}
+                </p>
+              )}
+              {next ? (
+                <Link href={`/courses/${slug}/learn/${next}`} className="btn btn-primary">
+                  {t.t("lesson.next")} →
+                </Link>
+              ) : (
+                <Link href={`/courses/${slug}`} className="btn btn-primary">
+                  {courseTitle} →
+                </Link>
+              )}
+            </div>
+          ) : (
+            <form action={completeLessonAction}>
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="key" value={key} />
+              <button type="submit" className="btn btn-primary">
+                {done ? t.t("lesson.next") : t.t("lesson.markDone")} →
+              </button>
+            </form>
+          )}
         </div>
       </article>
     </div>

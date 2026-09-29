@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { DetailsForm } from "@/app/studio/courses/[courseId]/details/details-form";
+import { DEFAULT_CATCH_UP_DAYS } from "@/core/courses/sessions";
 import { isLocale } from "@/core/i18n/locales";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
@@ -43,6 +44,22 @@ export default async function DetailsPage({
           work: endingIssues(editor, "work").length === 0,
           test: endingIssues(editor, "test").length === 0,
         }}
+        sessions={
+          // Offered once the course has sessions (and kept in sight while it still asks for them).
+          editor.sessions.length > 0 || course.sessionRule !== "none"
+            ? {
+                count: editor.sessions.filter((session) => session.webinar.status !== "cancelled")
+                  .length,
+                rule: course.sessionRule,
+                // A window saved as "no limit" shows empty; choosing recordings anew starts at 7 days.
+                catchUpDays:
+                  course.sessionRule === "attended_or_watched"
+                    ? String(course.catchUpDays ?? "")
+                    : String(DEFAULT_CATCH_UP_DAYS),
+                watchedPercent: tenant.settings.video.watched_percent,
+              }
+            : null
+        }
       />
     </div>
   );

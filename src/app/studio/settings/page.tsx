@@ -20,6 +20,7 @@ export default async function AcademySettingsPage() {
       legalLinks={settings.legal_links}
       features={settings.features}
       videoWatchedPercent={settings.video.watched_percent}
+      lateSubmissions={settings.assignments.late_submissions}
     />
   );
 }

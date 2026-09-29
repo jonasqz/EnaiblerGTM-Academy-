@@ -18,6 +18,7 @@ import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor } from "@/server/studio/courses";
 import { courseStats } from "@/server/studio/insights";
+import { courseSessionNumbers } from "@/server/studio/sessions";
 import { sharingNumbers } from "@/server/studio/sharing";
 import { getStudioText } from "@/server/studio-text";
 
@@ -38,6 +39,7 @@ export default async function StudioCoursePage({
   const editor = await getCourseEditor(tenant.id, courseId);
   if (!editor) notFound();
   const stats = await courseStats(getDb(), tenant.id, courseId);
+  const sessions = await courseSessionNumbers(getDb(), tenant.id, courseId);
   const sharing = await sharingNumbers(getDb(), tenant.id, {
     ...periodWindow(DEFAULT_PERIOD),
     courseId,
@@ -331,6 +333,70 @@ export default async function StudioCoursePage({
           {showSharing && <CourseSharingCard t={t} summary={sharing} days={DEFAULT_PERIOD} />}
         </div>
       </div>
+
+      {sessions.length > 0 && (
+        <section aria-labelledby="sessions-heading" className="card-flat space-y-4 p-5">
+          <div>
+            <h2 id="sessions-heading" className="text-lg font-semibold">
+              {t.t("series.sessions.title")}
+            </h2>
+            <p className="text-sm text-muted">{t.t("series.sessions.intro")}</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-muted">
+                  <th scope="col" className="py-2 pr-3 font-semibold">
+                    {t.t("series.sessions.session")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">
+                    {t.t("series.sessions.registered")}
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">
+                    {t.t("series.sessions.attended")}
+                  </th>
+                  <th scope="col" className="py-2 pl-3 text-right font-semibold">
+                    {t.t("series.sessions.watched")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {sessions.map((session) => (
+                  <tr key={session.webinarId}>
+                    <td className="py-2.5 pr-3">
+                      <Link
+                        href={`/studio/webinars/${session.webinarId}` as Route}
+                        className="font-semibold hover:underline"
+                      >
+                        {session.title}
+                      </Link>
+                      <span className="block text-xs text-muted">
+                        {t.date(session.startsAt, "dateTime")}
+                        {session.status !== "published" &&
+                          ` · ${t.t(`series.sessions.${session.status}`)}`}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {t.number(session.registered)}
+                      {session.waitlist > 0 && (
+                        <span className="block text-xs text-muted">
+                          +{t.number(session.waitlist)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {t.number(session.attended)}
+                    </td>
+                    <td className="py-2.5 pl-3 text-right tabular-nums">
+                      {t.number(session.watched)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

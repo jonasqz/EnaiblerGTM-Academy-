@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { saveDetailsAction, type FormState } from "@/app/studio/actions";
 import { CompletionModeChoice } from "@/components/studio/completion-mode-choice";
+import { SessionRuleChoice } from "@/components/studio/session-rule-choice";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
 import { Notice } from "@/components/ui/notice";
@@ -18,6 +19,7 @@ import {
   requiresWork,
   type CompletionMode,
 } from "@/core/courses/completion";
+import { isSessionRule, type SessionRule } from "@/core/courses/sessions";
 import type { Locale, LocalizedText } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 
@@ -40,16 +42,29 @@ export interface DetailsFormProps {
   aiReview: boolean;
   /** Whether the work and the test are ready for learners (no checklist errors). */
   ready: { work: boolean; test: boolean };
+  /** A series: what the certificate asks of its sessions; null for a course without any. */
+  sessions: {
+    count: number;
+    rule: SessionRule;
+    /** The window field's start: the saved days, "" for no limit. */
+    catchUpDays: string;
+    /** The academy's threshold for a watched recording. */
+    watchedPercent: number;
+  } | null;
 }
 
 export function DetailsForm(props: DetailsFormProps) {
   const t = useStudioText();
   const [completionMode, setCompletionMode] = useState(props.completionMode);
   const [savedMode, setSavedMode] = useState(props.completionMode);
+  const [sessionRule, setSessionRule] = useState<SessionRule>(props.sessions?.rule ?? "none");
+  const [savedRule, setSavedRule] = useState<SessionRule>(props.sessions?.rule ?? "none");
   const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
     const result = await saveDetailsAction(previous, formData);
     const saved = formData.get("completionMode");
     if (result.ok && isCompletionMode(saved)) setSavedMode(saved);
+    const rule = formData.get("sessionRule");
+    if (result.ok && isSessionRule(rule)) setSavedRule(rule);
     return result;
   }, {});
   // What the chosen ending adds and is not ready yet: a live course cannot switch until it is.
@@ -138,11 +153,20 @@ export function DetailsForm(props: DetailsFormProps) {
           </Notice>
         ) : (
           props.published &&
-          completionMode !== savedMode && (
+          (completionMode !== savedMode || sessionRule !== savedRule) && (
             <Notice tone="warning" title={t.t("courses.completion.liveTitle")}>
               {t.t("courses.completion.liveBody")}
             </Notice>
           )
+        )}
+        {props.sessions && (
+          <SessionRuleChoice
+            count={props.sessions.count}
+            value={sessionRule}
+            onChange={setSessionRule}
+            catchUpDays={props.sessions.catchUpDays}
+            watchedPercent={props.sessions.watchedPercent}
+          />
         )}
       </section>
 

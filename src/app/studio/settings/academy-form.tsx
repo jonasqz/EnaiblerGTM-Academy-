@@ -8,6 +8,7 @@ import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
+import { LATE_SUBMISSIONS, type LateSubmissions } from "@/core/assignments/deadline";
 import type { Locale } from "@/core/i18n/locales";
 import { languageName } from "@/core/i18n/studio/helpers";
 import type { Features } from "@/core/tenant/manifest";
@@ -28,6 +29,8 @@ export function AcademyForm(props: {
   features: Features;
   /** A video counts as watched once this share of it was played. */
   videoWatchedPercent: number;
+  /** Whether homework is still taken after its deadline. */
+  lateSubmissions: LateSubmissions;
 }) {
   const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(saveAcademySettingsAction, {});
@@ -225,6 +228,36 @@ export function AcademyForm(props: {
             {t.t("media.settings.thresholdHint")}
           </p>
         </div>
+      </section>
+
+      <section aria-labelledby="homework-heading" className="card-flat space-y-4 p-5 sm:p-6">
+        <h2 id="homework-heading" className="scroll-mt-6 text-lg font-semibold">
+          {t.t("series.settings.title")}
+        </h2>
+        <fieldset className="field">
+          <legend className="label mb-1.5">{t.t("series.settings.late")}</legend>
+          <div className="grid gap-2 md:grid-cols-2">
+            {LATE_SUBMISSIONS.map((policy) => (
+              <label key={policy} className="flex gap-3 rounded-control border border-line p-3">
+                <input
+                  type="radio"
+                  name="lateSubmissions"
+                  value={policy}
+                  defaultChecked={props.lateSubmissions === policy}
+                  className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+                />
+                <span>
+                  <span className="block text-sm font-semibold">
+                    {t.t(`series.settings.late.${policy}`)}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {t.t(`series.settings.late.${policy}Hint`)}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </section>
 
       <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-line bg-surface/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-card sm:border">

@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowUp,
   BookOpen,
+  CalendarDays,
   CircleCheck,
   Hourglass,
   Plus,
@@ -34,6 +35,7 @@ import { loadSourceCoverage } from "@/server/authoring/source-coverage";
 import { listSources } from "@/server/authoring/sources";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { publishCheckFor, type CourseEditor } from "@/server/studio/courses";
+import { webinarIdOf } from "@/server/courses/sessions";
 import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
@@ -269,7 +271,18 @@ export default async function LessonsPage({
                   {rows.map((row, index) => (
                     <tr key={row.key}>
                       <td className="text-muted tabular-nums">{index + 1}</td>
-                      <td className="min-w-48 font-semibold">{titleOf(row)}</td>
+                      <td className="min-w-48 font-semibold">
+                        {titleOf(row)}
+                        {[...row.byLocale.values()].some((lesson) =>
+                          webinarIdOf(lesson.blocks),
+                        ) && (
+                          <span className="ml-2 align-middle">
+                            <Badge tone="info" icon={CalendarDays}>
+                              {t.t("series.lesson.badge")}
+                            </Badge>
+                          </span>
+                        )}
+                      </td>
                       {languages.map((locale) => {
                         const lesson = row.byLocale.get(locale);
                         if (!lesson) {
@@ -290,10 +303,11 @@ export default async function LessonsPage({
                             </td>
                           );
                         }
-                        // A knowledge check alone is content too.
+                        // A knowledge check alone is content too, and so is a live session.
                         const empty =
                           !markdownOf(lesson.blocks).trim() &&
-                          checkQuestionsOf(lesson.blocks).length === 0;
+                          checkQuestionsOf(lesson.blocks).length === 0 &&
+                          !webinarIdOf(lesson.blocks);
                         const attention = empty || lesson.flaggedAt !== null;
                         return (
                           <td key={locale} className="whitespace-nowrap">

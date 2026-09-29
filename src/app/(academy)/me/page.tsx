@@ -1,6 +1,7 @@
 import {
   Award,
   BookOpen,
+  CalendarDays,
   CalendarX,
   CircleCheck,
   Clock,
@@ -163,7 +164,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           />
         ) : (
           <ul className="card-flat divide-y divide-line">
-            {me.courses.map(({ course, enrollment, progress, next }) => {
+            {me.courses.map(({ course, enrollment, progress, next, nextSession }) => {
               const title = localize(course.title, t.locale, fallback);
               const nextLabel =
                 next.kind === "lesson"
@@ -196,6 +197,22 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
                           {t.t("course.progress", { done: progress.done, total: progress.total })}
                         </p>
                       </>
+                    )}
+                    {!enrollment.completedAt && nextSession && (
+                      <Link
+                        href={`/courses/${course.slug}/learn/${nextSession.lessonKey}`}
+                        className="flex items-center gap-1.5 text-sm hover:underline"
+                      >
+                        <CalendarDays aria-hidden size={14} className="shrink-0" />
+                        {t.t("series.next", {
+                          time: formatWebinarTime(
+                            nextSession.webinar.startsAt,
+                            nextSession.webinar.durationMinutes,
+                            nextSession.webinar.timeZone,
+                            t.locale,
+                          ),
+                        })}
+                      </Link>
                     )}
                   </div>
                   {enrollment.completedAt ? (

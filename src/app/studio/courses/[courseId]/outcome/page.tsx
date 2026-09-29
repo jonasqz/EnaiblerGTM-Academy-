@@ -10,10 +10,11 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { requiresWork } from "@/core/courses/completion";
 import { isLocale } from "@/core/i18n/locales";
 import { rubricSchema } from "@/core/review/rubric";
+import { utcToZonedInput } from "@/core/webinars/time";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { getTranslator } from "@/server/request";
-import { getStudioText } from "@/server/studio-text";
+import { getStudioText, studioTimeZone } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getStudioText();
@@ -81,6 +82,13 @@ export default async function OutcomePage({
         artifactTerm={learnerText.term("artifact")}
         lessonCount={editor.lessons.length}
         aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
+        deadline={{
+          ...(assignment.dueAt
+            ? utcToZonedInput(assignment.dueAt, studioTimeZone())
+            : { date: "", time: "" }),
+          zone: studioTimeZone(),
+          refusesLate: tenant.settings.assignments.late_submissions === "refused",
+        }}
       />
     </div>
   );
