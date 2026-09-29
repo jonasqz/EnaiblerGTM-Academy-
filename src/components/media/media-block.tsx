@@ -7,6 +7,7 @@ import type { WatchResult } from "@/components/media/use-watch-reporting";
 import { isLocale, SUPPORTED_LOCALES, type Locale } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import { canWatch, tracksViewer, type MediaViewer } from "@/core/media/access";
+import { isExternalVideo } from "@/core/media/embeds";
 import type { MediaAsset } from "@/server/media/library";
 
 /** Caption languages go by their own names, as every player lists them. */
@@ -59,7 +60,8 @@ export function MediaBlock(props: {
   const progress = props.progress
     ? { percent: props.progress.percent, watched: props.progress.watched }
     : null;
-  if (asset.kind === "external_embed" && asset.embed) {
+  // Checked again here: the id ends up in the address of a third-party frame.
+  if (asset.kind === "external_embed" && isExternalVideo(asset.embed)) {
     return (
       <ExternalVideo
         assetId={asset.id}

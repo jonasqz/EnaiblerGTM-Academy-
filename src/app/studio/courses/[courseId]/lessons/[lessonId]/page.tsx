@@ -139,8 +139,12 @@ export default async function LessonEditorPage({
           checkLabels={knowledgeCheckLabels(tenantTranslator(tenant, locale))}
           video={{
             selected: mediaAssetIdsOf(lesson.blocks)[0] ?? "",
+            // A failed video is no choice, unless the lesson already shows it.
             options: videos
-              .filter((video) => video.status !== "failed")
+              .filter(
+                (video) =>
+                  video.status !== "failed" || mediaAssetIdsOf(lesson.blocks).includes(video.id),
+              )
               .map((video) => ({
                 id: video.id,
                 title: video.title,

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   hlsContentType,
   isHlsPath,
-  isRunId,
   parseProbe,
   posterTime,
   renditionLadder,
@@ -130,7 +129,5 @@ describe("serving", () => {
     expect(hlsContentType("720p/seg-00001.m4s")).toBe("video/iso.segment");
     expect(hlsContentType("720p/init_1.mp4")).toBe("video/mp4");
     expect(hlsContentType("poster.jpg")).toBe("image/jpeg");
-    expect(isRunId("rk3j2h1g0f")).toBe(true);
-    expect(isRunId("../r1")).toBe(false);
   });
 });

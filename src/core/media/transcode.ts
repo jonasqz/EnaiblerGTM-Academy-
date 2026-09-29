@@ -185,10 +185,3 @@ export function hlsContentType(path: string): string {
   if (path.endsWith(".vtt")) return "text/vtt; charset=utf-8";
   return "application/octet-stream";
 }
-
-/** A run of the transcoder writes its own folder, so a retry never mixes with what is served. */
-const RUN = /^r[0-9a-z]{6,24}$/;
-
-export function isRunId(value: string): boolean {
-  return RUN.test(value);
-}
