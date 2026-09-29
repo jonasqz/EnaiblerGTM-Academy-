@@ -239,6 +239,13 @@
       "when": 1790643948256,
       "tag": "0033_force_rls_source_coverage",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790644233482,
+      "tag": "0034_lesson_draft_outline",
+      "breakpoints": true
     }
   ]
 }

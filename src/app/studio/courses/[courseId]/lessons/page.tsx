@@ -21,9 +21,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
+import type { OutlineRecord } from "@/core/authoring/outline";
 import { requiresWork } from "@/core/courses/completion";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
 import { jobErrorText, languageName } from "@/core/i18n/studio/helpers";
+import type { StudioText } from "@/core/i18n/studio/translator";
 import { rubricSchema } from "@/core/review/rubric";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
@@ -41,6 +43,52 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type LessonRow = CourseEditor["lessons"][number];
+
+/** How several recordings were merged before drafting (core/authoring/outline), for review. */
+function OutlineDetails(props: { outline: OutlineRecord; t: StudioText }) {
+  const { outline, t } = props;
+  const summary = [
+    t.t("drafts.outline.merged", { n: outline.recordings }),
+    t.n("drafts.outline.topics", outline.topics.length),
+    ...(outline.duplicates.length > 0
+      ? [t.n("drafts.outline.duplicates", outline.duplicates.length)]
+      : []),
+    ...(outline.by === "rules" ? [t.t("drafts.outline.byRules")] : []),
+  ].join(" · ");
+  return (
+    <details className="text-sm">
+      <summary className="cursor-pointer text-muted">{summary}</summary>
+      <div className="mt-2 grid gap-4 md:grid-cols-2">
+        <div>
+          <p className="font-semibold">{t.t("drafts.outline.topicsHeading")}</p>
+          <ol className="list-decimal space-y-1 pl-5">
+            {outline.topics.map((topic, index) => (
+              <li key={index}>
+                {topic.title}
+                <span className="block text-xs text-muted">{topic.chapters.join(" · ")}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        {outline.duplicates.length > 0 && (
+          <div>
+            <p className="font-semibold">{t.t("drafts.outline.duplicatesHeading")}</p>
+            <ul className="list-disc space-y-1 pl-5 text-xs text-muted">
+              {outline.duplicates.map((duplicate, index) => (
+                <li key={index}>
+                  {t.t("drafts.outline.sameAs", {
+                    chapter: duplicate.chapter,
+                    sameAs: duplicate.sameAs,
+                  })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
 
 export default async function LessonsPage({
   params,
@@ -127,26 +175,29 @@ export default async function LessonsPage({
               {introAfter}
             </p>
             {runs.slice(0, 3).map((run) => (
-              <p key={run.id} className="flex flex-wrap items-center gap-2 text-sm">
-                {run.status === "done" ? (
-                  <Badge tone="good" icon={CircleCheck}>
-                    {t.n("lessons.draft.added", run.lessonIds.length)}
-                  </Badge>
-                ) : run.status === "failed" ? (
-                  <Badge tone="critical" icon={TriangleAlert}>
-                    {t.t("lessons.draft.failed")}
-                  </Badge>
-                ) : (
-                  <Badge tone="info" icon={Hourglass}>
-                    {t.t("lessons.draft.drafting")}
-                  </Badge>
-                )}
-                <span className="text-muted">
-                  {languageName(t, run.locale)} · {t.date(run.createdAt, "dateTime")}
-                  {run.error ? ` · ${jobErrorText(t, run.error)}` : ""}
-                  {run.notes.length > 0 ? ` · ${run.notes.join(" ")}` : ""}
-                </span>
-              </p>
+              <div key={run.id} className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm">
+                  {run.status === "done" ? (
+                    <Badge tone="good" icon={CircleCheck}>
+                      {t.n("lessons.draft.added", run.lessonIds.length)}
+                    </Badge>
+                  ) : run.status === "failed" ? (
+                    <Badge tone="critical" icon={TriangleAlert}>
+                      {t.t("lessons.draft.failed")}
+                    </Badge>
+                  ) : (
+                    <Badge tone="info" icon={Hourglass}>
+                      {t.t("lessons.draft.drafting")}
+                    </Badge>
+                  )}
+                  <span className="text-muted">
+                    {languageName(t, run.locale)} · {t.date(run.createdAt, "dateTime")}
+                    {run.error ? ` · ${jobErrorText(t, run.error)}` : ""}
+                    {run.notes.length > 0 ? ` · ${run.notes.join(" ")}` : ""}
+                  </span>
+                </p>
+                {run.outline && <OutlineDetails outline={run.outline} t={t} />}
+              </div>
             ))}
           </div>
           <form action={draftLessonsAction} className="flex flex-wrap items-end gap-2">

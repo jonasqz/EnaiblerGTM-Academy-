@@ -13,6 +13,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
+import type { OutlineRecord } from "@/core/authoring/outline";
 import type { CoverageBasis, SourceCoverageEntry } from "@/core/authoring/source-coverage";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
@@ -132,6 +133,8 @@ export const lessonDrafts = pgTable(
     /** Lessons created by this run. */
     lessonIds: uuid("lesson_ids").array().notNull().default([]),
     notes: text("notes").array().notNull().default([]),
+    /** Several recordings merged first (core/authoring/outline): topics and duplicates, for the author. */
+    outline: jsonb("outline").$type<OutlineRecord>(),
     error: text("error"),
     model: text("model"),
     promptVersion: text("prompt_version"),

@@ -10,6 +10,11 @@ import { findTenantById } from "@/db/tenants";
 import { setAiAllowance } from "@/server/ai-allowance";
 import { draftAssignmentFromSources } from "@/server/authoring/assignment-drafting";
 import { draftFaqLesson } from "@/server/authoring/faq";
+import {
+  listLessonDrafts,
+  requestLessonDraft,
+  runLessonDraft,
+} from "@/server/authoring/lesson-drafting";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { draftCheckQuestions, draftTestQuestions } from "@/server/authoring/quiz-drafting";
 import { loadSourceCoverage, mapSourceCoverage } from "@/server/authoring/source-coverage";
@@ -509,6 +514,123 @@ describe.skipIf(!hasDatabase)("webinar → course authoring", () => {
         fakeModel({ source_coverage: { criteria: [] } }, []),
       ),
     ).toEqual({ ok: false, error: "invalid_drafts" });
+  });
+
+  it("merges several webinars into one outline and ends lessons with the chapters' takeaways", async () => {
+    const courseId = await newCourse(["en"]);
+    const intro =
+      "Welcome everyone to this webinar about getting paid on time, let us start with the agenda for today";
+    await recording(courseId, "Webinar 1", [
+      { startSec: 0, endSec: 60, title: "Welcome", text: intro },
+      {
+        startSec: 60,
+        endSec: 400,
+        title: "The first reminder",
+        text: "Send the first reminder three days after the due date, friendly and short.",
+      },
+    ]);
+    await recording(courseId, "Webinar 2", [
+      { startSec: 0, endSec: 70, title: "Hello", text: `${intro}, thanks for joining again` },
+      {
+        startSec: 70,
+        endSec: 500,
+        title: "Late fees",
+        text: "Business clients who pay late owe a flat fee of forty euros plus interest.",
+      },
+    ]);
+    const calls: LlmCallOptions[] = [];
+    const lessonsAnswer = {
+      lessons: [
+        {
+          title: "Remind early, stay friendly",
+          criterion_ids: ["complete"],
+          markdown:
+            "## Why it matters\n\nMost clients simply forgot. A short, friendly reminder three days after the due date gets most invoices paid.",
+          source_refs: ["S1"],
+          takeaways: [
+            {
+              source_ref: "S1",
+              points: ["Remind three days after the due date.", "Keep it friendly."],
+            },
+          ],
+        },
+      ],
+      notes: [],
+    };
+    const model = fakeModel(
+      {
+        course_outline: {
+          topics: [
+            { title: "Reminders", chapter_refs: ["T2"] },
+            { title: "Late fees", chapter_refs: ["T4"] },
+          ],
+          duplicates: [],
+        },
+        lesson_drafts: lessonsAnswer,
+      },
+      calls,
+    );
+    const run = async (llm: AuthoringModel) => {
+      const draftId = await requestLessonDraft(
+        dbs.app.db,
+        tenant.id,
+        { courseId, locale: "en", requestedBy: author },
+        enqueue,
+      );
+      await runLessonDraft(dbs.app.db, tenant.id, draftId, {
+        model: llm,
+        embeddings: null,
+        finalAttempt: true,
+      });
+      return (await listLessonDrafts(dbs.app.db, tenant.id, courseId)).find(
+        (row) => row.id === draftId,
+      )!;
+    };
+
+    const merged = await run(model);
+    expect(merged).toMatchObject({ status: "done" });
+    expect(merged.outline).toEqual({
+      by: "ai",
+      recordings: 2,
+      topics: [
+        { title: "Reminders", chapters: ["Webinar 1 · The first reminder (1:00–6:40)"] },
+        { title: "Late fees", chapters: ["Webinar 2 · Late fees (1:10–8:20)"] },
+        // The model left it out; it is never lost.
+        { title: "Hello", chapters: ["Webinar 2 · Hello (0:00–1:10)"] },
+      ],
+      duplicates: [
+        { chapter: "Webinar 1 · Welcome (0:00–1:00)", sameAs: "Webinar 2 · Hello (0:00–1:10)" },
+      ],
+    });
+    // The repeated welcome never reaches the model; the lessons follow the outline.
+    expect(calls.map((call) => call.jsonSchema?.name)).toEqual(["course_outline", "lesson_drafts"]);
+    expect(promptOf(calls[0])).not.toContain("T1 ·");
+    expect(promptOf(calls[1])).toContain("1. Reminders: S1\n2. Late fees: S2\n3. Hello: S3");
+    expect(promptOf(calls[1])).toContain(
+      "## S1 · Webinar 1 · The first reminder (1:00–6:40) · chapter",
+    );
+
+    const [created] = await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.select().from(lessons).where(eq(lessons.id, merged.lessonIds[0]!)),
+    );
+    expect((created!.blocks[0] as { markdown: string }).markdown).toMatch(
+      /gets most invoices paid\.\n\n## Key takeaways\n\n\*\*Webinar 1 · The first reminder \(1:00–6:40\)\*\*\n\n- Remind three days after the due date\.\n- Keep it friendly\.$/,
+    );
+    expect(
+      (await usageOf(courseId)).filter((row) => row.kind === "lesson_draft").length,
+    ).toBeGreaterThanOrEqual(2);
+
+    // An unusable outline falls back to the order the recordings came in.
+    const fallback = await run(
+      fakeModel(
+        { course_outline: { topics: [], duplicates: [] }, lesson_drafts: lessonsAnswer },
+        [],
+      ),
+    );
+    expect(fallback.outline).toMatchObject({
+      by: "rules",
+      topics: [{ title: "The first reminder" }, { title: "Hello" }, { title: "Late fees" }],
+    });
   });
 
   it("refuses an FAQ without questions or answers", async () => {

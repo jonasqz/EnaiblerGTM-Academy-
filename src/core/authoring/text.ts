@@ -122,6 +122,16 @@ function terms(text: string): string[] {
   ).filter((term) => !STOP_WORDS.has(term));
 }
 
+/** Share of distinct terms two texts have in common (Jaccard), 0–1. */
+export function termOverlap(a: string, b: string): number {
+  const left = new Set(terms(a));
+  const right = new Set(terms(b));
+  if (left.size === 0 || right.size === 0) return 0;
+  let shared = 0;
+  for (const term of left) if (right.has(term)) shared++;
+  return shared / (left.size + right.size - shared);
+}
+
 /**
  * Ranks chunks by how well they match a query (term overlap weighted by
  * rarity). Good enough to pick the source passages for one criterion when no

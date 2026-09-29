@@ -8,8 +8,22 @@ import {
   LESSON_DRAFT_PROMPT_VERSION,
   parseLessonDraft,
   placeKeyframes,
+  takeawaysMarkdown,
   type DraftPassage,
 } from "@/core/authoring/lesson-draft";
+import {
+  buildOutlinePrompt,
+  chapterLabel,
+  chaptersOf,
+  nearDuplicates,
+  OUTLINE_JSON_SCHEMA,
+  OUTLINE_PROMPT_VERSION,
+  outlineByRules,
+  outlineRecord,
+  parseOutline,
+  type Chapter,
+  type Outline,
+} from "@/core/authoring/outline";
 import { rankChunks } from "@/core/authoring/text";
 import { lessonKeyFor } from "@/core/courses/lessons";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
@@ -31,7 +45,8 @@ import {
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
 import { meteredLlm, usageMeter, type UsageMeter } from "@/server/ai-usage";
-import type { AuthoringModel } from "@/server/authoring/model";
+import { askForJson, draftFailure } from "@/server/authoring/drafting";
+import { meteredModel, type AuthoringModel } from "@/server/authoring/model";
 import { embed, type EmbeddingConfig } from "@/server/authoring/speech";
 import type { Enqueue } from "@/server/jobs/producer";
 import { QUEUES } from "@/server/jobs/queues";
@@ -40,7 +55,10 @@ import { QUEUES } from "@/server/jobs/queues";
  * "Draft lessons with AI" (brief §7, step 3). The author asks for drafts in
  * one course language; the worker picks the source passages that fit each
  * criterion, asks the model for lessons that cover the rubric, and adds them
- * to the course as new lessons (version 1) for the author to edit.
+ * to the course as new lessons (version 1) for the author to edit. Several
+ * recordings are merged into one outline first (webinar brief §2.1), kept
+ * on the run for the author to see, and lessons drawn from recording
+ * chapters end with the chapters' key takeaways.
  */
 
 const MAX_LESSONS = 6;
@@ -92,64 +110,106 @@ interface Material {
   sourceOf: Map<string, string>;
   /** Keyframe ref → file. */
   keyframes: Map<string, { fileId: string; caption: string }>;
+  /** Passage ref of a recording chapter → how its takeaways name it. */
+  chapters: Map<string, { label: string }>;
+  /** Several recordings merged: topics in teaching order, as passage refs. */
+  outline: Array<{ title: string; refs: string[] }> | null;
 }
 
-/** Source passages for the prompt: recording topics as they are, other sources by relevance. */
-async function gatherMaterial(
+type ReadySource = typeof sources.$inferSelect;
+
+async function readySources(
   db: Database,
   tenantId: string,
   courseId: string,
-  criteria: ReadonlyArray<{ label: string; description: string }>,
-  embeddings: EmbeddingConfig | null,
-  meter: UsageMeter,
-): Promise<Material> {
-  const material: Material = { passages: [], sourceOf: new Map(), keyframes: new Map() };
-  let budget = PASSAGE_BUDGET;
-  const add = (
-    sourceId: string,
-    source: string,
-    text: string,
-    keyframe?: { fileId: string; caption: string },
-  ) => {
-    const clipped = text.slice(0, PASSAGE_LIMIT);
-    if (budget - clipped.length < 0) return;
-    budget -= clipped.length;
-    const ref = `S${material.passages.length + 1}`;
-    let keyframeRef: DraftPassage["keyframe"];
-    if (keyframe) {
-      const k = `K${material.keyframes.size + 1}`;
-      material.keyframes.set(k, keyframe);
-      keyframeRef = { ref: k, caption: keyframe.caption };
-    }
-    material.passages.push({
-      ref,
-      source,
-      text: clipped,
-      ...(keyframeRef ? { keyframe: keyframeRef } : {}),
-    });
-    material.sourceOf.set(ref, sourceId);
-  };
-
-  const ready = await withTenant(db, tenantId, (tx) =>
+): Promise<ReadySource[]> {
+  return withTenant(db, tenantId, (tx) =>
     tx
       .select()
       .from(sources)
       .where(and(eq(sources.courseId, courseId), eq(sources.status, "ready")))
       .orderBy(asc(sources.createdAt)),
   );
+}
 
-  for (const source of ready.filter((row) => row.kind === "recording")) {
-    for (const topic of source.transcript ?? []) {
-      add(
-        source.id,
-        `${source.title}${topic.title ? ` · ${topic.title}` : ""}`,
-        topic.text,
-        topic.keyframeFileId
-          ? { fileId: topic.keyframeFileId, caption: topic.title ?? source.title }
-          : undefined,
-      );
+/**
+ * Source passages for the prompt: recording chapters in teaching order (the
+ * outline's when several recordings were merged), other sources by relevance.
+ */
+async function gatherMaterial(
+  db: Database,
+  tenantId: string,
+  ready: readonly ReadySource[],
+  plan: { chapters: readonly Chapter[]; outline: Outline | null },
+  criteria: ReadonlyArray<{ label: string; description: string }>,
+  embeddings: EmbeddingConfig | null,
+  meter: UsageMeter,
+): Promise<Material> {
+  const material: Material = {
+    passages: [],
+    sourceOf: new Map(),
+    keyframes: new Map(),
+    chapters: new Map(),
+    outline: null,
+  };
+  let budget = PASSAGE_BUDGET;
+  const add = (
+    sourceId: string,
+    source: string,
+    text: string,
+    extra: { keyframe?: { fileId: string; caption: string }; chapter?: boolean } = {},
+  ): string | null => {
+    const clipped = text.slice(0, PASSAGE_LIMIT);
+    if (budget - clipped.length < 0) return null;
+    budget -= clipped.length;
+    const ref = `S${material.passages.length + 1}`;
+    let keyframeRef: DraftPassage["keyframe"];
+    if (extra.keyframe) {
+      const k = `K${material.keyframes.size + 1}`;
+      material.keyframes.set(k, extra.keyframe);
+      keyframeRef = { ref: k, caption: extra.keyframe.caption };
     }
+    material.passages.push({
+      ref,
+      source,
+      text: clipped,
+      ...(keyframeRef ? { keyframe: keyframeRef } : {}),
+      ...(extra.chapter ? { chapter: true } : {}),
+    });
+    material.sourceOf.set(ref, sourceId);
+    return ref;
+  };
+
+  const byRef = new Map(plan.chapters.map((chapter) => [chapter.ref, chapter]));
+  const ordered = plan.outline
+    ? plan.outline.topics.flatMap((topic) => topic.refs.flatMap((ref) => byRef.get(ref) ?? []))
+    : plan.chapters;
+  const passageOf = new Map<string, string>();
+  for (const chapter of ordered) {
+    const label = chapterLabel(chapter);
+    const ref = add(chapter.sourceId, label, chapter.text, {
+      chapter: true,
+      ...(chapter.keyframeFileId
+        ? {
+            keyframe: {
+              fileId: chapter.keyframeFileId,
+              caption: chapter.title ?? chapter.sourceTitle,
+            },
+          }
+        : {}),
+    });
+    if (!ref) continue;
+    passageOf.set(chapter.ref, ref);
+    material.chapters.set(ref, { label });
   }
+  material.outline = plan.outline
+    ? plan.outline.topics
+        .map((topic) => ({
+          title: topic.title,
+          refs: topic.refs.flatMap((ref) => passageOf.get(ref) ?? []),
+        }))
+        .filter((topic) => topic.refs.length > 0)
+    : null;
 
   const others = ready.filter((row) => row.kind !== "recording");
   if (others.length === 0) return material;
@@ -289,10 +349,39 @@ export async function runLessonDraft(
     description: localize(criterion.description, locale, fallback),
   }));
   const scope = { tenantId, courseId: run.courseId, refId: draftId };
+  const ready = await readySources(db, tenantId, run.courseId);
+  const recordings = ready.filter((row) => row.kind === "recording");
+  const chapters = chaptersOf(recordings);
+  let outline: Outline | null = null;
+  if (recordings.length > 1) {
+    // Several webinars → one course: merge their chapters before drafting.
+    const duplicates = nearDuplicates(chapters);
+    const shown = chapters.filter((chapter) => !duplicates.has(chapter.ref));
+    try {
+      outline = await askForJson(meteredModel(db, deps.model, { ...scope, kind: "lesson_draft" }), {
+        prompt: buildOutlinePrompt({ chapters: shown, criteria, nonce: randomUUID() }),
+        jsonSchema: { ...OUTLINE_JSON_SCHEMA, schema: { ...OUTLINE_JSON_SCHEMA.schema } },
+        purpose: "course-outline",
+        promptVersion: OUTLINE_PROMPT_VERSION,
+        temperature: 0.2,
+        maxTokens: 3_000,
+        parse: (content) => parseOutline(content, shown, duplicates),
+      });
+    } catch (error) {
+      const code = draftFailure(error, "course-outline");
+      // Not this month; anything else, the order the recordings came in will do.
+      if (code === "ai_allowance_used_up") {
+        await fail(code);
+        return;
+      }
+    }
+    outline ??= outlineByRules(chapters, duplicates);
+  }
   const material = await gatherMaterial(
     db,
     tenantId,
-    run.courseId,
+    ready,
+    { chapters, outline },
     criteria,
     deps.embeddings,
     usageMeter(db, { ...scope, kind: "embedding" }),
@@ -307,6 +396,7 @@ export async function runLessonDraft(
       .filter((row) => row.locale === locale)
       .map((row) => row.title),
     passages: material.passages,
+    ...(material.outline ? { outline: material.outline } : {}),
     maxLessons: MAX_LESSONS,
     nonce: randomUUID(),
   });
@@ -339,6 +429,7 @@ export async function runLessonDraft(
           criterionIds: criteria.map((criterion) => criterion.id),
           sourceRefs: [...material.sourceOf.keys()],
           keyframeRefs: [...material.keyframes.keys()],
+          chapterRefs: [...material.chapters.keys()],
         },
         MAX_LESSONS,
       );
@@ -376,8 +467,21 @@ export async function runLessonDraft(
           ];
         }),
       );
+      // Named and timed from the chapters themselves, so a time is never the model's guess.
+      const takeaways = takeawaysMarkdown(
+        locale,
+        lesson.takeaways.flatMap((entry) => {
+          const chapter = material.chapters.get(entry.ref);
+          return chapter ? [{ label: chapter.label, points: entry.points }] : [];
+        }),
+      );
       const blocks: LessonBlock[] = [
-        { type: "markdown", markdown: placeKeyframes(lesson.markdown, images) },
+        {
+          type: "markdown",
+          markdown: [placeKeyframes(lesson.markdown, images), takeaways]
+            .filter(Boolean)
+            .join("\n\n"),
+        },
       ];
       const [row] = await tx
         .insert(lessons)
@@ -419,6 +523,7 @@ export async function runLessonDraft(
         status: "done",
         lessonIds: created,
         notes: drafted.notes,
+        outline: outline ? outlineRecord(outline, chapters) : null,
         model,
         promptVersion: LESSON_DRAFT_PROMPT_VERSION,
         tokensIn,

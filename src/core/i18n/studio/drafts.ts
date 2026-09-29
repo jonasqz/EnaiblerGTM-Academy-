@@ -72,6 +72,17 @@ export const en = {
   "drafts.coverage.sources": "Sources: {sections}",
   "drafts.coverage.noSources": "Add a source first; this check reads the sources that are ready.",
 
+  // Several recordings merged before drafting lessons
+  "drafts.outline.merged": "Outline from {n} recordings",
+  "drafts.outline.topics.one": "{n} topic",
+  "drafts.outline.topics.other": "{n} topics",
+  "drafts.outline.duplicates.one": "{n} repeated chapter left out",
+  "drafts.outline.duplicates.other": "{n} repeated chapters left out",
+  "drafts.outline.byRules": "in the order the recordings were added",
+  "drafts.outline.topicsHeading": "Topics in teaching order",
+  "drafts.outline.duplicatesHeading": "Left out as repeats",
+  "drafts.outline.sameAs": "{chapter}, same as {sameAs}",
+
   // Knowledge-check questions
   "drafts.check.run": "Draft questions from this lesson",
   "drafts.check.running": "Drafting…",
@@ -153,6 +164,16 @@ export const de: Record<keyof typeof en, string> = {
   "drafts.coverage.sources": "Quellen: {sections}",
   "drafts.coverage.noSources":
     "Füge zuerst eine Quelle hinzu; die Prüfung liest die Quellen, die fertig gelesen sind.",
+
+  "drafts.outline.merged": "Gliederung aus {n} Aufnahmen",
+  "drafts.outline.topics.one": "{n} Thema",
+  "drafts.outline.topics.other": "{n} Themen",
+  "drafts.outline.duplicates.one": "{n} wiederholtes Kapitel weggelassen",
+  "drafts.outline.duplicates.other": "{n} wiederholte Kapitel weggelassen",
+  "drafts.outline.byRules": "in der Reihenfolge, in der die Aufnahmen hinzugefügt wurden",
+  "drafts.outline.topicsHeading": "Themen in Lernreihenfolge",
+  "drafts.outline.duplicatesHeading": "Als Wiederholung weggelassen",
+  "drafts.outline.sameAs": "{chapter}, wie {sameAs}",
 
   "drafts.check.run": "Fragen aus dieser Lektion entwerfen",
   "drafts.check.running": "Wird entworfen…",
