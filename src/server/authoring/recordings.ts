@@ -41,7 +41,7 @@ import { QUEUES } from "@/server/jobs/queues";
 
 export type NextJob = <Q extends QueueName>(name: Q, data: JobPayloads[Q]) => Promise<void>;
 
-async function topicsFromModel(
+export async function topicsFromModel(
   model: AuthoringModel,
   segments: readonly TimedText[],
   locale: Locale,
@@ -65,6 +65,17 @@ async function topicsFromModel(
     console.warn("[authoring] topic segmentation failed; grouping by time", error);
     return null;
   }
+}
+
+/** Whisper's segments as stored: times to the millisecond, empty ones dropped. */
+export function fineSegments(segments: readonly TimedText[]): TimedText[] {
+  return segments
+    .filter((segment) => segment.text.trim() && segment.end > segment.start)
+    .map((segment) => ({
+      start: Math.round(segment.start * 1000) / 1000,
+      end: Math.round(segment.end * 1000) / 1000,
+      text: segment.text.trim(),
+    }));
 }
 
 function transcriptText(topics: readonly TranscriptSegment[]): string {
@@ -136,7 +147,8 @@ export async function transcribeRecording(
       ...(topic.title ? { title: topic.title } : {}),
       text: topic.text,
     }));
-    await updateSource(db, tenantId, sourceId, { transcript });
+    // Whisper's own segments too: a video made from this recording captions with them.
+    await updateSource(db, tenantId, sourceId, { transcript, segments: fineSegments(segments) });
     await storeSourceText(db, tenantId, sourceId, transcriptText(transcript));
     if (await hasVideo(input)) await deps.next(QUEUES.keyframes, { tenantId, sourceId });
   } catch (error) {

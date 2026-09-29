@@ -20,6 +20,9 @@ import { sendEmail } from "@/server/email/mailer";
 import { cleanupPendingFiles } from "@/server/files";
 import { QUEUE_OPTIONS, QUEUES, type JobPayloads, type QueueName } from "@/server/jobs/queues";
 import { createLlmCaller } from "@/server/llm";
+import { mediaQuotaDefault } from "@/server/media/quota";
+import { transcodeVideo } from "@/server/media/transcode";
+import { transcribeVideo } from "@/server/media/transcribe";
 import { dispatchNotifications, purgeProcessedNotifications } from "@/server/notifications";
 import { log } from "@/server/observability/log";
 import { reportError } from "@/server/observability/report";
@@ -42,6 +45,8 @@ try {
       "AI_MONTHLY_ALLOWANCE_USD is not set: academies without their own allowance have no limit",
     );
   }
+  // Same for video storage: a mistyped quota is caught here, not at the first upload.
+  mediaQuotaDefault();
 } catch (error) {
   log.error(error instanceof Error ? error.message : String(error), { runtime: "worker" });
   process.exit(1);
@@ -285,6 +290,33 @@ await boss.work(
   }),
 );
 if (!whisperConfig()) log.warn("WHISPER_BASE_URL is not set: recordings are not transcribed");
+
+// Re-live video (webinar brief §6): its own queue, one video at a time, so the
+// review queue never waits behind ffmpeg.
+await boss.work(
+  QUEUES.mediaTranscode,
+  { batchSize: 1, localConcurrency: 1 },
+  reported(QUEUES.mediaTranscode, async (jobs: Job<JobPayloads["media.transcode"]>[]) => {
+    for (const job of jobs) {
+      await transcodeVideo(db, job.data.tenantId, job.data.assetId, {
+        finalAttempt: finalTry(job, QUEUES.mediaTranscode),
+      });
+    }
+  }),
+);
+await boss.work(
+  QUEUES.mediaTranscribe,
+  { batchSize: 1, localConcurrency: 1 },
+  reported(QUEUES.mediaTranscribe, async (jobs: Job<JobPayloads["media.transcribe"]>[]) => {
+    for (const job of jobs) {
+      await transcribeVideo(db, job.data.tenantId, job.data.assetId, {
+        whisper: whisperConfig(),
+        model: authoringModel(),
+        finalAttempt: finalTry(job, QUEUES.mediaTranscribe),
+      });
+    }
+  }),
+);
 
 log.info("worker ready", { queues: Object.keys(QUEUE_OPTIONS) });
 

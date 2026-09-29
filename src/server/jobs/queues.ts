@@ -18,6 +18,8 @@ export const QUEUES = {
   webhooks: "webhooks.dispatch",
   housekeeping: "housekeeping.run",
   sourcesRecheck: "sources.recheck",
+  mediaTranscode: "media.transcode",
+  mediaTranscribe: "media.transcribe",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -42,6 +44,10 @@ export interface JobPayloads {
   "housekeeping.run": Record<string, never>;
   /** Daily, for every academy: web page sources read again; changes flag lessons (brief §7). */
   "sources.recheck": Record<string, never>;
+  /** A video of the media library to HLS renditions and a poster (server/media/transcode.ts). */
+  "media.transcode": { tenantId: string; assetId: string };
+  /** An uploaded video's speech to captions and chapters (server/media/transcribe.ts). */
+  "media.transcribe": { tenantId: string; assetId: string };
 }
 
 export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
@@ -60,4 +66,7 @@ export const QUEUE_OPTIONS: Record<QueueName, Omit<Queue, "name">> = {
   "housekeeping.run": { retryLimit: 1, retryDelay: 600, expireInSeconds: 30 * 60 },
   // A page that is down is simply tried again the next day.
   "sources.recheck": { retryLimit: 0, expireInSeconds: 60 * 60 },
+  // A long webinar in three renditions takes a while; the worker runs one at a time.
+  "media.transcode": { retryLimit: 2, retryDelay: 120, expireInSeconds: 4 * 60 * 60 },
+  "media.transcribe": { retryLimit: 2, retryDelay: 60, expireInSeconds: 60 * 60 },
 };

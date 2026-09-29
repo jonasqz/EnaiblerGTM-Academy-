@@ -5,12 +5,13 @@ import { and, eq } from "drizzle-orm";
 import { can } from "@/core/access/roles";
 import { fileRules } from "@/core/assignments/submission-types";
 import { requiresWork } from "@/core/courses/completion";
-import { FILE_PURPOSES, type FilePurpose } from "@/core/files/policy";
+import { FILE_PURPOSES, PURPOSE_RULES, type FilePurpose } from "@/core/files/policy";
 import { getDb } from "@/db/client";
 import { assignments, courses, credentials, enrollments } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import type { Session } from "@/server/access";
 import type { StoreFileInput } from "@/server/files";
+import { mediaQuotaStatus } from "@/server/media/quota";
 
 /**
  * Who may upload what (the route in app/api/uploads calls this before
@@ -25,9 +26,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type UploadGrant = Pick<
   StoreFileInput,
   "purpose" | "ownerUserId" | "createdBy" | "status" | "maxBytes" | "allowedMimes"
->;
+> & {
+  /** `maxBytes` is what is left of the academy's video storage: too large means over quota. */
+  quotaLimited?: boolean;
+};
 
-export type UploadDenied = { status: 400 | 403 | 404; error: string };
+export type UploadDenied = { status: 400 | 403 | 404 | 413; error: string };
 
 const STUDIO_PURPOSES: Partial<Record<FilePurpose, "courses.edit" | "academy.manage">> = {
   lesson_media: "courses.edit",
@@ -53,6 +57,22 @@ export async function authorizeUpload(
   params: URLSearchParams,
 ): Promise<UploadGrant | UploadDenied> {
   const { tenant, viewer, roles } = session;
+  if (purpose === "video") {
+    if (!can(roles, "courses.edit")) return { status: 403, error: "forbidden" };
+    const quota = await mediaQuotaStatus(getDb(), tenant.id);
+    const left = quota.quotaBytes === null ? null : quota.quotaBytes - quota.usedBytes;
+    if (left !== null && left <= 0) return { status: 413, error: "storage_quota" };
+    return {
+      purpose,
+      createdBy: viewer.userId,
+      // The uploader's until the media library claims it; unclaimed, it is gone after a day.
+      ownerUserId: viewer.userId,
+      status: "pending",
+      ...(left !== null && left < PURPOSE_RULES.video.maxBytes
+        ? { maxBytes: left, quotaLimited: true }
+        : {}),
+    };
+  }
   const studioCapability = STUDIO_PURPOSES[purpose];
   if (studioCapability) {
     if (!can(roles, studioCapability)) return { status: 403, error: "forbidden" };

@@ -17,6 +17,7 @@ import {
   learnerProfiles,
   lessons,
   levelGrants,
+  mediaAssets,
   memberships,
   notifications,
   paths,
@@ -25,6 +26,7 @@ import {
   submissions,
   testAttempts,
   user,
+  watchProgress,
   webhookDeliveries,
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
@@ -281,6 +283,20 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
         })
         .from(events)
         .where(eq(events.userId, userId)),
+      // What they played of each video, as the academy's watch tracking stores it.
+      videos: await tx
+        .select({
+          video: mediaAssets.title,
+          percent: watchProgress.percent,
+          watchedSeconds: watchProgress.watchedSec,
+          playedRanges: watchProgress.ranges,
+          firstWatchedAt: watchProgress.firstWatchedAt,
+          lastWatchedAt: watchProgress.lastWatchedAt,
+          watchedAt: watchProgress.thresholdReachedAt,
+        })
+        .from(watchProgress)
+        .innerJoin(mediaAssets, eq(mediaAssets.id, watchProgress.assetId))
+        .where(eq(watchProgress.userId, userId)),
     };
   });
   return {
@@ -325,6 +341,7 @@ export async function deleteMyData(
     await tx.delete(consents).where(eq(consents.userId, userId));
     await tx.delete(notifications).where(eq(notifications.userId, userId));
     await tx.delete(cohortMembers).where(eq(cohortMembers.userId, userId));
+    await tx.delete(watchProgress).where(eq(watchProgress.userId, userId));
     await tx.delete(webhookDeliveries).where(eq(webhookDeliveries.userId, userId));
     await tx.delete(learnerProfiles).where(eq(learnerProfiles.userId, userId));
     await tx.delete(files).where(eq(files.ownerUserId, userId));
