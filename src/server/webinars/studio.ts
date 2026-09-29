@@ -720,7 +720,7 @@ async function matchAttendance(
   tenantId: string,
   webinarId: string,
   parse: AttendanceParse,
-): Promise<AttendancePreview & { userIds: Map<string, string> }> {
+): Promise<{ preview: AttendancePreview; userIds: Map<string, string> }> {
   const registrants = await tx
     .select({
       id: webinarRegistrations.id,
@@ -768,7 +768,10 @@ async function matchAttendance(
       already: registrant.attended !== null,
     });
   }
-  return { format: parse.format, matched, unmatched, skipped: parse.skipped, userIds };
+  return {
+    preview: { format: parse.format, matched, unmatched, skipped: parse.skipped },
+    userIds,
+  };
 }
 
 /** What a file would change, before anything is saved. */
@@ -778,7 +781,7 @@ export async function previewAttendance(
   webinarId: string,
   parse: AttendanceParse,
 ): Promise<AttendancePreview> {
-  const { userIds: _ignored, ...preview } = await withTenant(db, tenantId, (tx) =>
+  const { preview } = await withTenant(db, tenantId, (tx) =>
     matchAttendance(tx, tenantId, webinarId, parse),
   );
   return preview;
@@ -794,14 +797,14 @@ export async function importAttendance(
   return withTenant(db, tenant.id, async (tx) => {
     const [webinar] = await tx.select().from(webinars).where(eq(webinars.id, webinarId));
     if (!webinar) return null;
-    const preview = await matchAttendance(tx, tenant.id, webinarId, parse);
+    const { preview, userIds } = await matchAttendance(tx, tenant.id, webinarId, parse);
     const source = parse.format === "emails" ? "manual" : "tool_report";
     let added = 0;
     let updated = 0;
     for (const match of preview.matched) {
       const row = parse.rows.find((candidate) => candidate.line === match.line)!;
       const created = await recordAttendance(tx, tenant, webinar, {
-        userId: preview.userIds.get(match.registrationId)!,
+        userId: userIds.get(match.registrationId)!,
         source,
         joinedAt: row.joinedAt,
         leftAt: row.leftAt,

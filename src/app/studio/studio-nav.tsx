@@ -8,6 +8,7 @@ import {
   Settings,
   UsersRound,
   Users,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import type { Route } from "next";
@@ -19,6 +20,7 @@ const ICONS = {
   courses: BookOpen,
   paths: Milestone,
   cohorts: UsersRound,
+  webinars: Video,
   reviews: ClipboardCheck,
   people: Users,
   settings: Settings,

@@ -15,7 +15,6 @@ import type { WebinarSetup } from "@/core/webinars/setup";
 import { createDatabase, type DatabaseHandle } from "@/db/client";
 import {
   consents,
-  courses,
   events,
   memberships,
   notifications,
