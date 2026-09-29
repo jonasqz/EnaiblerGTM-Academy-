@@ -214,7 +214,16 @@ describe("how a credential was earned", () => {
         evidence: ["quiz", "relive"],
         sessionCount: 2,
       }),
-    ).toBe("Final Test passed · Watched all 2 sessions as recordings");
+    ).toBe("Final Test passed · Watched both sessions as recordings");
+    expect(sessionsLine(en, { ...work, evidence: ["attendance", "relive"], sessionCount: 2 })).toBe(
+      "Took part in both sessions, live or as recording",
+    );
+    expect(sessionsLine(de, { ...work, evidence: ["attendance"], sessionCount: 2 })).toBe(
+      "An beiden Live-Sessions teilgenommen",
+    );
+    expect(sessionsLine(en, { ...work, evidence: ["relive"], sessionCount: 5 })).toBe(
+      "Watched all 5 sessions as recordings",
+    );
     expect(
       proofLine(de, {
         basis: "test",
@@ -230,7 +239,7 @@ describe("how a credential was earned", () => {
   it("keeps certification wording off every session line", () => {
     for (const t of [en, de]) {
       for (const evidence of [["attendance"], ["relive"], ["attendance", "relive"]] as const) {
-        for (const sessionCount of [1, 4]) {
+        for (const sessionCount of [1, 2, 4]) {
           const line = sessionsLine(t, {
             basis: "work",
             artifactName: null,

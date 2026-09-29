@@ -20,6 +20,7 @@ import { cohortDateLine } from "@/components/cohort-dates";
 import { continueUrl } from "@/components/entry-links";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
+import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { deadlineState, formatDeadline } from "@/core/assignments/deadline";
 import { requiresWork } from "@/core/courses/completion";
@@ -85,6 +86,12 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
   const { test } = data;
   const both = work && test !== null;
   const needsSessions = requiresSessions(sessionRule) && sessions.total > 0;
+  // Before starting: starting registers only for sessions still to come, and a
+  // session that can no longer be caught up on means no credential.
+  const ahead = data.sessions.filter(
+    (session) => session.outcome === "upcoming" || session.outcome === "live",
+  ).length;
+  const tooLate = needsSessions && data.sessions.some((session) => session.outcome === "missed");
   // More than one part: the aside lists them, each with where the learner stands.
   const parts = [work, test !== null, needsSessions].filter(Boolean).length;
   const dueAt = work && data.assignment ? data.assignment.dueAt : null;
@@ -443,13 +450,24 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
                 <p className="flex items-start gap-2">
                   <CalendarDays aria-hidden size={16} className="mt-0.5 shrink-0" />
                   <span>
-                    {sessions.total === 1
-                      ? t.t("series.introOne")
-                      : t.t("series.intro", { n: sessions.total })}
+                    {ahead === sessions.total
+                      ? sessions.total === 1
+                        ? t.t("series.introOne")
+                        : t.t("series.intro", { n: sessions.total })
+                      : ahead > 0
+                        ? t.t("series.introSome", { n: sessions.total })
+                        : sessions.total === 1
+                          ? t.t("series.introPastOne")
+                          : t.t("series.introPast", { n: sessions.total })}
                   </span>
                 </p>
                 {needsSessions && <p className="text-muted">{ruleText}</p>}
-                {data.sessions.some((row) => row.webinar.recorded) && (
+                {tooLate && <Notice tone="warning" title={t.t("series.tooLate")} />}
+                {/* The recording notice is for joining: only while a recorded session is ahead. */}
+                {data.sessions.some(
+                  (row) =>
+                    row.webinar.recorded && (row.outcome === "upcoming" || row.outcome === "live"),
+                ) && (
                   <p className="text-xs text-muted">
                     {t.t("webinar.form.recording", {
                       academy: tenant.settings.author_display_name,

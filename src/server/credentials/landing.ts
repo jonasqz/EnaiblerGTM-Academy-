@@ -6,6 +6,7 @@ import type { LocalizedText } from "@/core/i18n/locales";
 import type { Database } from "@/db/client";
 import { assignments, courses } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { courseSessions } from "@/server/courses/sessions";
 import type { CredentialView } from "@/server/credentials";
 import { trackEvent } from "@/server/events";
 
@@ -23,6 +24,8 @@ export interface LandingCourse {
   /** What learners build; null when the course ends with its test alone. */
   artifactName: LocalizedText | null;
   free: boolean;
+  /** It has live sessions on set dates, so it is not "at your own pace". */
+  live: boolean;
 }
 
 /** The course as visitors could take it now; null once it is no longer published. */
@@ -31,21 +34,25 @@ export async function loadLandingCourse(
   tenantId: string,
   courseId: string,
 ): Promise<LandingCourse | null> {
-  const [row] = await withTenant(db, tenantId, (tx) =>
-    tx
+  const found = await withTenant(db, tenantId, async (tx) => {
+    const [row] = await tx
       .select({ course: courses, artifactName: assignments.artifactName })
       .from(courses)
       .leftJoin(assignments, eq(assignments.courseId, courses.id))
-      .where(and(eq(courses.id, courseId), eq(courses.status, "published"))),
-  );
-  if (!row) return null;
-  const { course } = row;
+      .where(and(eq(courses.id, courseId), eq(courses.status, "published")));
+    if (!row) return null;
+    const sessions = await courseSessions(tx, courseId);
+    return { ...row, live: sessions.some((session) => session.webinar.status === "published") };
+  });
+  if (!found) return null;
+  const { course, ...row } = found;
   return {
     summary: course.summary ?? null,
     estMinutes: course.estMinutes,
     completionMode: course.completionMode,
     artifactName: requiresWork(course.completionMode) ? row.artifactName : null,
     free: course.deliveryMode === "free_async",
+    live: row.live,
   };
 }
 

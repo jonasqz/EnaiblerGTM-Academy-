@@ -291,6 +291,7 @@ describe.skipIf(!hasDatabase)("sharing a credential and the page it leads to", (
       completionMode: "work",
       artifactName: { en: "Reminder playbook" },
       free: true,
+      live: false,
     });
 
     const testOnly = await createCourse(dbs.app.db, tenant.id, {

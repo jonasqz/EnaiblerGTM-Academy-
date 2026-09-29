@@ -22,6 +22,9 @@ import {
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
 import { completeCourse } from "@/server/courses/completion";
+import { loadCredential } from "@/server/credentials";
+import { loadLandingCourse } from "@/server/credentials/landing";
+import { openBadgeFor } from "@/server/credentials/open-badge";
 import type { OutgoingEmail } from "@/server/email/mailer";
 import type { Enqueue } from "@/server/jobs/producer";
 import { ensureLearner } from "@/server/learners";
@@ -461,6 +464,23 @@ describe.skipIf(!hasDatabase)("webinar series as courses", () => {
       [1, 1],
       [1, 1],
     ]);
+    // Visitors of a shared credential are not told it runs at their own pace.
+    expect(await loadLandingCourse(dbs.app.db, tenant.id, courseId)).toMatchObject({ live: true });
+    // The Open Badge: the criteria say what was asked, the evidence how it was done.
+    const shown = (await loadCredential(tenant, credential!.publicId, dbs.app.db))!;
+    const badge = await openBadgeFor(dbs.app.db, tenant, shown, {
+      t: tenantTranslator(tenant, "en"),
+      email: "learner@series.test",
+    });
+    const document = badge.credential as {
+      credentialSubject: { achievement: { criteria: { narrative: string } } };
+      evidence: Array<{ name: string; narrative: string }>;
+    };
+    expect(document.credentialSubject.achievement.criteria.narrative).toMatch(
+      /Take part in the live sessions\.$/,
+    );
+    expect(document.evidence[0]!.name).toMatch(/Pricing page · Attended both live sessions$/);
+    expect(document.evidence[0]!.narrative).toMatch(/Attended both live sessions\.$/);
   });
 
   async function slugOf(courseId: string) {

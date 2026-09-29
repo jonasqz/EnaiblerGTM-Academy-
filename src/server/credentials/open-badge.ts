@@ -118,16 +118,21 @@ export interface OpenBadgeExport {
   jwt: string;
 }
 
-/** The learner's credential as a signed Open Badges 3.0 VC-JWT. */
 /**
  * What the achievement asked for: the work, the final test, or both, and the
- * sessions of a series (core/credentials/proof).
+ * sessions of a series. The criteria say what was asked; how this learner took
+ * the sessions is evidence (core/credentials/proof).
  */
 function achievementTexts(t: Translator, credential: CredentialView, course: string) {
   const artifact = artifactNameFor(t, credential) ?? "";
-  const sessions = sessionsLine(t, credential);
+  const sessions = sessionsLine(t, credential) !== null;
   const withSessions = (texts: { description: string; criteriaNarrative: string }) =>
-    sessions ? { ...texts, criteriaNarrative: `${texts.criteriaNarrative} ${sessions}.` } : texts;
+    sessions
+      ? {
+          ...texts,
+          criteriaNarrative: `${texts.criteriaNarrative} ${t.t("openBadge.criteriaSessions")}`,
+        }
+      : texts;
   switch (credential.basis) {
     case "work":
       return withSessions({
@@ -147,6 +152,7 @@ function achievementTexts(t: Translator, credential: CredentialView, course: str
   }
 }
 
+/** The learner's credential as a signed Open Badges 3.0 VC-JWT. */
 export async function openBadgeFor(
   db: Database,
   tenant: TenantContext,

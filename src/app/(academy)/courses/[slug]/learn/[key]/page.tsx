@@ -181,7 +181,7 @@ export default async function LessonPage({
         )}
         <div className="mt-6 space-y-8">
           {session && body.trim() && (
-            <h2 className="font-display text-xl">{t.t("session.preparation")}</h2>
+            <h2 className="font-display text-xl">{t.t("session.about")}</h2>
           )}
           {mediaIds.map((id) => (
             <MediaBlock

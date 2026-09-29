@@ -34,9 +34,12 @@ export function sessionsLine(t: Translator, credential: CredentialProof): string
   const live = evidence.includes("attendance");
   const relive = evidence.includes("relive");
   const n = credential.sessionCount ?? 0;
-  if (live && relive) return t.t("verify.sessionsMixed", { n });
-  if (live) return t.t(n === 1 ? "verify.sessionsLiveOne" : "verify.sessionsLive", { n });
-  if (relive) return t.t(n === 1 ? "verify.sessionsReliveOne" : "verify.sessionsRelive", { n });
+  // "Attended all 2 live sessions" reads wrong in both languages: one and two have their own words.
+  const size = n === 1 ? "One" : n === 2 ? "Two" : "";
+  if (live && relive)
+    return t.t(n === 2 ? "verify.sessionsMixedTwo" : "verify.sessionsMixed", { n });
+  if (live) return t.t(`verify.sessionsLive${size}`, { n });
+  if (relive) return t.t(`verify.sessionsRelive${size}`, { n });
   return null;
 }
 

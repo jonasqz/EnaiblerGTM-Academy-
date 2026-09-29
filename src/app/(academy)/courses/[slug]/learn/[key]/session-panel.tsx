@@ -25,7 +25,7 @@ import { LocalTime } from "@/components/webinars/local-time";
 import type { SessionOutcome, SessionRequirement } from "@/core/courses/sessions";
 import type { Translator } from "@/core/i18n/translator";
 import type { MediaViewer } from "@/core/media/access";
-import { JOIN_OPENS_MINUTES, registrationOpen } from "@/core/webinars/phase";
+import { JOIN_OPENS_MINUTES, registrationOpen, webinarPhase } from "@/core/webinars/phase";
 import { formatWebinarTime } from "@/core/webinars/time";
 import type { LearnerSession } from "@/server/courses/sessions";
 import type { MediaAsset } from "@/server/media/library";
@@ -104,7 +104,8 @@ export function SessionPanel(props: {
 }) {
   const { t, session } = props;
   const { webinar } = session;
-  const ended = session.outcome !== "upcoming" && session.outcome !== "live";
+  // By the clock, not by the outcome: someone checked in while it runs still needs the way in.
+  const ended = webinarPhase(webinar, props.now) === "ended";
   const status = session.registration?.status;
   const seated = status === "registered";
   const open = webinar.status === "published" && registrationOpen(webinar, props.now);
@@ -199,6 +200,12 @@ export function SessionPanel(props: {
         )
       )}
 
+      {/* Once checked in, the field gives way to the confirmation (the page reloads with it). */}
+      {session.attended && !ended && (
+        <p role="status" className="flex items-center gap-2 font-semibold">
+          <CircleCheck aria-hidden size={20} /> {t.t("webinar.checkin.done")}
+        </p>
+      )}
       {session.checkinOpen && (
         <CheckInForm
           slug={webinar.slug}

@@ -206,6 +206,12 @@ const en = {
     "This {term.course} includes {n} live sessions. Starting it registers you for all of them, with one confirmation and every date for your calendar.",
   "series.introOne":
     "This {term.course} includes a live session. Starting it registers you for it, with a confirmation for your calendar.",
+  "series.introSome":
+    "This {term.course} includes {n} live sessions. Starting it registers you for the ones still to come, with one confirmation and every date for your calendar.",
+  "series.introPast": "This {term.course} includes {n} live sessions, all of them already held.",
+  "series.introPastOne": "This {term.course} includes a live session that has already been held.",
+  "series.tooLate":
+    "At least one live session is over and can't be caught up on anymore, so starting now won't earn you the {term.credential}.",
   "series.progress": "Live sessions: {done} of {total}",
   "series.next": "Next session: {time}",
   "series.rule.attended": "Your {term.credential} needs every live session attended live.",
@@ -249,7 +255,7 @@ const en = {
   "session.doneAuto":
     "This lesson is done once you've attended the session or watched its recording.",
   "session.doneAutoLive": "This lesson is done once you've attended the session.",
-  "session.preparation": "Before the session",
+  "session.about": "About this session",
   "deadline.due": "Due {date}",
   "deadline.passed": "The deadline was {date}.",
   "deadline.lateAccepted": "You can still hand it in.",
@@ -361,9 +367,12 @@ const en = {
     "Earned with real work that passed a rubric-based review, and with the {term.test}.",
   "verify.sessionsLive": "Attended all {n} live sessions",
   "verify.sessionsLiveOne": "Attended the live session",
+  "verify.sessionsLiveTwo": "Attended both live sessions",
   "verify.sessionsMixed": "Took part in all {n} sessions, live or as recording",
+  "verify.sessionsMixedTwo": "Took part in both sessions, live or as recording",
   "verify.sessionsRelive": "Watched all {n} sessions as recordings",
   "verify.sessionsReliveOne": "Watched the session as a recording",
+  "verify.sessionsReliveTwo": "Watched both sessions as recordings",
   "verify.unavailable": "This credential is no longer available",
   "verify.addToProfile": "Add to LinkedIn profile",
   "verify.share": "Share on LinkedIn",
@@ -415,6 +424,7 @@ const en = {
   "share.endsWork": "Ends with real work: {artifact}, with feedback on every criterion",
   "share.endsWorkAndTest": "Ends with real work ({artifact}) and the {term.test}",
   "share.free": "Free, at your own pace",
+  "share.freeLive": "Free, with live sessions on set dates",
 
   "showcase.title": "The work behind it",
   "showcase.edit": "Show your work",
@@ -440,6 +450,7 @@ const en = {
   "openBadge.criteriaWorkAndTest":
     "Hand in “{artifact}”, pass a review against every criterion of the course rubric, and pass the {term.test}.",
   "openBadge.evidenceTest": "The learner passed the {term.test}.",
+  "openBadge.criteriaSessions": "Take part in the live sessions.",
 
   "cohort.joinTitle": "Join “{cohort}”",
   "cohort.joinBody":
@@ -953,6 +964,14 @@ const de: Record<MessageKey, string> = {
     "Dieser {term.course} umfasst {n} Live-Sessions. Wenn du ihn startest, bist du für alle angemeldet – mit einer Bestätigung und allen Terminen für deinen Kalender.",
   "series.introOne":
     "Dieser {term.course} umfasst eine Live-Session. Wenn du ihn startest, bist du dafür angemeldet – mit einer Bestätigung für deinen Kalender.",
+  "series.introSome":
+    "Dieser {term.course} umfasst {n} Live-Sessions. Wenn du ihn startest, bist du für die noch kommenden angemeldet – mit einer Bestätigung und allen Terminen für deinen Kalender.",
+  "series.introPast":
+    "Dieser {term.course} umfasst {n} Live-Sessions, die alle schon stattgefunden haben.",
+  "series.introPastOne":
+    "Dieser {term.course} umfasst eine Live-Session, die schon stattgefunden hat.",
+  "series.tooLate":
+    "Mindestens eine Live-Session ist vorbei und lässt sich nicht mehr nachholen. Wenn du jetzt startest, kannst du die {term.credential} nicht mehr bekommen.",
   "series.progress": "Live-Sessions: {done} von {total}",
   "series.next": "Nächste Session: {time}",
   "series.rule.attended": "Für deine {term.credential} nimmst du an jeder Live-Session live teil.",
@@ -997,7 +1016,7 @@ const de: Record<MessageKey, string> = {
   "session.doneAuto":
     "Diese Lektion ist erledigt, sobald du an der Session teilgenommen oder ihre Aufzeichnung angesehen hast.",
   "session.doneAutoLive": "Diese Lektion ist erledigt, sobald du an der Session teilgenommen hast.",
-  "session.preparation": "Zur Vorbereitung",
+  "session.about": "Zu dieser Session",
   "deadline.due": "Abgabe bis {date}",
   "deadline.passed": "Die Frist endete am {date}.",
   "deadline.lateAccepted": "Du kannst trotzdem noch abgeben.",
@@ -1118,9 +1137,12 @@ const de: Record<MessageKey, string> = {
     "Erworben mit einer echten Arbeit, die eine Bewertung anhand klarer Kriterien bestanden hat, und dem bestandenen {term.test}.",
   "verify.sessionsLive": "An allen {n} Live-Sessions teilgenommen",
   "verify.sessionsLiveOne": "An der Live-Session teilgenommen",
+  "verify.sessionsLiveTwo": "An beiden Live-Sessions teilgenommen",
   "verify.sessionsMixed": "An allen {n} Sessions teilgenommen, live oder als Aufzeichnung",
+  "verify.sessionsMixedTwo": "An beiden Sessions teilgenommen, live oder als Aufzeichnung",
   "verify.sessionsRelive": "Alle {n} Sessions als Aufzeichnung angesehen",
   "verify.sessionsReliveOne": "Die Session als Aufzeichnung angesehen",
+  "verify.sessionsReliveTwo": "Beide Sessions als Aufzeichnung angesehen",
   "verify.unavailable": "Dieser Nachweis ist nicht mehr verfügbar",
   "verify.addToProfile": "Zum LinkedIn-Profil hinzufügen",
   "verify.share": "Auf LinkedIn teilen",
@@ -1171,6 +1193,7 @@ const de: Record<MessageKey, string> = {
   "share.endsWork": "Endet mit echter Arbeit: {artifact}, mit Feedback zu jedem Kriterium",
   "share.endsWorkAndTest": "Endet mit echter Arbeit ({artifact}) und dem {term.test}",
   "share.free": "Kostenlos, in deinem Tempo",
+  "share.freeLive": "Kostenlos, mit Live-Sessions zu festen Terminen",
 
   "showcase.title": "Die Arbeit dahinter",
   "showcase.edit": "Zeig deine Arbeit",
@@ -1198,6 +1221,7 @@ const de: Record<MessageKey, string> = {
   "openBadge.criteriaWorkAndTest":
     "„{artifact}“ einreichen, die Bewertung in jedem Kriterium der Kurs-Rubrik bestehen und den {term.test} bestehen.",
   "openBadge.evidenceTest": "Der {term.test} wurde bestanden.",
+  "openBadge.criteriaSessions": "An den Live-Sessions teilnehmen.",
 
   "cohort.joinTitle": "„{cohort}“ beitreten",
   "cohort.joinBody":
