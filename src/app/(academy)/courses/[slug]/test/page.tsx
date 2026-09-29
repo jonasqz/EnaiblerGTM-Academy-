@@ -28,6 +28,9 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
   const { test } = data;
   const fallback = [tenant.settings.default_locale];
   const { passed, latest } = test.attempts;
+  const last = latest
+    ? { correct: latest.correct, total: latest.total, percent: latest.percent }
+    : null;
   const standing: TestStanding = passed
     ? {
         kind: "passed",
@@ -39,12 +42,9 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
       }
     : data.credential
       ? { kind: "completed", credentialId: data.credential.publicId }
-      : {
-          kind: "open",
-          last: latest
-            ? { correct: latest.correct, total: latest.total, percent: latest.percent }
-            : null,
-        };
+      : test.attemptsLeft === 0
+        ? { kind: "closed", last }
+        : { kind: "open", last };
   const count = test.questions.length;
 
   return (
@@ -67,12 +67,21 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
             : t.t("course.test.questions", { n: count })}{" "}
           · {t.t("assignment.passAt", { threshold: test.passPercent })}
         </p>
-        {standing.kind === "open" && <p className="text-muted">{t.t("test.intro")}</p>}
+        {standing.kind === "open" && (
+          <p className="text-muted">
+            {test.maxAttempts === null
+              ? t.t("test.intro")
+              : t.t("test.introLimited", { max: test.maxAttempts })}
+            {test.drawn && ` ${t.t("test.drawn")}`}
+          </p>
+        )}
       </header>
 
       <TestForm
         slug={slug}
         version={test.version}
+        attemptNo={test.attemptNo}
+        maxAttempts={test.maxAttempts}
         questions={test.questions}
         standing={standing}
         work={{
@@ -98,7 +107,12 @@ export default async function TestPage({ params }: PageProps<"/courses/[slug]/te
             passed: t.t("test.errorPassed"),
             completed: t.t("test.errorCompleted"),
             too_many: t.t("test.errorTooMany"),
+            no_attempts_left: t.t("test.noAttemptsLeft"),
           },
+          attemptOf: t.t("test.attemptOf"),
+          attemptsLeft: t.t("test.attemptsLeft"),
+          noAttemptsLeft: t.t("test.noAttemptsLeft"),
+          noAttemptsLeftHint: t.t("test.noAttemptsLeftHint"),
           resultPassed: t.t("test.resultPassed"),
           resultFailed: t.t("test.resultFailed"),
           score: t.t("test.score"),

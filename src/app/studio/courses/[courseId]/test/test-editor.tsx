@@ -20,6 +20,7 @@ import {
   type CourseTestDefinition,
   type TestQuestion,
 } from "@/core/questions/questions";
+import { TEST_ATTEMPTS_PER_HOUR } from "@/core/questions/quiz";
 import { cleanTestDraft, questionGaps } from "@/core/questions/test-editing";
 import { sameJson } from "@/core/shared/json";
 
@@ -57,6 +58,41 @@ function moved<T>(items: readonly T[], from: number, to: number): T[] {
 function hasText(question: TestQuestion): boolean {
   return testQuestionTexts(question).some((text) =>
     Object.values(text).some((value) => value?.trim()),
+  );
+}
+
+/** A whole number or nothing: an emptied field means no pool, no limit. */
+function CountField(props: {
+  id: string;
+  label: string;
+  hint: string;
+  max: number;
+  value: number | null;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={props.id} className="label">
+        {props.label}
+      </label>
+      <input
+        id={props.id}
+        type="number"
+        min={1}
+        max={props.max}
+        step={1}
+        inputMode="numeric"
+        className="input w-24"
+        aria-describedby={`${props.id}-hint`}
+        value={props.value === null || Number.isNaN(props.value) ? "" : props.value}
+        onChange={(event) =>
+          props.onChange(event.target.value === "" ? null : event.target.valueAsNumber)
+        }
+      />
+      <p id={`${props.id}-hint`} className="hint">
+        {props.hint}
+      </p>
+    </div>
   );
 }
 
@@ -157,6 +193,58 @@ export function TestEditor(props: TestEditorProps) {
                 {t.t("courses.test.showMistakes")}
               </span>
               <span className="text-xs text-muted">{t.t("courses.test.showMistakesHint")}</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section aria-labelledby={`${uid}-quiz`} className="card-flat space-y-5 p-5 sm:p-6">
+        <h2 id={`${uid}-quiz`} className="text-lg font-semibold">
+          {t.t("courses.test.quiz")}
+        </h2>
+        <div className="grid gap-5 md:grid-cols-2">
+          <CountField
+            id={`${uid}-pool`}
+            label={t.t("courses.test.poolSize")}
+            hint={t.t("courses.test.poolSizeHint", { n: draft.questions.length })}
+            max={QUESTION_LIMITS.testQuestions}
+            value={draft.poolSize}
+            onChange={(poolSize) => setDraft({ ...draft, poolSize })}
+          />
+          <CountField
+            id={`${uid}-attempts`}
+            label={t.t("courses.test.maxAttempts")}
+            hint={t.t("courses.test.maxAttemptsHint", { perHour: TEST_ATTEMPTS_PER_HOUR })}
+            max={QUESTION_LIMITS.maxAttempts}
+            value={draft.maxAttempts}
+            onChange={(maxAttempts) => setDraft({ ...draft, maxAttempts })}
+          />
+          <label className="flex gap-3 self-start rounded-control border border-line p-3">
+            <input
+              type="checkbox"
+              checked={draft.shuffleQuestions}
+              onChange={(event) => setDraft({ ...draft, shuffleQuestions: event.target.checked })}
+              className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+            />
+            <span>
+              <span className="block text-sm font-semibold">
+                {t.t("courses.test.shuffleQuestions")}
+              </span>
+              <span className="text-xs text-muted">{t.t("courses.test.shuffleQuestionsHint")}</span>
+            </span>
+          </label>
+          <label className="flex gap-3 self-start rounded-control border border-line p-3">
+            <input
+              type="checkbox"
+              checked={draft.shuffleOptions}
+              onChange={(event) => setDraft({ ...draft, shuffleOptions: event.target.checked })}
+              className="mt-1 size-4 shrink-0 accent-(--tenant-primary)"
+            />
+            <span>
+              <span className="block text-sm font-semibold">
+                {t.t("courses.test.shuffleOptions")}
+              </span>
+              <span className="text-xs text-muted">{t.t("courses.test.shuffleOptionsHint")}</span>
             </span>
           </label>
         </div>
@@ -400,6 +488,47 @@ export function TestEditor(props: TestEditorProps) {
                   {question.correct.length > 1 && (
                     <p className="text-sm text-muted">{t.t("courses.test.several")}</p>
                   )}
+
+                  <details
+                    className="group rounded-control border border-line p-3"
+                    open={Boolean(question.explanation || question.source)}
+                  >
+                    <summary className="cursor-pointer text-sm font-semibold">
+                      {t.t("courses.test.details")}
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {question.source && (
+                        <p className="text-sm text-muted">
+                          {t.t("courses.test.from", { source: question.source })}
+                        </p>
+                      )}
+                      <div className={`grid gap-3 ${twoColumns}`}>
+                        {languages.map((locale) => (
+                          <label key={locale} className="field">
+                            <span className="text-sm font-semibold">
+                              {t.t("courses.test.explanation", {
+                                language: languageName(t, locale),
+                              })}
+                            </span>
+                            <textarea
+                              className="textarea min-h-0"
+                              rows={2}
+                              maxLength={QUESTION_LIMITS.explanation}
+                              value={question.explanation?.[locale] ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setQuestion(index, (current) => ({
+                                  ...current,
+                                  explanation: { ...current.explanation, [locale]: value },
+                                }));
+                              }}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <p className="hint">{t.t("courses.test.explanationHint")}</p>
+                    </div>
+                  </details>
 
                   {(gaps.prompt.length > 0 ||
                     gaps.options.length > 0 ||

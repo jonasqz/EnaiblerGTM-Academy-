@@ -21,9 +21,20 @@ import { loadCourseEditor } from "@/server/studio/courses";
 import { saveCourseTest } from "@/server/studio/tests";
 import { getStudioText } from "@/server/studio-text";
 
-function issueText(t: StudioText, issue: TestIssue): string {
+function issueText(t: StudioText, issue: TestIssue, questionCount: number): string {
   const vars = { question: issue.question, option: issue.option };
   switch (issue.code) {
+    case "explanation_too_long":
+      return t.t("courses.test.issue.explanation_too_long", {
+        ...vars,
+        max: QUESTION_LIMITS.explanation,
+      });
+    case "pool_size":
+      return t.t("courses.test.issue.pool_size", { max: QUESTION_LIMITS.testQuestions });
+    case "pool_too_large":
+      return t.t("courses.test.issue.pool_too_large", { count: questionCount });
+    case "max_attempts":
+      return t.t("courses.test.issue.max_attempts", { max: QUESTION_LIMITS.maxAttempts });
     case "too_many_questions":
       return t.t("courses.test.issue.too_many_questions", { max: QUESTION_LIMITS.testQuestions });
     case "question_too_long":
@@ -68,7 +79,10 @@ export async function saveTestAction(_: FormState, formData: FormData): Promise<
       .filter(
         (issue, index, all) => all.findIndex((other) => sameTestIssue(issue, other)) === index,
       );
-    return { errors: issues.map((issue) => issueText(t, issue)) };
+    const count = Array.isArray((draft as { questions?: unknown })?.questions)
+      ? (draft as { questions: unknown[] }).questions.length
+      : 0;
+    return { errors: issues.map((issue) => issueText(t, issue, count)) };
   }
 
   const result = await saveCourseTest(getDb(), tenant.id, courseId, parsed.data);

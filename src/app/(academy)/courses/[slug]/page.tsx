@@ -149,7 +149,11 @@ export default async function CoursePage({ params, searchParams }: PageProps<"/c
                 : t.t("course.test.questions", { n: test.questions.length })}{" "}
               · {t.t("assignment.passAt", { threshold: test.passPercent })}
             </p>
-            <p className="text-muted">{t.t("course.test.intro")}</p>
+            <p className="text-muted">
+              {test.maxAttempts === null
+                ? t.t("course.test.intro")
+                : t.t("course.test.introLimited", { max: test.maxAttempts })}
+            </p>
             {both && <p>{t.t("course.test.needsBoth")}</p>}
             {data.enrollment &&
               (test.attempts.passed ? (

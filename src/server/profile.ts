@@ -230,6 +230,8 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
             total: testAttempts.total,
             passed: testAttempts.passed,
             answers: testAttempts.answers,
+            /** The questions and answer order the attempt served (null: all, in order). */
+            served: testAttempts.served,
           })
           .from(testAttempts)
           .innerJoin(courses, eq(courses.id, testAttempts.courseId))

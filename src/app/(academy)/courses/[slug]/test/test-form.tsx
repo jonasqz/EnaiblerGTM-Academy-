@@ -2,7 +2,14 @@
 
 import { Award, Hammer, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
 import { submitTestAction, type TestState } from "@/app/(academy)/courses/[slug]/actions";
 import { CredentialReady } from "@/components/credential-ready";
@@ -40,6 +47,11 @@ export interface TestLabels {
   workMissing: string;
   workInReview: string;
   openAssignment: string;
+  /** "Attempt {n} of {max}", where the authors limit attempts. */
+  attemptOf: string;
+  attemptsLeft: string;
+  noAttemptsLeft: string;
+  noAttemptsLeftHint: string;
 }
 
 type Score = { correct: number; total: number; percent: number };
@@ -49,7 +61,9 @@ export type TestStanding =
   | { kind: "open"; last: Score | null }
   | ({ kind: "passed"; credentialId: string | null; credentialPublic: boolean } & Score)
   /** A credential earned before the course asked for a test. */
-  | { kind: "completed"; credentialId: string };
+  | { kind: "completed"; credentialId: string }
+  /** Every attempt the authors allow is used, none passed. */
+  | { kind: "closed"; last: Score | null };
 
 function fill(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
@@ -58,13 +72,17 @@ function fill(template: string, vars: Record<string, string | number>): string {
 }
 
 /**
- * The final test: every question on one page, handed in at once and graded on
- * the server. Submitting through useActionForm keeps the choices when the
- * answers come back with an error; a retake starts from an empty form.
+ * The final test: every served question on one page, handed in at once and
+ * graded on the server. Submitting through useActionForm keeps the choices
+ * when the answers come back with an error; a retake starts from an empty
+ * form, and the page it reloads serves the next attempt's questions.
  */
 export function TestForm(props: {
   slug: string;
   version: number;
+  /** The attempt the questions were served for (core/questions/quiz). */
+  attemptNo: number;
+  maxAttempts: number | null;
   questions: PublicQuestion[];
   standing: TestStanding;
   /** Whether a pass still waits for the work, and whether that work is being reviewed. */
@@ -75,6 +93,12 @@ export function TestForm(props: {
   const { state, pending, onSubmit } = useActionForm<TestState>(submitTestAction, {
     status: "idle",
   });
+  // The questions as handed in: once graded, the page reloads with the next attempt's draw.
+  const [answered, setAnswered] = useState<PublicQuestion[]>(questions);
+  const handIn = (event: FormEvent<HTMLFormElement>) => {
+    setAnswered(questions);
+    onSubmit(event);
+  };
   // The attempt whose result the learner closed to retake the test.
   const [closed, setClosed] = useState<number | null>(null);
   const resultRef = useRef<HTMLElement>(null);
@@ -105,7 +129,7 @@ export function TestForm(props: {
 
   let view: ReactNode;
   if (result) {
-    const wrong = questions.flatMap((question, index) =>
+    const wrong = answered.flatMap((question, index) =>
       result.wrong?.includes(question.id) ? [{ question, n: index + 1 }] : [],
     );
     view = (
@@ -149,13 +173,26 @@ export function TestForm(props: {
             ) : (
               <p className="text-sm text-muted">{labels.tryAgainHint}</p>
             )}
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setClosed(result.attemptNo)}
-            >
-              <RotateCcw aria-hidden size={16} /> {labels.retake}
-            </button>
+            {result.attemptsLeft === 0 ? (
+              <Notice tone="warning" title={labels.noAttemptsLeft}>
+                {labels.noAttemptsLeftHint}
+              </Notice>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setClosed(result.attemptNo)}
+                >
+                  <RotateCcw aria-hidden size={16} /> {labels.retake}
+                </button>
+                {result.attemptsLeft !== null && (
+                  <p className="text-sm text-muted">
+                    {fill(labels.attemptsLeft, { n: result.attemptsLeft })}
+                  </p>
+                )}
+              </div>
+            )}
           </>
         )}
       </section>
@@ -185,26 +222,43 @@ export function TestForm(props: {
         <CredentialLink publicId={props.standing.credentialId} label={labels.viewCredential} />
       </Notice>
     );
+  } else if (props.standing.kind === "closed") {
+    const last = props.standing.last;
+    view = (
+      <Notice tone="warning" title={labels.noAttemptsLeft}>
+        <div className="space-y-2">
+          {last && (
+            <p>
+              {fill(labels.lastAttempt, last)} {labels.passAt}
+            </p>
+          )}
+          <p>{labels.noAttemptsLeftHint}</p>
+        </div>
+      </Notice>
+    );
   } else {
     const unanswered = error?.error === "unanswered" ? error.unanswered : [];
     const last = props.standing.last;
     view = (
       <div className="space-y-5">
-        {last && (
+        {(last || props.maxAttempts !== null) && (
           <p className="text-sm text-muted">
-            {fill(labels.lastAttempt, last)} {labels.passAt}
+            {props.maxAttempts !== null &&
+              `${fill(labels.attemptOf, { n: props.attemptNo, max: props.maxAttempts })}. `}
+            {last && `${fill(labels.lastAttempt, last)} ${labels.passAt}`}
           </p>
         )}
         {/* A fresh form for every retake; within an attempt the choices stay put. */}
         <form
           key={closed ?? "first"}
           ref={formRef}
-          onSubmit={onSubmit}
+          onSubmit={handIn}
           noValidate
           className="space-y-5"
         >
           <input type="hidden" name="slug" value={props.slug} />
           <input type="hidden" name="version" value={props.version} />
+          <input type="hidden" name="attempt" value={props.attemptNo} />
           {error && (
             <div ref={errorRef} tabIndex={-1} className="outline-none">
               <Notice tone="critical" title={labels.errors[error.error]}>

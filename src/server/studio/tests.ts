@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { courseTestSchema, type CourseTestDefinition } from "@/core/questions/questions";
+import { courseTestSchema, type CourseTestInput } from "@/core/questions/questions";
 import { sameJson } from "@/core/shared/json";
 import type { Database } from "@/db/client";
 import { courseTests, courses } from "@/db/schema";
@@ -18,16 +18,17 @@ export interface SavedTest {
 }
 
 /**
- * Saves the questions, the pass mark and whether learners see their
- * mistakes. The version goes up only when something changed, so an attempt
- * graded on version 3 still means the same test. A course whose mode never
- * asked for a test (e.g. created from a manifest) gets its row here.
+ * Saves the questions, the pass mark, whether learners see their mistakes
+ * and the quiz settings (pool, shuffling, attempt limit). The version goes up
+ * only when something changed, so an attempt graded on version 3 still means
+ * the same test. A course whose mode never asked for a test (e.g. created
+ * from a manifest) gets its row here.
  */
 export async function saveCourseTest(
   db: Database,
   tenantId: string,
   courseId: string,
-  input: CourseTestDefinition,
+  input: CourseTestInput,
 ): Promise<SavedTest> {
   const test = courseTestSchema.parse(input);
   return withTenant(db, tenantId, async (tx) => {
@@ -43,6 +44,10 @@ export async function saveCourseTest(
           questions: current.questions,
           passPercent: current.passPercent,
           showMistakes: current.showMistakes,
+          poolSize: current.poolSize,
+          shuffleQuestions: current.shuffleQuestions,
+          shuffleOptions: current.shuffleOptions,
+          maxAttempts: current.maxAttempts,
         }
       : null;
     if (current && sameJson(saved, test)) return { changed: false, version: current.version };

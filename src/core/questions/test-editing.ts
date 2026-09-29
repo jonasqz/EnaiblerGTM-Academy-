@@ -42,7 +42,24 @@ function cleanQuestion(value: unknown): unknown {
   const correct = Array.isArray(chosen)
     ? ids.filter((id, index) => chosen.includes(id) && ids.indexOf(id) === index)
     : chosen;
-  return { id: value.id, prompt: cleanText(value.prompt), options, correct };
+  const explanation = cleanText(value.explanation);
+  const source = typeof value.source === "string" ? value.source.trim() : value.source;
+  return {
+    id: value.id,
+    prompt: cleanText(value.prompt),
+    options,
+    correct,
+    // Optional texts: an empty one is no text, so it is left out rather than stored empty.
+    ...(Object.keys(explanation).length > 0 ? { explanation } : {}),
+    ...(source ? { source } : {}),
+  };
+}
+
+/** An emptied number field arrives as null or NaN: no pool, no limit. */
+function cleanOptionalCount(value: unknown): unknown {
+  return value === undefined || value === "" || (typeof value === "number" && Number.isNaN(value))
+    ? null
+    : value;
 }
 
 /**
@@ -58,6 +75,10 @@ export function cleanTestDraft(input: unknown): unknown {
       : input.questions,
     passPercent: input.passPercent,
     showMistakes: input.showMistakes,
+    poolSize: cleanOptionalCount(input.poolSize),
+    shuffleQuestions: input.shuffleQuestions ?? false,
+    shuffleOptions: input.shuffleOptions ?? false,
+    maxAttempts: cleanOptionalCount(input.maxAttempts),
   };
 }
 
@@ -70,7 +91,11 @@ export type TestIssueCode =
   | "too_few_options"
   | "too_many_options"
   | "no_right_answer"
+  | "explanation_too_long"
   | "pass_percent"
+  | "pool_size"
+  | "pool_too_large"
+  | "max_attempts"
   | "invalid";
 
 export interface TestIssue {
@@ -96,6 +121,10 @@ export function testIssueOf(issue: { code: string; path: readonly PropertyKey[] 
     path: issue.path.map(String).join("."),
   });
   if (head === "passPercent") return { code: "pass_percent" };
+  if (head === "poolSize") {
+    return { code: issue.code === "custom" ? "pool_too_large" : "pool_size" };
+  }
+  if (head === "maxAttempts") return { code: "max_attempts" };
   if (head !== "questions") return invalid();
   if (typeof questionIndex !== "number") {
     return tooBig && field === undefined ? { code: "too_many_questions" } : invalid();
@@ -109,6 +138,9 @@ export function testIssueOf(issue: { code: string; path: readonly PropertyKey[] 
     return issue.code === "too_small" && rest.length === 0
       ? { code: "no_right_answer", question }
       : invalid(question);
+  }
+  if (field === "explanation") {
+    return tooBig ? { code: "explanation_too_long", question } : invalid(question);
   }
   if (field !== "options") return invalid(question);
   const [optionIndex, part, language] = rest;

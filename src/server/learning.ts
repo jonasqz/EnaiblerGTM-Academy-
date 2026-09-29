@@ -26,6 +26,16 @@ import {
   publicTestQuestions,
   type PublicQuestion,
 } from "@/core/questions/questions";
+import {
+  attemptSeed,
+  attemptsLeft,
+  questionsAsServed,
+  seededRandom,
+  servedCount,
+  serveQuestions,
+  variesByAttempt,
+  type ServedQuestion,
+} from "@/core/questions/quiz";
 import { canResubmit, effectiveOutcome, type Outcome } from "@/core/review/outcome";
 import { rubricSchema, type Rubric } from "@/core/review/rubric";
 import type { TenantContext } from "@/core/tenant/context";
@@ -81,12 +91,32 @@ export interface LearnerAttempt {
 export interface LearnerTest {
   /** Handed in with the answers, so a test edited in the meantime is not graded blind. */
   version: number;
+  /** The attempt these questions are served for; handed in with the answers too. */
+  attemptNo: number;
+  /** As the next attempt serves them: a draw from the pool, shuffled where the authors chose. */
   questions: PublicQuestion[];
+  /** Each attempt draws its questions from a larger pool. */
+  drawn: boolean;
   passPercent: number;
   /** After an attempt, learners see which questions were wrong (never the right answers). */
   showMistakes: boolean;
+  /** The authors' limit on attempts; null for unlimited. */
+  maxAttempts: number | null;
+  /** Attempts the learner has left; null without a limit. */
+  attemptsLeft: number | null;
   /** The learner's own attempts; none for visitors. */
   attempts: TestAttempts;
+}
+
+type CourseTestRow = typeof courseTests.$inferSelect;
+
+/** What one attempt of this learner serves (core/questions/quiz): the same on every page load. */
+function serveAttempt(test: CourseTestRow, userId: string, attemptNo: number): ServedQuestion[] {
+  return serveQuestions(
+    test.questions,
+    test,
+    seededRandom(attemptSeed({ testId: test.id, userId, attemptNo, version: test.version })),
+  );
 }
 
 export async function loadLearnerCourse(
@@ -203,18 +233,27 @@ export async function loadLearnerCourse(
             .where(and(eq(testAttempts.courseId, course.id), eq(testAttempts.userId, userId)))
         : [];
     // Field by field: the stored questions carry the answer key.
-    const test: LearnerTest | null =
-      testRow && testRow.questions.length > 0
-        ? {
-            version: testRow.version,
-            questions: publicTestQuestions(testRow.questions, locale, [
-              tenant.settings.default_locale,
-            ]),
-            passPercent: testRow.passPercent,
-            showMistakes: testRow.showMistakes,
-            attempts: summarizeAttempts(attemptRows),
-          }
-        : null;
+    let test: LearnerTest | null = null;
+    if (testRow && testRow.questions.length > 0) {
+      const attempts = summarizeAttempts(attemptRows);
+      // Attempts are numbered without gaps, so the next one follows the count.
+      const attemptNo = attempts.count + 1;
+      test = {
+        version: testRow.version,
+        attemptNo,
+        questions: publicTestQuestions(
+          questionsAsServed(testRow.questions, serveAttempt(testRow, userId ?? "", attemptNo)),
+          locale,
+          [tenant.settings.default_locale],
+        ),
+        drawn: servedCount(testRow.questions.length, testRow.poolSize) < testRow.questions.length,
+        passPercent: testRow.passPercent,
+        showMistakes: testRow.showMistakes,
+        maxAttempts: testRow.maxAttempts,
+        attemptsLeft: attemptsLeft(testRow.maxAttempts, attempts.count),
+        attempts,
+      };
+    }
 
     const [credential] = userId
       ? await tx
@@ -549,7 +588,13 @@ export async function submitAssignment(
 }
 
 export type TestSubmitError =
-  "not_enrolled" | "no_test" | "changed" | "unanswered" | "passed" | "completed";
+  | "not_enrolled"
+  | "no_test"
+  | "changed"
+  | "unanswered"
+  | "passed"
+  | "completed"
+  | "no_attempts_left";
 
 export type TestSubmitResult =
   | {
@@ -562,6 +607,8 @@ export type TestSubmitResult =
       passPercent: number;
       /** Questions answered wrong, only where the course shows mistakes; never the right answers. */
       wrong: string[] | null;
+      /** Attempts left after this one; null without a limit. */
+      attemptsLeft: number | null;
       /** After a pass: the credential, or the parts it still waits for. */
       completion: CompletionResult | null;
     }
@@ -569,10 +616,11 @@ export type TestSubmitResult =
 
 /**
  * Grades an attempt at the course's final test and records it. Retakes are
- * unlimited until one passes; a pass completes the course once every part it
- * asks for is passed, in either order (server/courses/completion). A
- * learner's attempts queue on their enrollment row, so numbers never collide
- * and nothing follows a pass.
+ * allowed until one passes, up to the authors' limit if they set one; a pass
+ * completes the course once every part it asks for is passed, in either
+ * order (server/courses/completion). An attempt is graded on the questions it
+ * served (core/questions/quiz) and records them. A learner's attempts queue
+ * on their enrollment row, so numbers never collide and nothing follows a pass.
  */
 export async function submitTest(
   db: Database,
@@ -584,6 +632,8 @@ export async function submitTest(
     entries: Iterable<[string, unknown]>;
     /** The version the learner answered; another current version is refused. */
     version?: number;
+    /** The attempt the questions were served for; where attempts differ, another is refused. */
+    attempt?: number;
   },
 ): Promise<TestSubmitResult> {
   return withTenant(db, tenant.id, async (tx) => {
@@ -612,6 +662,7 @@ export async function submitTest(
     const [prior] = await tx
       .select({
         last: sql<number | null>`max(${testAttempts.attemptNo})`,
+        count: sql<number>`count(*)::int`,
         passed: sql<boolean>`coalesce(bool_or(${testAttempts.passed}), false)`,
       })
       .from(testAttempts)
@@ -629,18 +680,31 @@ export async function submitTest(
       );
     // Earned before the course asked for a test: a pass now would rewrite how it was earned.
     if (credential) return { ok: false, error: "completed" };
+    const taken = prior?.count ?? 0;
+    if (attemptsLeft(test.maxAttempts, taken) === 0)
+      return { ok: false, error: "no_attempts_left" };
     if (input.version !== undefined && input.version !== test.version) {
       return { ok: false, error: "changed" };
     }
+    const attemptNo = (prior?.last ?? 0) + 1;
+    // Answers to another attempt's draw (e.g. from a second tab) would be graded on the wrong questions.
+    if (
+      input.attempt !== undefined &&
+      input.attempt !== attemptNo &&
+      variesByAttempt(test, test.questions.length)
+    ) {
+      return { ok: false, error: "changed" };
+    }
 
-    const answers = answersFromForm(input.entries, test.questions);
-    const unanswered = unansweredQuestions(test.questions, answers);
+    const served = serveAttempt(test, userId, attemptNo);
+    const questions = questionsAsServed(test.questions, served);
+    const answers = answersFromForm(input.entries, questions);
+    const unanswered = unansweredQuestions(questions, answers);
     if (unanswered.length > 0) return { ok: false, error: "unanswered", unanswered };
 
-    const grade = gradeAnswers(test.questions, answers);
+    const grade = gradeAnswers(questions, answers);
     const passed = passesTest(grade, test.passPercent);
     const percent = gradePercent(grade);
-    const attemptNo = (prior?.last ?? 0) + 1;
     await tx.insert(testAttempts).values({
       tenantId: tenant.id,
       courseId: row.courseId,
@@ -649,6 +713,7 @@ export async function submitTest(
       testVersion: test.version,
       locale: row.enrollment.locale,
       answers,
+      served,
       correct: grade.correct,
       total: grade.total,
       passed,
@@ -695,6 +760,7 @@ export async function submitTest(
       passed,
       passPercent: test.passPercent,
       wrong: test.showMistakes ? grade.wrong : null,
+      attemptsLeft: attemptsLeft(test.maxAttempts, taken + 1),
       completion,
     };
   });

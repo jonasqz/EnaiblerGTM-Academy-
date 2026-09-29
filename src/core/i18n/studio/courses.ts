@@ -245,7 +245,7 @@ export const en = {
   // Final test editor
   "courses.test.intro.title": "How the final test works",
   "courses.test.intro.body":
-    "Learners see the questions without the answers. The test is graded when they hand it in, and they can retake it as often as they like.",
+    "Learners see the questions without the answers. The test is graded when they hand it in; retakes are unlimited unless you set a limit below.",
   "courses.test.intro.test": "Passing it issues the Certificate of Completion.",
   "courses.test.intro.work_and_test":
     "Passing it, together with the work, issues the Certificate of Completion.",
@@ -258,10 +258,26 @@ export const en = {
   "courses.test.settings": "Pass mark and results",
   "courses.test.passPercent": "Pass mark",
   "courses.test.passPercentHint":
-    "Share of questions a learner must answer right. Scores are rounded down.",
+    "Share of an attempt's questions a learner must answer right. Scores are rounded down.",
   "courses.test.showMistakes": "Show learners which questions they got wrong",
   "courses.test.showMistakesHint":
     "Never the right answers, so a retake still shows what they know.",
+  "courses.test.quiz": "Questions per attempt and retakes",
+  "courses.test.poolSize": "Questions per attempt",
+  "courses.test.poolSizeHint":
+    "Empty: every question. With a number, each attempt draws that many at random from all {n} questions, so a retake asks new ones.",
+  "courses.test.shuffleQuestions": "Shuffle the questions",
+  "courses.test.shuffleQuestionsHint": "Every attempt asks them in its own order.",
+  "courses.test.shuffleOptions": "Shuffle the answers",
+  "courses.test.shuffleOptionsHint":
+    "Leave it off when an answer points at another, like “All of the above”.",
+  "courses.test.maxAttempts": "Attempts per learner",
+  "courses.test.maxAttemptsHint":
+    "Empty: unlimited. Either way, a learner gets at most {perHour} attempts an hour.",
+  "courses.test.details": "Explanation and source",
+  "courses.test.explanation": "Why this is right, {language}",
+  "courses.test.explanationHint": "For your team: learners never see it.",
+  "courses.test.from": "From: {source}",
   "courses.test.questions": "Questions",
   "courses.test.questionsIntro":
     "Mark every right answer. With several right answers, a question counts only when a learner picks all of them and nothing else.",
@@ -304,6 +320,12 @@ export const en = {
   "courses.test.issue.too_many_options": "Question {question}: keep it to {max} options.",
   "courses.test.issue.no_right_answer": "Question {question}: mark at least one right answer.",
   "courses.test.issue.pass_percent": "The pass mark is a whole number from 1 to 100.",
+  "courses.test.issue.explanation_too_long":
+    "Question {question}: keep the explanation under {max} characters.",
+  "courses.test.issue.pool_size": "Questions per attempt: a whole number from 1 to {max}.",
+  "courses.test.issue.pool_too_large":
+    "Questions per attempt: the test has only {count} questions to draw from.",
+  "courses.test.issue.max_attempts": "Attempts per learner: a whole number from 1 to {max}.",
   "courses.test.issue.invalid":
     "Something in the test does not fit ({path}). Reload the page and try again.",
   "courses.completion.notReadyTitle": "Prepare it first",
@@ -556,7 +578,7 @@ export const de: Record<keyof typeof en, string> = {
 
   "courses.test.intro.title": "So funktioniert der Abschlusstest",
   "courses.test.intro.body":
-    "Lernende sehen die Fragen ohne die Antworten. Der Test wird bei der Abgabe ausgewertet, und sie können ihn beliebig oft wiederholen.",
+    "Lernende sehen die Fragen ohne die Antworten. Der Test wird bei der Abgabe ausgewertet; Wiederholungen sind unbegrenzt, solange du unten keine Grenze setzt.",
   "courses.test.intro.test": "Wer ihn besteht, bekommt die Abschlussbescheinigung.",
   "courses.test.intro.work_and_test":
     "Wer ihn und die Arbeit besteht, bekommt die Abschlussbescheinigung.",
@@ -569,10 +591,26 @@ export const de: Record<keyof typeof en, string> = {
   "courses.test.settings": "Bestehensgrenze und Ergebnisse",
   "courses.test.passPercent": "Bestehensgrenze",
   "courses.test.passPercentHint":
-    "Anteil der Fragen, die richtig beantwortet sein müssen. Ergebnisse werden abgerundet.",
+    "Anteil der Fragen eines Versuchs, die richtig beantwortet sein müssen. Ergebnisse werden abgerundet.",
   "courses.test.showMistakes": "Lernenden zeigen, welche Fragen sie falsch beantwortet haben",
   "courses.test.showMistakesHint":
     "Nie die richtigen Antworten, damit auch eine Wiederholung zeigt, was sie wissen.",
+  "courses.test.quiz": "Fragen pro Versuch und Wiederholungen",
+  "courses.test.poolSize": "Fragen pro Versuch",
+  "courses.test.poolSizeHint":
+    "Leer: alle Fragen. Mit einer Zahl zieht jeder Versuch so viele zufällig aus allen {n} Fragen, eine Wiederholung stellt also neue.",
+  "courses.test.shuffleQuestions": "Fragen mischen",
+  "courses.test.shuffleQuestionsHint": "Jeder Versuch stellt sie in einer eigenen Reihenfolge.",
+  "courses.test.shuffleOptions": "Antworten mischen",
+  "courses.test.shuffleOptionsHint":
+    "Lass es aus, wenn eine Antwort auf eine andere verweist, etwa „Alle oben genannten“.",
+  "courses.test.maxAttempts": "Versuche pro Lernende:r",
+  "courses.test.maxAttemptsHint":
+    "Leer: unbegrenzt. So oder so gibt es höchstens {perHour} Versuche pro Stunde.",
+  "courses.test.details": "Erklärung und Quelle",
+  "courses.test.explanation": "Warum das richtig ist, {language}",
+  "courses.test.explanationHint": "Für dein Team: Lernende sehen sie nie.",
+  "courses.test.from": "Aus: {source}",
   "courses.test.questions": "Fragen",
   "courses.test.questionsIntro":
     "Markiere jede richtige Antwort. Hat eine Frage mehrere, zählt sie nur, wenn alle und keine anderen gewählt sind.",
@@ -618,6 +656,12 @@ export const de: Record<keyof typeof en, string> = {
   "courses.test.issue.no_right_answer":
     "Frage {question}: Markiere mindestens eine richtige Antwort.",
   "courses.test.issue.pass_percent": "Die Bestehensgrenze ist eine ganze Zahl von 1 bis 100.",
+  "courses.test.issue.explanation_too_long":
+    "Frage {question}: Die Erklärung darf höchstens {max} Zeichen haben.",
+  "courses.test.issue.pool_size": "Fragen pro Versuch: eine ganze Zahl von 1 bis {max}.",
+  "courses.test.issue.pool_too_large":
+    "Fragen pro Versuch: Der Test hat nur {count} Fragen, aus denen gezogen werden kann.",
+  "courses.test.issue.max_attempts": "Versuche pro Lernende:r: eine ganze Zahl von 1 bis {max}.",
   "courses.test.issue.invalid":
     "Etwas im Test passt nicht ({path}). Lade die Seite neu und versuch es noch einmal.",
   "courses.completion.notReadyTitle": "Erst vorbereiten",

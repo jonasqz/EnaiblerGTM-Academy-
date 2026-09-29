@@ -177,9 +177,9 @@ export const en = {
   "common.publish.missing_test_text.one": "{n} test question has no {language} text yet.",
   "common.publish.missing_test_text.other": "{n} test questions have no {language} text yet.",
   "common.publish.test_too_short.one":
-    "The final test has {n} question. {min} or more say more about what someone learned.",
+    "An attempt at the final test asks {n} question. {min} or more say more about what someone learned.",
   "common.publish.test_too_short.other":
-    "The final test has {n} questions. {min} or more say more about what someone learned.",
+    "An attempt at the final test asks {n} questions. {min} or more say more about what someone learned.",
   "common.publish.no_duration": "Add an estimated duration for the catalogue.",
   "common.publish.legal_pages_missing": "Add your academy's imprint and privacy page in Settings.",
   "common.publish.calibration_missing":
@@ -511,9 +511,9 @@ export const de: Record<keyof typeof en, string> = {
   "common.publish.missing_test_text.one": "{n} Testfrage hat noch keinen Text auf {language}.",
   "common.publish.missing_test_text.other": "{n} Testfragen haben noch keinen Text auf {language}.",
   "common.publish.test_too_short.one":
-    "Der Abschlusstest hat {n} Frage. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
+    "Ein Versuch im Abschlusstest stellt {n} Frage. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
   "common.publish.test_too_short.other":
-    "Der Abschlusstest hat {n} Fragen. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
+    "Ein Versuch im Abschlusstest stellt {n} Fragen. Mit {min} oder mehr sagt er mehr darüber, was jemand gelernt hat.",
   "common.publish.no_duration": "Gib eine geschätzte Dauer für den Katalog an.",
   "common.publish.legal_pages_missing":
     "Ergänze Impressum und Datenschutzerklärung deiner Akademie in den Einstellungen.",
