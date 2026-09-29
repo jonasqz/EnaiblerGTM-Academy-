@@ -1,10 +1,10 @@
 /**
  * Who may watch a video (webinar brief §2.4, access control). Private by
  * default: a new video is for the academy's signed-in learners. Public ones
- * play for anyone on the academy's domain. Registrants of a webinar session
- * come with the sessions themselves.
+ * play for anyone on the academy's domain. A webinar's recording is for those
+ * who registered for it (core/webinars/relive) unless its host allowed more.
  */
-export const MEDIA_ACCESS = ["public", "learners"] as const;
+export const MEDIA_ACCESS = ["public", "learners", "registrants"] as const;
 export type MediaAccess = (typeof MEDIA_ACCESS)[number];
 
 export function isMediaAccess(value: unknown): value is MediaAccess {
@@ -16,6 +16,8 @@ export interface MediaViewer {
   member: boolean;
   /** Authors preview every video of the academy. */
   canEditCourses: boolean;
+  /** Signed up for where the video is shown: a webinar showing it as its re-live. */
+  signedUp?: boolean;
 }
 
 export function canWatch(access: MediaAccess, viewer: MediaViewer | null): boolean {
@@ -25,6 +27,8 @@ export function canWatch(access: MediaAccess, viewer: MediaViewer | null): boole
       return true;
     case "learners":
       return viewer?.member ?? false;
+    case "registrants":
+      return Boolean(viewer?.member && viewer.signedUp);
   }
 }
 

@@ -18,10 +18,12 @@ import {
 import type { EntryContext } from "@/core/entry/context";
 import type { LandingBlock, Presenter, RegistrationForm } from "@/core/webinars/landing";
 import type { GivenConsent } from "@/core/webinars/registration";
+import { RELIVE_ACCESS } from "@/core/webinars/relive";
 import { WEBINAR_TOOLS } from "@/core/webinars/tools";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { courses } from "@/db/schema/catalog";
+import { mediaAssets } from "@/db/schema/media";
 import { tenants } from "@/db/schema/tenancy";
 
 const tenantId = () =>
@@ -31,6 +33,7 @@ const tenantId = () =>
 
 export const webinarStatus = pgEnum("webinar_status", ["draft", "published", "cancelled"]);
 export const webinarTool = pgEnum("webinar_tool", WEBINAR_TOOLS);
+export const reliveAccess = pgEnum("relive_access", RELIVE_ACCESS);
 
 /**
  * A live session in the academy's own tool (webinar brief §2.2, §4: Session,
@@ -65,6 +68,15 @@ export const webinars = pgTable(
     recorded: boolean("recorded").notNull().default(false),
     /** The host's own words about the recording; a standard notice otherwise. */
     recordingNotice: text("recording_notice"),
+    /** The recording as a video of the media library (webinar brief §2.4, re-live). */
+    recordingAssetId: uuid("recording_asset_id"),
+    /** Who may watch it (core/webinars/relive); registrants only unless the host confirmed more. */
+    reliveAccess: reliveAccess("relive_access").notNull().default("registrants"),
+    /** When and by whom attendees' consent to a wider audience was confirmed. */
+    reliveConfirmedAt: timestamp("relive_confirmed_at", { withTimezone: true }),
+    reliveConfirmedBy: text("relive_confirmed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     presenters: jsonb("presenters").$type<Presenter[]>().notNull().default([]),
     blocks: jsonb("blocks").$type<LandingBlock[]>().notNull(),
     form: jsonb("form").$type<RegistrationForm>().notNull(),
@@ -85,6 +97,12 @@ export const webinars = pgTable(
       name: "webinars_course_fk",
       columns: [table.tenantId, table.courseId],
       foreignColumns: [courses.tenantId, courses.id],
+    }),
+    // No cascade: deleting a video first takes it off the webinars that show it.
+    foreignKey({
+      name: "webinars_recording_fk",
+      columns: [table.tenantId, table.recordingAssetId],
+      foreignColumns: [mediaAssets.tenantId, mediaAssets.id],
     }),
     check("webinars_duration", sql`${table.durationMinutes} between 10 and 600`),
     check("webinars_capacity", sql`${table.capacity} is null or ${table.capacity} > 0`),

@@ -16,6 +16,7 @@ import {
 import type { SubmissionType } from "@/core/assignments/submission-types";
 import { DELIVERY_MODES, type ZfuApproval } from "@/core/compliance/delivery-mode";
 import { COMPLETION_MODES } from "@/core/courses/completion";
+import { SESSION_RULES } from "@/core/courses/sessions";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { LevelDefinition } from "@/core/levels/rules";
 import {
@@ -63,6 +64,7 @@ export const paths = pgTable(
 
 export const deliveryMode = pgEnum("delivery_mode", DELIVERY_MODES);
 export const completionMode = pgEnum("completion_mode", COMPLETION_MODES);
+export const sessionRule = pgEnum("session_rule", SESSION_RULES);
 export const courseStatus = pgEnum("course_status", [
   "draft",
   "published",
@@ -92,6 +94,10 @@ export const courses = pgTable(
     zfuApproval: jsonb("zfu_approval").$type<ZfuApproval>(),
     /** How learners finish: the work, the final test or both (core/courses/completion). */
     completionMode: completionMode("completion_mode").notNull().default("work"),
+    /** What a series asks of its live sessions (core/courses/sessions). */
+    sessionRule: sessionRule("session_rule").notNull().default("none"),
+    /** Days after a session in which its re-live still counts; null is no limit. */
+    catchUpDays: integer("catch_up_days"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -173,6 +179,8 @@ export type LessonBlock =
   | { type: "video"; key: string; caption?: string; poster?: string }
   /** A video of the academy's media library (media_assets), with the re-live player. */
   | { type: "media"; assetId: string }
+  /** A live session of the course (webinar brief §2.5): the lesson is the webinar. */
+  | { type: "webinar"; webinarId: string }
   /** Knowledge check at the end of the lesson: practice, checked in the browser. */
   | { type: "check"; questions: CheckQuestion[] };
 
@@ -262,6 +270,8 @@ export const assignments = pgTable(
     prompt: jsonb("prompt").$type<LocalizedText>().notNull(),
     artifactName: jsonb("artifact_name").$type<LocalizedText>().notNull(),
     submissionTypes: jsonb("submission_types").$type<SubmissionType[]>().notNull(),
+    /** Hand in by then (webinar brief §2.6); whether later is refused is the academy's setting. */
+    dueAt: timestamp("due_at", { withTimezone: true }),
     rubricId: uuid("rubric_id").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

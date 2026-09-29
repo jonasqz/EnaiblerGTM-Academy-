@@ -90,6 +90,7 @@ export const en = {
   "media.status.failed": "Failed",
   "media.access.learners": "Learners",
   "media.access.public": "Public",
+  "media.access.registrants": "Webinar registrants",
 
   // One video
   "media.back": "Videos",
@@ -113,6 +114,9 @@ export const en = {
   "media.field.access": "Who can watch",
   "media.field.access.learners": "Signed-in learners of this academy",
   "media.field.access.learnersHint": "The default. Lessons are for signed-in learners anyway.",
+  "media.field.access.registrants": "People registered for its webinar",
+  "media.field.access.registrantsHint":
+    "Set on the webinar that shows this video as its recording.",
   "media.field.access.public": "Anyone on your academy's site",
   "media.field.access.publicHint":
     "Before you make a recording public, make sure everyone seen or heard in it agreed.",
@@ -261,6 +265,7 @@ export const de: Record<keyof typeof en, string> = {
   "media.status.failed": "Fehlgeschlagen",
   "media.access.learners": "Lernende",
   "media.access.public": "Öffentlich",
+  "media.access.registrants": "Webinar-Angemeldete",
 
   "media.back": "Videos",
   "media.detail.preview": "Vorschau",
@@ -284,6 +289,9 @@ export const de: Record<keyof typeof en, string> = {
   "media.field.access.learners": "Angemeldete Lernende dieser Akademie",
   "media.field.access.learnersHint":
     "Die Voreinstellung. Lektionen sind ohnehin für angemeldete Lernende.",
+  "media.field.access.registrants": "Wer sich für sein Webinar angemeldet hat",
+  "media.field.access.registrantsHint":
+    "Wird beim Webinar eingestellt, das dieses Video als Aufzeichnung zeigt.",
   "media.field.access.public": "Alle auf der Seite deiner Akademie",
   "media.field.access.publicHint":
     "Bevor du eine Aufnahme öffentlich machst, stell sicher, dass alle, die darin zu sehen oder zu hören sind, zugestimmt haben.",

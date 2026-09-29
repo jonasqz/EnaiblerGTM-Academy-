@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { requiresWork, type CompletionMode } from "@/core/courses/completion";
+import { evidenceFor } from "@/core/credentials/evidence";
 import { generatePublicId } from "@/core/credentials/public-id";
 import { localizedEntries, type Locale } from "@/core/i18n/locales";
 import { computeLevel, detectLevelUp, type LevelDefinition } from "@/core/levels/rules";
@@ -31,6 +32,8 @@ export async function issueCredential(
     userId: string;
     courseId: string;
     basis: CompletionMode;
+    /** Sessions the learner took part in, live or as a re-live, when the course asks for them. */
+    sessions?: ReadonlyArray<"attendance" | "relive">;
     submissionId: string | null;
     testAttemptId: string | null;
   },
@@ -92,6 +95,7 @@ export async function issueCredential(
     levelName: levelAtIssue?.name ?? null,
     courseTitle: course.title,
     basis: input.basis,
+    evidence: evidenceFor(input.basis, input.sessions ?? []),
     // Every language the course has, like the title: each reader sees their own.
     artifactName:
       assignment && localizedEntries(assignment.artifactName).length > 0
