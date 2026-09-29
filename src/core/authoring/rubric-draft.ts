@@ -23,12 +23,41 @@ export interface RubricDraftInput {
   nonce: string;
 }
 
-const localized = (languages: readonly Locale[]) => ({
+export const localizedJsonSchema = (languages: readonly Locale[]) => ({
   type: "object",
   additionalProperties: false,
   required: [...languages],
   properties: Object.fromEntries(languages.map((locale) => [locale, { type: "string" }])),
 });
+
+/** The rubric part of a structured-output schema (also used by the assignment draft). */
+export function criteriaJsonSchema(languages: readonly Locale[]) {
+  return {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["label", "description", "weight", "levels"],
+      properties: {
+        label: localizedJsonSchema(languages),
+        description: localizedJsonSchema(languages),
+        weight: { type: "integer" },
+        levels: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["score", "description"],
+            properties: {
+              score: { type: "integer" },
+              description: localizedJsonSchema(languages),
+            },
+          },
+        },
+      },
+    },
+  };
+}
 
 /** Structured-output schema; the languages are those of the course. */
 export function rubricDraftJsonSchema(languages: readonly Locale[]) {
@@ -40,31 +69,7 @@ export function rubricDraftJsonSchema(languages: readonly Locale[]) {
       additionalProperties: false,
       required: ["criteria", "pass_threshold", "notes"],
       properties: {
-        criteria: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["label", "description", "weight", "levels"],
-            properties: {
-              label: localized(languages),
-              description: localized(languages),
-              weight: { type: "integer" },
-              levels: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["score", "description"],
-                  properties: {
-                    score: { type: "integer" },
-                    description: localized(languages),
-                  },
-                },
-              },
-            },
-          },
-        },
+        criteria: criteriaJsonSchema(languages),
         pass_threshold: { type: "integer" },
         notes: { type: "array", items: { type: "string" } },
       },
@@ -72,16 +77,21 @@ export function rubricDraftJsonSchema(languages: readonly Locale[]) {
   };
 }
 
+/** How a rubric is designed; shared with the assignment draft so both hold to the same rules. */
+export const RUBRIC_RULES = [
+  "Write 3 to 6 criteria. Each criterion checks one observable quality of the artifact, not effort or attitude.",
+  "Each criterion has four levels scored 0, 1, 2 and 3. Level descriptions say what the work shows at that level, concretely enough that two reviewers agree.",
+  "Weights are 1 (normal), 2 (important) or 3 (essential).",
+  "The pass threshold is a percentage between 50 and 80: passing work is solid, not perfect.",
+] as const;
+
 export function buildRubricDraftPrompt(input: RubricDraftInput): { system: string; user: string } {
   const tag = `example-${input.nonce}`;
   const primary = input.languages[0]!;
   const languageList = input.languages.map((locale) => LANGUAGE_LABELS[locale]).join(" and ");
   const system = [
     "You design the review rubric of an online course. Learners hand in one artifact; a reviewer (AI or human) scores it against the rubric.",
-    "Write 3 to 6 criteria. Each criterion checks one observable quality of the artifact, not effort or attitude.",
-    "Each criterion has four levels scored 0, 1, 2 and 3. Level descriptions say what the work shows at that level, concretely enough that two reviewers agree.",
-    "Weights are 1 (normal), 2 (important) or 3 (essential).",
-    "The pass threshold is a percentage between 50 and 80: passing work is solid, not perfect.",
+    ...RUBRIC_RULES,
     `Write every label and description in ${languageList}; German uses the informal "du".`,
     "Never use the words certified, certification, accredited or their German equivalents (zertifiziert, Zertifizierung, akkreditiert).",
     "notes: up to three short sentences for the author about choices they may want to check.",
@@ -102,25 +112,30 @@ export function buildRubricDraftPrompt(input: RubricDraftInput): { system: strin
   return { system, user: `${user}${example}` };
 }
 
+/** The model's criteria, as the schema above asks for them. */
+export const criteriaAnswerSchema = z
+  .array(
+    z.strictObject({
+      label: z.record(z.string(), z.string()),
+      description: z.record(z.string(), z.string()),
+      weight: z.number().int(),
+      levels: z.array(
+        z.strictObject({
+          score: z.number().int(),
+          description: z.record(z.string(), z.string()),
+        }),
+      ),
+    }),
+  )
+  .min(1);
+
 const answerSchema = z.strictObject({
-  criteria: z
-    .array(
-      z.strictObject({
-        label: z.record(z.string(), z.string()),
-        description: z.record(z.string(), z.string()),
-        weight: z.number().int(),
-        levels: z.array(
-          z.strictObject({
-            score: z.number().int(),
-            description: z.record(z.string(), z.string()),
-          }),
-        ),
-      }),
-    )
-    .min(1),
+  criteria: criteriaAnswerSchema,
   pass_threshold: z.number(),
   notes: z.array(z.string()).max(5),
 });
+
+export type RubricAnswer = z.output<typeof answerSchema>;
 
 /** Stable, readable criterion ids from labels (a–z, digits, underscores). */
 export function criterionIdFrom(label: string, taken: ReadonlySet<string>): string {
@@ -138,14 +153,21 @@ export function criterionIdFrom(label: string, taken: ReadonlySet<string>): stri
   for (let n = 2; ; n++) if (!taken.has(`${start}_${n}`)) return `${start}_${n}`;
 }
 
-function pick(text: Record<string, string>, languages: readonly Locale[]): LocalizedText {
+export function pickLocalized(
+  text: Record<string, string>,
+  languages: readonly Locale[],
+  max = 600,
+): LocalizedText {
   const out: LocalizedText = {};
   for (const locale of languages) {
     const value = text[locale]?.trim();
-    if (value) out[locale] = value.slice(0, 600);
+    if (value) out[locale] = value.slice(0, max);
   }
   return out;
 }
+
+const pick = (text: Record<string, string>, languages: readonly Locale[]) =>
+  pickLocalized(text, languages);
 
 export type RubricDraftResult =
   { ok: true; rubric: Rubric; notes: string[] } | { ok: false; errors: string[] };
@@ -160,7 +182,17 @@ export function parseRubricDraft(content: string, languages: readonly Locale[]):
   }
   const parsed = answerSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, errors: parsed.error.issues.map((i) => i.message) };
-  const answer = parsed.data;
+  return rubricFromAnswer(parsed.data, languages);
+}
+
+/**
+ * The model's criteria as a rubric: ids from the labels, weights and levels
+ * within range, and text in every course language, or it is not usable.
+ */
+export function rubricFromAnswer(
+  answer: RubricAnswer,
+  languages: readonly Locale[],
+): RubricDraftResult {
   const primary = languages[0]!;
   const taken = new Set<string>();
   const criteria = answer.criteria.slice(0, 6).map((criterion) => {

@@ -31,6 +31,11 @@ describe("saving the final test from the editor", () => {
     expect(cleanTestDraft(draft)).toEqual({
       passPercent: 80,
       showMistakes: true,
+      // A draft from before quizzes: every question, in order, no limit.
+      poolSize: null,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+      maxAttempts: null,
       questions: [
         {
           id: "q1",
@@ -137,6 +142,73 @@ describe("wording what does not fit", () => {
       question: 3,
       path: "questions.2.options",
     });
+  });
+
+  it("checks the pool against the questions and the attempt limit's range", () => {
+    const question = (id: string) => ({
+      id,
+      prompt: { en: "Why?" },
+      options: [
+        { id: "a", text: { en: "Because" } },
+        { id: "b", text: { en: "Why not" } },
+      ],
+      correct: ["a"],
+    });
+    const two = [question("q1"), question("q2")];
+    expect(issues({ passPercent: 80, showMistakes: true, questions: two, poolSize: 3 })).toEqual([
+      { code: "pool_too_large" },
+    ]);
+    expect(
+      issues({ passPercent: 80, showMistakes: true, questions: two, poolSize: 0, maxAttempts: 21 }),
+    ).toEqual([{ code: "pool_size" }, { code: "max_attempts" }]);
+    // Emptied number fields are no pool and no limit.
+    expect(
+      issues({
+        passPercent: 80,
+        showMistakes: true,
+        questions: two,
+        poolSize: Number.NaN,
+        maxAttempts: "",
+      }),
+    ).toEqual([]);
+    expect(
+      issues({
+        passPercent: 80,
+        showMistakes: true,
+        questions: [{ ...question("q1"), explanation: { en: "z".repeat(1001) } }],
+      }),
+    ).toEqual([{ code: "explanation_too_long", question: 1 }]);
+  });
+
+  it("keeps an explanation and a source and drops empty ones", () => {
+    const cleaned = cleanTestDraft({
+      passPercent: 80,
+      showMistakes: true,
+      questions: [
+        {
+          id: "q1",
+          prompt: { en: "Why?" },
+          options: [{ id: "a", text: { en: "Because" } }],
+          correct: ["a"],
+          explanation: { en: " It says so. ", de: " " },
+          source: " Webinar · Pricing (12:30) ",
+        },
+        {
+          id: "q2",
+          prompt: { en: "Why?" },
+          options: [{ id: "a", text: { en: "Because" } }],
+          correct: ["a"],
+          explanation: { en: "" },
+          source: "  ",
+        },
+      ],
+    }) as { questions: Array<Record<string, unknown>> };
+    expect(cleaned.questions[0]).toMatchObject({
+      explanation: { en: "It says so." },
+      source: "Webinar · Pricing (12:30)",
+    });
+    expect(cleaned.questions[1]).not.toHaveProperty("explanation");
+    expect(cleaned.questions[1]).not.toHaveProperty("source");
   });
 
   it("recognises the same issue reported for two languages", () => {

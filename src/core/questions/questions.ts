@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { localeSchema, localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
+import type { QuizSettings } from "@/core/questions/quiz";
 
 /*
  * Multiple-choice questions, in two places:
@@ -21,6 +22,10 @@ export const QUESTION_LIMITS = {
   /** Per lesson: a check, not a second lesson. */
   checkQuestions: 10,
   testQuestions: 50,
+  /** Where an AI draft took a test question from (source · chapter · time). */
+  source: 200,
+  /** A limit on attempts above this is no limit worth setting. */
+  maxAttempts: 20,
 } as const;
 
 /** Below this, a final test says little about what someone learned. */
@@ -45,11 +50,16 @@ export interface TestQuestion {
   prompt: LocalizedText;
   options: Array<{ id: string; text: LocalizedText }>;
   correct: string[];
+  /** Why the right answers are right: for the authors' review, never sent to learners. */
+  explanation?: LocalizedText;
+  /** Where an AI draft took the question from, for the authors. */
+  source?: string;
 }
 
-export interface CourseTestDefinition {
+/** Pool, shuffling and the attempt limit are in ./quiz.ts. */
+export interface CourseTestDefinition extends QuizSettings {
   questions: TestQuestion[];
-  /** Share of questions answered right to pass, 1–100. */
+  /** Share of the served questions answered right to pass, 1–100. */
   passPercent: number;
   /** After an attempt, show which questions were wrong (never the right answers). */
   showMistakes: boolean;
@@ -114,17 +124,37 @@ export const testQuestionSchema = z
       .min(QUESTION_LIMITS.minOptions)
       .max(QUESTION_LIMITS.maxOptions),
     correct: z.array(questionIdSchema).min(1, "Mark at least one right answer"),
+    explanation: localized(QUESTION_LIMITS.explanation).optional(),
+    source: z.string().trim().min(1).max(QUESTION_LIMITS.source).optional(),
   })
   .superRefine(checkAnswerKey);
 
-export const courseTestSchema = z.strictObject({
-  questions: z
-    .array(testQuestionSchema)
-    .max(QUESTION_LIMITS.testQuestions)
-    .superRefine(checkDistinctIds),
-  passPercent: z.number().int().min(1).max(100),
-  showMistakes: z.boolean(),
-});
+/** Left out, the quiz settings keep a test as it was: every question, in order, no limit. */
+export const courseTestSchema = z
+  .strictObject({
+    questions: z
+      .array(testQuestionSchema)
+      .max(QUESTION_LIMITS.testQuestions)
+      .superRefine(checkDistinctIds),
+    passPercent: z.number().int().min(1).max(100),
+    showMistakes: z.boolean(),
+    poolSize: z.number().int().min(1).max(QUESTION_LIMITS.testQuestions).nullable().default(null),
+    shuffleQuestions: z.boolean().default(false),
+    shuffleOptions: z.boolean().default(false),
+    maxAttempts: z.number().int().min(1).max(QUESTION_LIMITS.maxAttempts).nullable().default(null),
+  })
+  .superRefine((test, ctx) => {
+    // A draw needs questions to draw from.
+    if (test.poolSize !== null && test.poolSize > test.questions.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "The pool is larger than the test",
+        path: ["poolSize"],
+      });
+    }
+  });
+
+export type CourseTestInput = z.input<typeof courseTestSchema>;
 
 /** Several right answers: learners pick all of them ("choose all that apply"). */
 export function hasSeveralAnswers(question: { correct: readonly string[] }): boolean {
@@ -230,5 +260,9 @@ export function questionTexts(question: CheckQuestion): string[] {
 }
 
 export function testQuestionTexts(question: TestQuestion): LocalizedText[] {
-  return [question.prompt, ...question.options.map((option) => option.text)];
+  return [
+    question.prompt,
+    ...question.options.map((option) => option.text),
+    ...(question.explanation ? [question.explanation] : []),
+  ];
 }

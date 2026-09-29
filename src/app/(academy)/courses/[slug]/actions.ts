@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requiresWork, type CompletionPart } from "@/core/courses/completion";
 import { localize } from "@/core/i18n/locales";
+import { TEST_ATTEMPTS_PER_HOUR } from "@/core/questions/quiz";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { enqueue } from "@/server/jobs/producer";
@@ -18,7 +19,6 @@ import { rateLimit } from "@/server/rate-limit";
 import { getTranslator } from "@/server/request";
 
 const HOUR = 60 * 60_000;
-const TEST_ATTEMPTS_PER_HOUR = 10;
 
 export async function completeLessonAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
@@ -88,6 +88,8 @@ export type TestState =
       passPercent: number;
       /** Only where the course shows mistakes. */
       wrong: string[] | null;
+      /** Null without a limit on attempts. */
+      attemptsLeft: number | null;
       /** Issued with this pass; the level it reached comes in words. */
       credential: { publicId: string; levelLine: string | null } | null;
       /** What the credential still waits for after a pass. */
@@ -100,19 +102,21 @@ export async function submitTestAction(
 ): Promise<TestState> {
   const slug = String(formData.get("slug") ?? "");
   const { tenant, viewer } = await requireViewer(`/courses/${slug}/test`);
-  // Retakes are unlimited, but not at machine speed: guessing by script stays impractical.
+  // Retakes, limited or not, never at machine speed: guessing by script stays impractical.
   if (!rateLimit(`test:${tenant.id}:${viewer.userId}:${slug}`, TEST_ATTEMPTS_PER_HOUR, HOUR)) {
     return { status: "error", error: "too_many", unanswered: [] };
   }
   const version = String(formData.get("version") ?? "");
+  const attempt = String(formData.get("attempt") ?? "");
   const result = await submitTest(getDb(), tenant, viewer.userId, slug, {
     entries: formData.entries(),
     version: /^\d+$/.test(version) ? Number(version) : undefined,
+    attempt: /^\d+$/.test(attempt) ? Number(attempt) : undefined,
   });
   if (!result.ok) {
     // The page catches up: an edited test shows its current questions (choices
     // on the others stay), a pass from another tab shows as passed.
-    if (["changed", "passed", "completed"].includes(result.error)) {
+    if (["changed", "passed", "completed", "no_attempts_left"].includes(result.error)) {
       revalidatePath(`/courses/${slug}/test`);
     }
     return { status: "error", error: result.error, unanswered: result.unanswered ?? [] };
@@ -130,6 +134,7 @@ export async function submitTestAction(
     passed: result.passed,
     passPercent: result.passPercent,
     wrong: result.wrong,
+    attemptsLeft: result.attemptsLeft,
     credential: completion?.issued
       ? {
           publicId: completion.publicId,

@@ -3,13 +3,17 @@ import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { FaqPanel } from "@/app/studio/courses/[courseId]/sources/[sourceId]/faq-panel";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { SourceStatusBadge } from "@/components/studio/status-badges";
+import { qaPairs } from "@/core/authoring/qa";
 import { formatClock } from "@/core/authoring/transcript";
+import { isLocale } from "@/core/i18n/locales";
 import { jobErrorText } from "@/core/i18n/studio/helpers";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { loadSource } from "@/server/authoring/sources";
+import { getCourseEditor } from "@/server/studio/course-context";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,6 +32,9 @@ export default async function SourcePage({
   );
   const source = await loadSource(getDb(), tenant.id, sourceId);
   if (!source || source.courseId !== courseId) notFound();
+  const editor = await getCourseEditor(tenant.id, courseId);
+  const languages = editor?.course.languages.filter(isLocale) ?? [];
+  const pairs = source.kind === "qa" ? qaPairs(source.content ?? "") : [];
   const busy = source.status === "pending" || source.status === "processing";
   const keyframesPending =
     source.kind === "recording" &&
@@ -75,7 +82,41 @@ export default async function SourcePage({
         />
       )}
 
-      {source.transcript && source.transcript.length > 0 ? (
+      {source.kind === "qa" ? (
+        <div className="space-y-6">
+          {source.status === "ready" && languages.length > 0 && (
+            <FaqPanel
+              courseId={courseId}
+              sourceId={source.id}
+              languages={languages}
+              locale={
+                isLocale(source.locale) && languages.includes(source.locale)
+                  ? source.locale
+                  : languages[0]!
+              }
+              aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
+            />
+          )}
+          <section aria-labelledby="qa-heading" className="space-y-3">
+            <h3 id="qa-heading" className="font-semibold">
+              {t.t("drafts.qa.questions")}{" "}
+              <span className="font-normal text-muted">
+                ({t.n("drafts.qa.count", pairs.length)})
+              </span>
+            </h3>
+            <ol className="space-y-3">
+              {pairs.map((pair, index) => (
+                <li key={index} className="card-flat space-y-1 p-4">
+                  <p className="font-semibold">{pair.question}</p>
+                  <p className={`text-sm ${pair.answer ? "" : "text-muted italic"}`}>
+                    {pair.answer ?? t.t("drafts.qa.noAnswer")}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+      ) : source.transcript && source.transcript.length > 0 ? (
         <section aria-labelledby="steps-heading" className="space-y-3">
           <h3 id="steps-heading" className="font-semibold">
             {t.t(keyframesPending ? "lessons.source.stepsPending" : "lessons.source.steps")}

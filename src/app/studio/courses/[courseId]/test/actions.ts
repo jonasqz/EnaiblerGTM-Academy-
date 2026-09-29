@@ -6,9 +6,16 @@ import { z } from "zod";
 import type { FormState } from "@/app/studio/actions";
 import { text, wording } from "@/app/studio/form-data";
 import type { WordingContext } from "@/core/compliance/wording-lint";
+import { MAX_DRAFTED_QUESTIONS } from "@/core/authoring/quiz-draft";
 import type { LocalizedText } from "@/core/i18n/locales";
+import { draftErrorText } from "@/core/i18n/studio/helpers";
 import type { StudioText } from "@/core/i18n/studio/translator";
-import { courseTestSchema, QUESTION_LIMITS, testQuestionTexts } from "@/core/questions/questions";
+import {
+  courseTestSchema,
+  QUESTION_LIMITS,
+  testQuestionTexts,
+  type TestQuestion,
+} from "@/core/questions/questions";
 import {
   cleanTestDraft,
   sameTestIssue,
@@ -17,13 +24,27 @@ import {
 } from "@/core/questions/test-editing";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { authoringModel } from "@/server/authoring/model";
+import { draftTestQuestions } from "@/server/authoring/quiz-drafting";
+import { rateLimit } from "@/server/rate-limit";
 import { loadCourseEditor } from "@/server/studio/courses";
 import { saveCourseTest } from "@/server/studio/tests";
 import { getStudioText } from "@/server/studio-text";
 
-function issueText(t: StudioText, issue: TestIssue): string {
+function issueText(t: StudioText, issue: TestIssue, questionCount: number): string {
   const vars = { question: issue.question, option: issue.option };
   switch (issue.code) {
+    case "explanation_too_long":
+      return t.t("courses.test.issue.explanation_too_long", {
+        ...vars,
+        max: QUESTION_LIMITS.explanation,
+      });
+    case "pool_size":
+      return t.t("courses.test.issue.pool_size", { max: QUESTION_LIMITS.testQuestions });
+    case "pool_too_large":
+      return t.t("courses.test.issue.pool_too_large", { count: questionCount });
+    case "max_attempts":
+      return t.t("courses.test.issue.max_attempts", { max: QUESTION_LIMITS.maxAttempts });
     case "too_many_questions":
       return t.t("courses.test.issue.too_many_questions", { max: QUESTION_LIMITS.testQuestions });
     case "question_too_long":
@@ -47,6 +68,38 @@ function issueText(t: StudioText, issue: TestIssue): string {
   }
 }
 
+export type QuestionDraftState =
+  | { status: "done"; questions: TestQuestion[]; message: string; notes: string[] }
+  | { status: "error"; message: string };
+
+const HOUR = 60 * 60_000;
+
+/**
+ * Drafts final-test questions from the course's sources and lessons
+ * (core/authoring/quiz-draft). Nothing is saved: the editor adds them to its
+ * draft for the author to check and save.
+ */
+export async function draftTestQuestionsAction(formData: FormData): Promise<QuestionDraftState> {
+  const courseId = z.uuid().parse(text(formData, "courseId"));
+  const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/test`);
+  const t = await getStudioText();
+  const model = authoringModel();
+  if (!model) return { status: "error", message: t.t("drafts.noGateway") };
+  if (!rateLimit(`quiz-draft:${tenant.id}`, 20, HOUR)) {
+    return { status: "error", message: t.t("drafts.rateLimited") };
+  }
+  const count = Math.min(MAX_DRAFTED_QUESTIONS, Math.max(1, Number(text(formData, "count")) || 5));
+  const result = await draftTestQuestions(getDb(), tenant.id, courseId, { count }, model);
+  if (!result.ok) return { status: "error", message: draftErrorText(t, result.error) };
+  if (result.questions.length === 0) return { status: "error", message: t.t("drafts.quiz.full") };
+  return {
+    status: "done",
+    questions: result.questions,
+    message: t.n("drafts.quiz.ready", result.questions.length),
+    notes: result.notes,
+  };
+}
+
 /** Saves the final test; the editor posts its draft as JSON in `test`. */
 export async function saveTestAction(_: FormState, formData: FormData): Promise<FormState> {
   const courseId = z.uuid().parse(text(formData, "courseId"));
@@ -68,7 +121,10 @@ export async function saveTestAction(_: FormState, formData: FormData): Promise<
       .filter(
         (issue, index, all) => all.findIndex((other) => sameTestIssue(issue, other)) === index,
       );
-    return { errors: issues.map((issue) => issueText(t, issue)) };
+    const count = Array.isArray((draft as { questions?: unknown })?.questions)
+      ? (draft as { questions: unknown[] }).questions.length
+      : 0;
+    return { errors: issues.map((issue) => issueText(t, issue, count)) };
   }
 
   const result = await saveCourseTest(getDb(), tenant.id, courseId, parsed.data);

@@ -1,9 +1,9 @@
 "use client";
 
-import { FileText, Globe, MessageSquareQuote, Video } from "lucide-react";
+import { FileText, Globe, MessageSquareQuote, MessagesSquare, Upload, Video } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import type { FormState } from "@/app/studio/actions";
 import { addSourceAction } from "@/app/studio/courses/[courseId]/sources/actions";
@@ -17,7 +17,10 @@ import type { Locale } from "@/core/i18n/locales";
 import { languageName, studioUploadLabels } from "@/core/i18n/studio/helpers";
 import type { StudioKey } from "@/core/i18n/studio/index";
 
-type Kind = "recording" | "document" | "url";
+type Kind = "recording" | "document" | "url" | "qa";
+
+/** A Q&A export is read in the browser: only the parsed questions and answers reach the server. */
+const QA_MAX_BYTES = 1024 * 1024;
 
 const KINDS: Array<{ kind: Kind; label: StudioKey; icon: typeof Video; hint: StudioKey }> = [
   {
@@ -38,19 +41,29 @@ const KINDS: Array<{ kind: Kind; label: StudioKey; icon: typeof Video; hint: Stu
     icon: Globe,
     hint: "lessons.addSource.hint.url",
   },
+  {
+    kind: "qa",
+    label: "lessons.sources.kind.qa",
+    icon: MessagesSquare,
+    hint: "drafts.qa.hint",
+  },
 ];
 
 export function AddSource(props: { courseId: string; languages: Locale[] }) {
   const t = useStudioText();
+  const uid = useId();
   const [kind, setKind] = useState<Kind>("recording");
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [uploadKey, setUploadKey] = useState(0);
+  const [qa, setQa] = useState("");
+  const [qaError, setQaError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { state, pending, onSubmit, submit } = useActionForm<FormState>(
     async (previous, formData) => {
       const result = await addSourceAction(previous, formData);
       if (result.ok) {
         setFile(null);
+        setQa("");
         setUploadKey((value) => value + 1);
         formRef.current?.reset();
       }
@@ -58,6 +71,15 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
     },
     {},
   );
+  const loadExport = async (chosen: File | undefined) => {
+    setQaError(null);
+    if (!chosen) return;
+    if (chosen.size > QA_MAX_BYTES) {
+      setQaError(t.t("drafts.qa.tooLarge"));
+      return;
+    }
+    setQa(await chosen.text());
+  };
   const endpoint = `/api/uploads?purpose=source&course=${props.courseId}`;
   const current = KINDS.find((option) => option.kind === kind)!;
   // The Studio's upload labels, keeping this upload's progress and its 2 GB limit in words.
@@ -120,6 +142,45 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
               required
             />
           </div>
+        ) : kind === "qa" ? (
+          <div className="space-y-3">
+            <div className="field">
+              <label htmlFor={`${uid}-qa`} className="label">
+                {t.t("drafts.qa.text")}
+              </label>
+              <textarea
+                id={`${uid}-qa`}
+                name="qa"
+                className="textarea min-h-48"
+                value={qa}
+                onChange={(event) => setQa(event.target.value)}
+                placeholder={t.t("drafts.qa.placeholder")}
+                aria-describedby={`${uid}-qa-privacy`}
+                required
+              />
+              <p id={`${uid}-qa-privacy`} className="hint">
+                {t.t("drafts.qa.privacy")}
+              </p>
+            </div>
+            <label className="btn btn-secondary btn-sm cursor-pointer focus-within:outline-2 focus-within:outline-offset-2">
+              <Upload aria-hidden size={16} /> {t.t("drafts.qa.load")}
+              <input
+                type="file"
+                accept=".csv,.txt,.tsv,text/csv,text/plain,text/tab-separated-values"
+                className="sr-only"
+                onChange={(event) => void loadExport(event.target.files?.[0])}
+              />
+            </label>
+            {qaError && (
+              <p
+                role="alert"
+                className="text-sm font-semibold"
+                style={{ color: "var(--status-critical)" }}
+              >
+                {qaError}
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-3">
             <FileUpload
@@ -180,7 +241,7 @@ export function AddSource(props: { courseId: string; languages: Locale[] }) {
         <FormFeedback state={state} />
         <SubmitButton
           pending={pending}
-          disabled={kind !== "url" && !file}
+          disabled={kind === "qa" ? !qa.trim() : kind !== "url" && !file}
           pendingLabel={t.t("common.adding")}
         >
           {t.t("lessons.addSource.submit")}

@@ -18,10 +18,10 @@ import { QUEUES } from "@/server/jobs/queues";
 import { documentText } from "@/server/text-extract";
 
 /*
- * Authoring sources (brief §7, step 2): recordings, documents, web pages and
- * expert interviews. Each ends up as plain text plus chunks for retrieval
- * (with embeddings when an embedding model is configured). Recordings go
- * through transcription first (see recordings.ts).
+ * Authoring sources (brief §7, step 2): recordings, documents, web pages,
+ * expert interviews and live Q&As. Each ends up as plain text plus chunks for
+ * retrieval (with embeddings when an embedding model is configured).
+ * Recordings go through transcription first (see recordings.ts).
  */
 
 export type Source = typeof sources.$inferSelect;
@@ -84,6 +84,8 @@ export async function listSources(db: Database, tenantId: string, courseId: stri
         checkedAt: sources.checkedAt,
         topics: sources.transcript,
         contentLength: sql<number>`coalesce(length(${sources.content}), 0)::int`,
+        /** Live Q&As: one "## " heading per question (core/authoring/qa). */
+        questions: sql<number>`case when ${sources.kind} = 'qa' then regexp_count(coalesce(${sources.content}, ''), '^## ', 1, 'n') else 0 end::int`,
       })
       .from(sources)
       .where(eq(sources.courseId, courseId))
@@ -238,7 +240,8 @@ export async function readSourceText(
   source: Source,
   fetchText: FetchText = safeFetchText,
 ): Promise<{ text: string; title?: string }> {
-  if (source.kind === "interview") return { text: source.content ?? "" };
+  // Written in the Studio: the text is already what was stored.
+  if (source.kind === "interview" || source.kind === "qa") return { text: source.content ?? "" };
   if (source.kind === "document") {
     const record = source.fileId ? await loadFile(db, tenantId, source.fileId) : null;
     if (!record) throw new JobFailure("file_missing");
@@ -269,7 +272,7 @@ export async function readSourceText(
   throw new JobFailure("read_failed");
 }
 
-/** The `sources.extract` job: documents, web pages, interviews. */
+/** The `sources.extract` job: documents, web pages, interviews, Q&As. */
 export async function extractSource(
   db: Database,
   tenantId: string,

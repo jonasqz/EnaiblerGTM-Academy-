@@ -4,6 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CompletionMode } from "@/core/courses/completion";
 import type { Locale } from "@/core/i18n/locales";
 import type { TestQuestion } from "@/core/questions/questions";
+import {
+  attemptSeed,
+  seededRandom,
+  serveQuestions,
+  type QuizSettings,
+} from "@/core/questions/quiz";
 import type { TenantContext } from "@/core/tenant/context";
 import { validateTenantManifest } from "@/core/tenant/manifest";
 import {
@@ -94,6 +100,7 @@ const QUESTIONS: TestQuestion[] = [
 ];
 
 const ALL_RIGHT = { q1: ["a"], q2: ["a", "b"], q3: ["b"], q4: ["a"], q5: ["c"] };
+const WRONG = { q1: ["b"], q2: ["c"], q3: ["a"], q4: ["b"], q5: ["a"] };
 
 /** Form fields as the test page sends them: one `answer.<question>` per chosen option. */
 function form(answers: Record<string, string[]>): Array<[string, string]> {
@@ -133,7 +140,11 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
   /** A published course in the Builder path; the test is stored whatever the mode. */
   async function course(
     mode: CompletionMode,
-    options: { questions?: TestQuestion[]; showMistakes?: boolean } = {},
+    options: {
+      questions?: TestQuestion[];
+      showMistakes?: boolean;
+      quiz?: Partial<QuizSettings>;
+    } = {},
   ) {
     const courseId = await createCourse(dbs.app.db, tenant.id, {
       languages: ["en", "de"],
@@ -154,6 +165,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
         questions: options.questions ?? QUESTIONS,
         passPercent: 80,
         showMistakes: options.showMistakes ?? true,
+        ...options.quiz,
       });
       await tx.insert(pathCourses).values({ tenantId: tenant.id, pathId, courseId, position: 0 });
       return { courseId, slug: row!.slug };
@@ -235,6 +247,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
       passed: false,
       passPercent: 80,
       wrong: ["q2", "q5"],
+      attemptsLeft: null,
       completion: null,
     });
     expect(await credentialOf(learner)).toBeUndefined();
@@ -262,6 +275,11 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
     expect(attempts[1]).toMatchObject({
       locale: "en",
       answers: { q1: ["a"], q2: ["a", "b"], q3: ["b"], q4: ["a"], q5: ["a"] },
+      // Without quiz settings an attempt serves every question in the authors' order.
+      served: QUESTIONS.map((question) => ({
+        id: question.id,
+        options: question.options.map((option) => option.id),
+      })),
     });
 
     expect(await credentialOf(learner)).toMatchObject({
@@ -318,7 +336,17 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
   });
 
   it("gives learners the questions without the answer key, in their language", async () => {
-    const { slug } = await course("test");
+    // The authors' explanation and source would give the answer away.
+    const explained = QUESTIONS.map((question, index) =>
+      index === 0
+        ? {
+            ...question,
+            explanation: { en: "Reasoning for authors", de: "Begründung fürs Team" },
+            source: "Webinar · Reminders (03:10–05:00)",
+          }
+        : question,
+    );
+    const { slug } = await course("test", { questions: explained });
     const learner = await learnerIn(slug, "de");
     await submitTest(dbs.app.db, tenant, learner, slug, {
       entries: form({ ...ALL_RIGHT, q1: ["b"], q3: ["a"] }),
@@ -327,6 +355,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
     const data = await loadLearnerCourse(dbs.app.db, tenant, slug, learner, "de");
     expect(data?.completionMode).toBe("test");
     expect(JSON.stringify(data)).not.toMatch(/"correct":\[/);
+    expect(JSON.stringify(data)).not.toMatch(/fürs Team|for authors|Webinar · Reminders/);
     expect(data?.test).toMatchObject({
       version: 1,
       passPercent: 80,
@@ -509,6 +538,133 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
     });
   });
 
+  it("serves each attempt a draw from the pool, grades what it served and records it", async () => {
+    const quiz = { poolSize: 3, shuffleQuestions: true, shuffleOptions: true };
+    const { courseId, slug } = await course("test", { quiz });
+    const learner = await learnerIn(slug);
+    const load = async () =>
+      (await loadLearnerCourse(dbs.app.db, tenant, slug, learner, "en"))!.test!;
+    const [row] = await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.select().from(courseTests).where(eq(courseTests.courseId, courseId)),
+    );
+    const expected = (attemptNo: number) =>
+      serveQuestions(
+        QUESTIONS,
+        { ...quiz, maxAttempts: null },
+        seededRandom(attemptSeed({ testId: row!.id, userId: learner, attemptNo, version: 1 })),
+      );
+
+    const first = await load();
+    expect(first).toMatchObject({
+      attemptNo: 1,
+      drawn: true,
+      maxAttempts: null,
+      attemptsLeft: null,
+    });
+    expect(
+      first.questions.map((question) => ({
+        id: question.id,
+        options: question.options.map((option) => option.id),
+      })),
+    ).toEqual(expected(1));
+    // Reloading the page serves the same draw, still without the answer key.
+    expect((await load()).questions).toEqual(first.questions);
+    expect(JSON.stringify(first)).not.toMatch(/"correct":\[/);
+
+    const served = first.questions.map((question) => question.id) as Array<keyof typeof ALL_RIGHT>;
+    const right = (ids: ReadonlyArray<keyof typeof ALL_RIGHT>) =>
+      Object.fromEntries(ids.map((id) => [id, ALL_RIGHT[id]]));
+    const unserved = (Object.keys(ALL_RIGHT) as Array<keyof typeof ALL_RIGHT>).find(
+      (id) => !served.includes(id),
+    )!;
+
+    // An answer to a question the attempt did not serve is no answer to one it did.
+    expect(
+      await submitTest(dbs.app.db, tenant, learner, slug, {
+        entries: form({ ...right(served.slice(1)), [unserved]: ALL_RIGHT[unserved] }),
+        version: 1,
+        attempt: 1,
+      }),
+    ).toEqual({ ok: false, error: "unanswered", unanswered: [served[0]] });
+
+    const graded = await submitTest(dbs.app.db, tenant, learner, slug, {
+      entries: form({ ...right(served), [served[1]!]: WRONG[served[1]!] }),
+      version: 1,
+      attempt: 1,
+    });
+    expect(graded).toMatchObject({
+      ok: true,
+      attemptNo: 1,
+      correct: 2,
+      total: 3,
+      percent: 66,
+      passed: false,
+      wrong: [served[1]],
+    });
+    const [attempt] = await attemptsOf(learner);
+    expect(attempt).toMatchObject({ correct: 2, total: 3, served: expected(1) });
+
+    // The next attempt draws with its own seed; answers to the old draw are refused, not graded blind.
+    const second = await load();
+    expect(second.attemptNo).toBe(2);
+    expect(second.questions.map((question) => question.id)).toEqual(
+      expected(2).map((entry) => entry.id),
+    );
+    expect(
+      await submitTest(dbs.app.db, tenant, learner, slug, {
+        entries: form(right(served)),
+        version: 1,
+        attempt: 1,
+      }),
+    ).toEqual({ ok: false, error: "changed" });
+    const passed = await submitTest(dbs.app.db, tenant, learner, slug, {
+      entries: form(right(second.questions.map((question) => question.id) as typeof served)),
+      version: 1,
+      attempt: 2,
+    });
+    expect(passed).toMatchObject({ ok: true, attemptNo: 2, correct: 3, total: 3, passed: true });
+    expect((await attemptsOf(learner)).find((row) => row.attemptNo === 2)?.served).toEqual(
+      expected(2),
+    );
+  });
+
+  it("stops at the authors' limit on attempts, and opens again when they raise it", async () => {
+    const { courseId, slug } = await course("test", { quiz: { maxAttempts: 2 } });
+    const learner = await learnerIn(slug);
+    const failing = { entries: form({ ...ALL_RIGHT, q1: ["b"], q2: ["c"] }) };
+
+    expect(await submitTest(dbs.app.db, tenant, learner, slug, failing)).toMatchObject({
+      ok: true,
+      attemptNo: 1,
+      attemptsLeft: 1,
+    });
+    expect((await loadLearnerCourse(dbs.app.db, tenant, slug, learner, "en"))?.test).toMatchObject({
+      attemptNo: 2,
+      drawn: false,
+      maxAttempts: 2,
+      attemptsLeft: 1,
+    });
+    expect(await submitTest(dbs.app.db, tenant, learner, slug, failing)).toMatchObject({
+      ok: true,
+      attemptNo: 2,
+      attemptsLeft: 0,
+    });
+    expect(
+      await submitTest(dbs.app.db, tenant, learner, slug, { entries: form(ALL_RIGHT) }),
+    ).toEqual({ ok: false, error: "no_attempts_left" });
+    expect(await attemptsOf(learner)).toHaveLength(2);
+    expect(
+      (await loadLearnerCourse(dbs.app.db, tenant, slug, learner, "en"))?.test?.attemptsLeft,
+    ).toBe(0);
+
+    await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.update(courseTests).set({ maxAttempts: 3 }).where(eq(courseTests.courseId, courseId)),
+    );
+    expect(
+      await submitTest(dbs.app.db, tenant, learner, slug, { entries: form(ALL_RIGHT) }),
+    ).toMatchObject({ ok: true, attemptNo: 3, passed: true, attemptsLeft: 0 });
+  });
+
   it("exports the learner's attempts and deletes them with their data", async () => {
     const { slug } = await course("test");
     const learner = await learnerIn(slug);
@@ -528,6 +684,7 @@ describe.skipIf(!hasDatabase)("the final test for learners", () => {
         percent: 80,
         passed: true,
         answers: { ...ALL_RIGHT, q5: ["b"] },
+        served: expect.arrayContaining([{ id: "q5", options: ["a", "b", "c"] }]),
       },
     ]);
 

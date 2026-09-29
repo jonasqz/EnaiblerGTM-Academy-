@@ -145,9 +145,19 @@ const en = {
   "test.workInReview":
     "Your {term.artifact} is being reviewed. Once it passes, your {term.credential} is ready.",
   "test.testMissing": "Your {term.credential} is ready once you pass the {term.test}.",
+  "test.introLimited":
+    "Answer every question, then hand in your answers. You see your result right away. Attempts allowed: {max}.",
+  "test.drawn":
+    "Every attempt draws its questions at random from a larger set, so a retake shows you new ones.",
+  "test.attemptOf": "Attempt {n} of {max}",
+  "test.attemptsLeft": "Attempts left: {n}.",
+  "test.noAttemptsLeft": "You have used all your attempts at the {term.test}.",
+  "test.noAttemptsLeftHint":
+    "More attempts are possible only if the people behind this {term.course} allow them.",
   "course.test.questions": "{n} questions",
   "course.test.questionsOne": "1 question",
   "course.test.intro": "Multiple choice, checked right away. Retake it as often as you need.",
+  "course.test.introLimited": "Multiple choice, checked right away. Attempts allowed: {max}.",
   "course.test.take": "Take the {term.test}",
   "course.test.retake": "Retake the {term.test}",
   "course.test.lastAttempt": "Last attempt: {percent} %",
@@ -542,9 +552,19 @@ const de: Record<MessageKey, string> = {
     "Dein {term.artifact} wird gerade bewertet. Sobald die Bewertung bestanden ist, ist deine {term.credential} fertig.",
   "test.testMissing":
     "Deine {term.credential} ist fertig, sobald du den {term.test} bestanden hast.",
+  "test.introLimited":
+    "Beantworte jede Frage und gib dann deine Antworten ab. Dein Ergebnis siehst du sofort. Erlaubte Versuche: {max}.",
+  "test.drawn":
+    "Jeder Versuch stellt seine Fragen zufällig aus einem größeren Fragenpool zusammen, bei einer Wiederholung bekommst du also neue.",
+  "test.attemptOf": "Versuch {n} von {max}",
+  "test.attemptsLeft": "Verbleibende Versuche: {n}.",
+  "test.noAttemptsLeft": "Du hast alle Versuche für den {term.test} aufgebraucht.",
+  "test.noAttemptsLeftHint":
+    "Weitere Versuche gibt es nur, wenn die Verantwortlichen für diesen {term.course} sie freigeben.",
   "course.test.questions": "{n} Fragen",
   "course.test.questionsOne": "1 Frage",
   "course.test.intro": "Multiple Choice, sofort ausgewertet, beliebig oft wiederholbar.",
+  "course.test.introLimited": "Multiple Choice, sofort ausgewertet. Erlaubte Versuche: {max}.",
   "course.test.take": "{term.test} starten",
   "course.test.retake": "{term.test} wiederholen",
   "course.test.lastAttempt": "Letzter Versuch: {percent} %",

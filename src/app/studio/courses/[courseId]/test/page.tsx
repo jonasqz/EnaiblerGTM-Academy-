@@ -6,6 +6,7 @@ import { Notice } from "@/components/ui/notice";
 import { requiresTest } from "@/core/courses/completion";
 import { isLocale } from "@/core/i18n/locales";
 import { DEFAULT_PASS_PERCENT } from "@/core/questions/questions";
+import { DEFAULT_QUIZ_SETTINGS } from "@/core/questions/quiz";
 import { requireCapability } from "@/server/access";
 import { getCourseEditor } from "@/server/studio/course-context";
 import { getStudioText } from "@/server/studio-text";
@@ -55,10 +56,15 @@ export default async function TestPage({
       <TestEditor
         courseId={editor.course.id}
         languages={editor.course.languages.filter(isLocale)}
+        aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
         test={{
           questions: test?.questions ?? [],
           passPercent: test?.passPercent ?? DEFAULT_PASS_PERCENT,
           showMistakes: test?.showMistakes ?? true,
+          poolSize: test?.poolSize ?? DEFAULT_QUIZ_SETTINGS.poolSize,
+          shuffleQuestions: test?.shuffleQuestions ?? DEFAULT_QUIZ_SETTINGS.shuffleQuestions,
+          shuffleOptions: test?.shuffleOptions ?? DEFAULT_QUIZ_SETTINGS.shuffleOptions,
+          maxAttempts: test?.maxAttempts ?? DEFAULT_QUIZ_SETTINGS.maxAttempts,
         }}
       />
     </div>

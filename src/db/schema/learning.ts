@@ -14,6 +14,7 @@ import {
 
 import type { FileKind } from "@/core/assignments/submission-types";
 import type { EntryContext } from "@/core/entry/context";
+import type { ServedQuestion } from "@/core/questions/quiz";
 import type { AuditReason, HoldReason } from "@/core/review/policy";
 import { createdAt, tenantIsolation } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
@@ -183,7 +184,8 @@ export const reviews = pgTable(
 
 /**
  * Attempts at a course's final test, graded on the server when handed in.
- * Retakes are unlimited; a pass counts towards the credential.
+ * Retakes are unlimited unless the authors set a limit; a pass counts
+ * towards the credential.
  */
 export const testAttempts = pgTable(
   "test_attempts",
@@ -200,6 +202,11 @@ export const testAttempts = pgTable(
     locale: text("locale").notNull(),
     /** Chosen option ids by question id. */
     answers: jsonb("answers").$type<Record<string, string[]>>().notNull(),
+    /**
+     * The questions this attempt served, in order, with their answer order.
+     * Null for attempts from before quizzes: every question of the version, in order.
+     */
+    served: jsonb("served").$type<ServedQuestion[]>(),
     correct: integer("correct").notNull(),
     total: integer("total").notNull(),
     passed: boolean("passed").notNull(),

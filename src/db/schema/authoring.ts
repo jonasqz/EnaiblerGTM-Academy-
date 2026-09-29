@@ -13,6 +13,8 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
+import type { OutlineRecord } from "@/core/authoring/outline";
+import type { CoverageBasis, SourceCoverageEntry } from "@/core/authoring/source-coverage";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { courses } from "@/db/schema/catalog";
@@ -25,7 +27,14 @@ import { tenants } from "@/db/schema/tenancy";
  */
 export const EMBEDDING_DIMENSIONS = 1024;
 
-export const sourceKind = pgEnum("source_kind", ["recording", "document", "url", "interview"]);
+/** `qa`: questions (and answers) from a live Q&A, pasted or exported (core/authoring/qa). */
+export const sourceKind = pgEnum("source_kind", [
+  "recording",
+  "document",
+  "url",
+  "interview",
+  "qa",
+]);
 export const sourceStatus = pgEnum("source_status", ["pending", "processing", "ready", "failed"]);
 
 /** One topic of a recording: its time span, what was said, and a screenshot of that step. */
@@ -38,7 +47,7 @@ export interface TranscriptSegment {
   keyframeFileId?: string;
 }
 
-/** Authoring sources (brief §7): recordings, documents, URLs and expert interviews. */
+/** Authoring sources (brief §7): recordings, documents, URLs, expert interviews and live Q&As. */
 export const sources = pgTable(
   "sources",
   {
@@ -124,6 +133,8 @@ export const lessonDrafts = pgTable(
     /** Lessons created by this run. */
     lessonIds: uuid("lesson_ids").array().notNull().default([]),
     notes: text("notes").array().notNull().default([]),
+    /** Several recordings merged first (core/authoring/outline): topics and duplicates, for the author. */
+    outline: jsonb("outline").$type<OutlineRecord>(),
     error: text("error"),
     model: text("model"),
     promptVersion: text("prompt_version"),
@@ -137,6 +148,37 @@ export const lessonDrafts = pgTable(
     unique("lesson_drafts_tenant_id").on(table.tenantId, table.id),
     foreignKey({
       name: "lesson_drafts_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
+    }).onDelete("cascade"),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+/**
+ * Which rubric criteria the course's sources teach (core/authoring/source-coverage),
+ * one map per course, replaced on every check. `basis` tells whether the
+ * rubric and the sources are still the ones it was made from.
+ */
+export const sourceCoverage = pgTable(
+  "source_coverage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    courseId: uuid("course_id").notNull(),
+    basis: jsonb("basis").$type<CoverageBasis>().notNull(),
+    criteria: jsonb("criteria").$type<SourceCoverageEntry[]>().notNull(),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    unique("source_coverage_one_per_course").on(table.tenantId, table.courseId),
+    foreignKey({
+      name: "source_coverage_course_fk",
       columns: [table.tenantId, table.courseId],
       foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),

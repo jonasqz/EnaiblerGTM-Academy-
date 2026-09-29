@@ -289,6 +289,48 @@ describe.skipIf(!hasDatabase)("final tests and how a course ends, in the Studio"
     expect(stored).toMatchObject({ passPercent: 60, showMistakes: false, version: 3 });
     expect(stored?.questions).toHaveLength(5);
 
+    // Quiz settings are part of the test: a change is a new version, a pool needs its questions.
+    const quiz = {
+      questions: five,
+      passPercent: 60,
+      showMistakes: false,
+      poolSize: 3,
+      shuffleQuestions: true,
+      shuffleOptions: false,
+      maxAttempts: 4,
+    };
+    expect(await saveCourseTest(dbs.app.db, tenant.id, courseId, quiz)).toEqual({
+      changed: true,
+      version: 4,
+    });
+    expect(await saveCourseTest(dbs.app.db, tenant.id, courseId, quiz)).toEqual({
+      changed: false,
+      version: 4,
+    });
+    await expect(
+      saveCourseTest(dbs.app.db, tenant.id, courseId, { ...quiz, poolSize: 6 }),
+    ).rejects.toThrow();
+    expect((await partsOf(courseId)).tests[0]).toMatchObject({
+      poolSize: 3,
+      shuffleQuestions: true,
+      shuffleOptions: false,
+      maxAttempts: 4,
+      version: 4,
+    });
+    // Explanations and sources are kept for the authors.
+    const explained = five.map((item, index) =>
+      index === 0
+        ? { ...item, explanation: { en: "Says the webinar." }, source: "Webinar · 12:30" }
+        : item,
+    );
+    expect(
+      await saveCourseTest(dbs.app.db, tenant.id, courseId, { ...quiz, questions: explained }),
+    ).toEqual({ changed: true, version: 5 });
+    expect((await partsOf(courseId)).tests[0]?.questions[0]).toMatchObject({
+      explanation: { en: "Says the webinar." },
+      source: "Webinar · 12:30",
+    });
+
     // A work-only course keeps a test it never had: the first save creates it.
     const workOnly = await newCourse("work");
     expect(

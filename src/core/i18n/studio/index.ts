@@ -3,6 +3,7 @@ import * as authoring from "@/core/i18n/studio/authoring";
 import * as brand from "@/core/i18n/studio/brand";
 import * as common from "@/core/i18n/studio/common";
 import * as courses from "@/core/i18n/studio/courses";
+import * as drafts from "@/core/i18n/studio/drafts";
 import * as lessons from "@/core/i18n/studio/lessons";
 import * as settings from "@/core/i18n/studio/settings";
 import * as team from "@/core/i18n/studio/team";
@@ -19,6 +20,7 @@ export const STUDIO_AREAS = {
   common,
   courses,
   authoring,
+  drafts,
   lessons,
   team,
   settings,
@@ -29,6 +31,7 @@ const en = {
   ...common.en,
   ...courses.en,
   ...authoring.en,
+  ...drafts.en,
   ...lessons.en,
   ...team.en,
   ...settings.en,
@@ -41,6 +44,7 @@ const de: Record<StudioKey, string> = {
   ...common.de,
   ...courses.de,
   ...authoring.de,
+  ...drafts.de,
   ...lessons.de,
   ...team.de,
   ...settings.de,

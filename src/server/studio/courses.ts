@@ -494,7 +494,7 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
         }
       : null,
     rubric: editor.rubric ? rubricSchema.parse(editor.rubric.definition) : null,
-    test: editor.test ? { questions: editor.test.questions } : null,
+    test: editor.test ? { questions: editor.test.questions, poolSize: editor.test.poolSize } : null,
     platform,
   };
 }

@@ -23,6 +23,7 @@ import {
   type CheckQuestion,
   type TestQuestion,
 } from "@/core/questions/questions";
+import { servedCount } from "@/core/questions/quiz";
 import { GOOD_AGREEMENT } from "@/core/review/calibration";
 import type { Rubric } from "@/core/review/rubric";
 
@@ -60,7 +61,7 @@ export interface PublishCheckInput {
   } | null;
   rubric: Rubric | null;
   /** The final test; only looked at when the course ends with one. */
-  test?: { questions: readonly TestQuestion[] } | null;
+  test?: { questions: readonly TestQuestion[]; poolSize?: number | null } | null;
   platform?: PlatformCapabilities;
   /** The academy around the course; omitted, academy-level checks are skipped. */
   academy?: { legalLinks: { imprint?: string; privacy?: string } };
@@ -362,12 +363,14 @@ function checkTest(
       });
     }
   }
-  if (questions.length < MIN_USEFUL_TEST_QUESTIONS) {
+  // What one attempt serves is what says something, however large the pool.
+  const served = servedCount(questions.length, test?.poolSize ?? null);
+  if (served < MIN_USEFUL_TEST_QUESTIONS) {
     add({
       code: "test_too_short",
       severity: "warning",
-      params: { count: questions.length, min: MIN_USEFUL_TEST_QUESTIONS },
-      message: `The final test has ${questions.length} question(s); ${MIN_USEFUL_TEST_QUESTIONS} or more say more about what someone learned.`,
+      params: { count: served, min: MIN_USEFUL_TEST_QUESTIONS },
+      message: `The final test serves ${served} question(s); ${MIN_USEFUL_TEST_QUESTIONS} or more say more about what someone learned.`,
     });
   }
   for (const question of questions) {

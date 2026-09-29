@@ -14,6 +14,8 @@ export const AI_USAGE_KINDS = [
   "transcription",
   "embedding",
   "brand_import",
+  "question_draft",
+  "source_coverage",
 ] as const;
 
 export type AiUsageKind = (typeof AI_USAGE_KINDS)[number];
@@ -30,6 +32,8 @@ export const AI_USAGE_GROUPS = {
     "recording_topics",
     "transcription",
     "embedding",
+    "question_draft",
+    "source_coverage",
   ],
   setup: ["brand_import"],
 } as const satisfies Record<string, readonly AiUsageKind[]>;

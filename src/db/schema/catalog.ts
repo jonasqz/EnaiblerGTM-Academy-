@@ -295,6 +295,11 @@ export const courseTests = pgTable(
     questions: jsonb("questions").$type<TestQuestion[]>().notNull().default([]),
     passPercent: integer("pass_percent").notNull().default(DEFAULT_PASS_PERCENT),
     showMistakes: boolean("show_mistakes").notNull().default(true),
+    /** Quiz settings (core/questions/quiz): a draw per attempt, shuffling, an attempt limit. */
+    poolSize: integer("pool_size"),
+    shuffleQuestions: boolean("shuffle_questions").notNull().default(false),
+    shuffleOptions: boolean("shuffle_options").notNull().default(false),
+    maxAttempts: integer("max_attempts"),
     version: integer("version").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

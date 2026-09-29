@@ -1,4 +1,4 @@
-import { isJobError } from "@/core/authoring/job-errors";
+import { isJobError, type JobError } from "@/core/authoring/job-errors";
 import type { WordingFinding } from "@/core/compliance/wording-lint";
 import type { PublishIssue } from "@/core/courses/publish-check";
 import {
@@ -9,6 +9,7 @@ import {
 import type { CheckIssue, CheckIssueCode } from "@/core/questions/knowledge-check";
 import type { ManifestWarning } from "@/core/tenant/manifest";
 import { MIN_BUTTON_CONTRAST, MIN_TEXT_CONTRAST, type ContrastIssue } from "@/core/theme/contrast";
+import { allowanceResetsAt } from "@/core/usage/allowance";
 import type { Locale } from "@/core/i18n/locales";
 import type { StudioKey } from "@/core/i18n/studio/index";
 import type { StudioText } from "@/core/i18n/studio/translator";
@@ -150,6 +151,13 @@ export function studioUploadLabels(t: StudioText) {
 export function jobErrorText(t: StudioText, stored: string | null | undefined): string | null {
   if (!stored) return null;
   return isJobError(stored) ? t.t(`common.jobError.${stored}`) : stored;
+}
+
+/** Why an AI draft did not come; a used-up allowance says when it starts again. */
+export function draftErrorText(t: StudioText, code: JobError, now = new Date()): string {
+  return code === "ai_allowance_used_up"
+    ? t.t("drafts.allowance", { date: t.date(allowanceResetsAt(now)) })
+    : t.t(`common.jobError.${code}`);
 }
 
 /** Core words contrast problems in English (for manifests); the Studio words them from the code. */
