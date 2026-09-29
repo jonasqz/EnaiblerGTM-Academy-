@@ -134,7 +134,8 @@ export function quotaStatus(input: {
   };
 }
 
-/** "1.25 GB" for the operator's command line. */
+/** "1.25 GB" for the operator's command line; small amounts with a digit more. */
 export function formatGb(bytes: number): string {
-  return `${(bytes / BYTES_PER_GB).toFixed(2)} GB`;
+  const gb = bytes / BYTES_PER_GB;
+  return `${gb.toFixed(gb > 0 && gb < 0.1 ? 3 : 2)} GB`;
 }

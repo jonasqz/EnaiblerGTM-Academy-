@@ -43,12 +43,12 @@ function describeAllowance(status: AllowanceStatus): string {
   return `${limit} (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
 }
 
-/** "50.00 GB of video storage (own), 12.30 GB used (24 %)" */
+/** "video storage 50.00 GB (own), 12.30 GB used (24 %)" */
 function describeQuota(status: QuotaStatus): string {
   const kind = status.setting.kind === "amount" ? "own" : status.setting.kind;
-  const limit = status.quotaBytes === null ? "no limit" : formatGb(status.quotaBytes);
+  const limit = status.quotaBytes === null ? "without limit" : formatGb(status.quotaBytes);
   const used = `${formatGb(status.usedBytes)} used`;
-  return `${limit} of video storage (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
+  return `video storage ${limit} (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
 }
 
 const args = process.argv.slice(2);

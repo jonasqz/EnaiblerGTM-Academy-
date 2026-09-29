@@ -42,6 +42,18 @@ describe("environment", () => {
     );
   });
 
+  it("takes the video storage quota in gigabytes", () => {
+    expect(parseEnv({ ...required, MEDIA_STORAGE_QUOTA_GB: "50" }).MEDIA_STORAGE_QUOTA_GB).toBe(
+      "50",
+    );
+    expect(parseEnv({ ...required, MEDIA_STORAGE_QUOTA_GB: "" }).MEDIA_STORAGE_QUOTA_GB).toBe(
+      undefined,
+    );
+    expect(() => parseEnv({ ...required, MEDIA_STORAGE_QUOTA_GB: "50GB" })).toThrow(
+      /MEDIA_STORAGE_QUOTA_GB/,
+    );
+  });
+
   it("defaults the protocol to https in production only", () => {
     expect(parseEnv({ ...required, NODE_ENV: "production" }).APP_PROTOCOL).toBe("https");
     expect(parseEnv(required).APP_PROTOCOL).toBe("http");
