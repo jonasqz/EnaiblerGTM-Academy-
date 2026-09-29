@@ -59,6 +59,19 @@ export const en = {
   "drafts.assignment.ready":
     "Suggestion ready: name and assignment here, the rubric below. Read it all, change what does not fit, then save.",
 
+  // Which criteria the sources teach
+  "drafts.coverage.title": "What your sources teach",
+  "drafts.coverage.intro":
+    "Which criteria your sources explain well enough to learn from, lessons or not.",
+  "drafts.coverage.run": "Check the sources",
+  "drafts.coverage.rerun": "Check again",
+  "drafts.coverage.running": "Checking…",
+  "drafts.coverage.checked": "Checked {date}.",
+  "drafts.coverage.outdated": "The rubric or the sources changed since {date}: check again.",
+  "drafts.coverage.none": "Not covered by any source",
+  "drafts.coverage.sources": "Sources: {sections}",
+  "drafts.coverage.noSources": "Add a source first; this check reads the sources that are ready.",
+
   // Knowledge-check questions
   "drafts.check.run": "Draft questions from this lesson",
   "drafts.check.running": "Drafting…",
@@ -126,6 +139,20 @@ export const de: Record<keyof typeof en, string> = {
     "Der Vorschlag ersetzt Name, Aufgabe und Bewertungsraster. Gespeichert wird erst, wenn du speicherst. Weiter?",
   "drafts.assignment.ready":
     "Vorschlag steht: Name und Aufgabe hier, das Bewertungsraster unten. Lies alles, ändere, was nicht passt, und speichere dann.",
+
+  "drafts.coverage.title": "Was deine Quellen vermitteln",
+  "drafts.coverage.intro":
+    "Welche Kriterien deine Quellen so erklären, dass man sie daraus lernen kann, mit oder ohne Lektionen.",
+  "drafts.coverage.run": "Quellen prüfen",
+  "drafts.coverage.rerun": "Noch einmal prüfen",
+  "drafts.coverage.running": "Wird geprüft…",
+  "drafts.coverage.checked": "Geprüft am {date}.",
+  "drafts.coverage.outdated":
+    "Bewertungsraster oder Quellen haben sich seit {date} geändert: Prüf noch einmal.",
+  "drafts.coverage.none": "Von keiner Quelle abgedeckt",
+  "drafts.coverage.sources": "Quellen: {sections}",
+  "drafts.coverage.noSources":
+    "Füge zuerst eine Quelle hinzu; die Prüfung liest die Quellen, die fertig gelesen sind.",
 
   "drafts.check.run": "Fragen aus dieser Lektion entwerfen",
   "drafts.check.running": "Wird entworfen…",

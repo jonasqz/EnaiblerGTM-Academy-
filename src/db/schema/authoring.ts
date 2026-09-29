@@ -13,6 +13,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
+import type { CoverageBasis, SourceCoverageEntry } from "@/core/authoring/source-coverage";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { courses } from "@/db/schema/catalog";
@@ -144,6 +145,37 @@ export const lessonDrafts = pgTable(
     unique("lesson_drafts_tenant_id").on(table.tenantId, table.id),
     foreignKey({
       name: "lesson_drafts_course_fk",
+      columns: [table.tenantId, table.courseId],
+      foreignColumns: [courses.tenantId, courses.id],
+    }).onDelete("cascade"),
+    tenantIsolation(),
+  ],
+).enableRLS();
+
+/**
+ * Which rubric criteria the course's sources teach (core/authoring/source-coverage),
+ * one map per course, replaced on every check. `basis` tells whether the
+ * rubric and the sources are still the ones it was made from.
+ */
+export const sourceCoverage = pgTable(
+  "source_coverage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    courseId: uuid("course_id").notNull(),
+    basis: jsonb("basis").$type<CoverageBasis>().notNull(),
+    criteria: jsonb("criteria").$type<SourceCoverageEntry[]>().notNull(),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    unique("source_coverage_one_per_course").on(table.tenantId, table.courseId),
+    foreignKey({
+      name: "source_coverage_course_fk",
       columns: [table.tenantId, table.courseId],
       foreignColumns: [courses.tenantId, courses.id],
     }).onDelete("cascade"),

@@ -18,6 +18,7 @@ import { draftFaqLesson } from "@/server/authoring/faq";
 import { suggestInterviewQuestions } from "@/server/authoring/interview";
 import { requestLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel, meteredModel } from "@/server/authoring/model";
+import { mapSourceCoverage } from "@/server/authoring/source-coverage";
 import { createSource, deleteSource, loadSource, recheckSource } from "@/server/authoring/sources";
 import { normalizeWebsite } from "@/server/brand/import";
 import { loadFile } from "@/server/files";
@@ -268,6 +269,29 @@ export async function draftLessonsAction(formData: FormData): Promise<void> {
   );
   revalidatePath(`/studio/courses/${courseId}/lessons`);
   redirect(`/studio/courses/${courseId}/lessons?drafting=1`);
+}
+
+/** "Check the sources": which rubric criteria the sources teach (core/authoring/source-coverage). */
+export async function mapSourceCoverageAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { tenant, viewer, courseId } = await courseFor(formData);
+  const t = await getStudioText();
+  const model = authoringModel();
+  if (!model) return { ok: false, message: t.t("drafts.noGateway") };
+  if (!rateLimit(`source-coverage:${tenant.id}`, 20, HOUR)) {
+    return { ok: false, message: t.t("drafts.rateLimited") };
+  }
+  const result = await mapSourceCoverage(
+    getDb(),
+    tenant.id,
+    courseId,
+    { requestedBy: viewer.userId },
+    model,
+  );
+  if (!result.ok) return { ok: false, message: draftErrorText(t, result.error) };
+  revalidatePath(`/studio/courses/${courseId}/lessons`);
+  return { ok: true };
 }
 
 /** "Check now": reads a web page source again instead of waiting for the daily round. */

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { parseQaExport, qaText } from "@/core/authoring/qa";
 import type { TenantContext } from "@/core/tenant/context";
-import { aiUsage, lessons, sources } from "@/db/schema";
+import { aiUsage, lessons, sourceCoverage, sources } from "@/db/schema";
 import type { TranscriptSegment } from "@/db/schema/authoring";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
@@ -12,6 +12,7 @@ import { draftAssignmentFromSources } from "@/server/authoring/assignment-drafti
 import { draftFaqLesson } from "@/server/authoring/faq";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { draftCheckQuestions, draftTestQuestions } from "@/server/authoring/quiz-drafting";
+import { loadSourceCoverage, mapSourceCoverage } from "@/server/authoring/source-coverage";
 import { createSource, extractSource, listSources } from "@/server/authoring/sources";
 import type { Enqueue } from "@/server/jobs/producer";
 import type { LlmCallOptions } from "@/server/llm";
@@ -439,6 +440,75 @@ describe.skipIf(!hasDatabase)("webinar → course authoring", () => {
     const after = await loadCourseEditor(dbs.app.db, tenant.id, courseId);
     expect(after?.assignment).toEqual(before?.assignment);
     expect(after?.rubric).toEqual(before?.rubric);
+  });
+
+  it("maps which criteria the sources teach and notices when it is out of date", async () => {
+    const courseId = await newCourse(["en"]);
+    const calls: LlmCallOptions[] = [];
+    const model = fakeModel(
+      {
+        source_coverage: {
+          criteria: [
+            { criterion_id: "complete", section_refs: ["C1"] },
+            { criterion_id: "evidence", section_refs: ["C2", "C7"] },
+            { criterion_id: "clarity", section_refs: [] },
+          ],
+        },
+      },
+      calls,
+    );
+    const map = () =>
+      mapSourceCoverage(dbs.app.db, tenant.id, courseId, { requestedBy: author }, model);
+    expect(await map()).toEqual({ ok: false, error: "no_sources" });
+    await recording(courseId, "Webinar: Reminders", [
+      { startSec: 0, endSec: 90, title: "Every part", text: "A sequence has three reminders." },
+      { startSec: 90, endSec: 200, title: "Proof", text: "Quote the contract's payment terms." },
+    ]);
+    await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.update(sources).set({ contentHash: "v1" }).where(eq(sources.courseId, courseId)),
+    );
+
+    expect(await map()).toEqual({ ok: true });
+    expect(promptOf(calls[0])).toContain("- complete:");
+    const stored = await loadSourceCoverage(dbs.app.db, tenant.id, courseId);
+    expect(stored).toMatchObject({
+      current: true,
+      criteria: [
+        {
+          criterionId: "complete",
+          sections: [{ label: "Webinar: Reminders · Every part (0:00–1:30)" }],
+        },
+        {
+          criterionId: "evidence",
+          sections: [{ label: "Webinar: Reminders · Proof (1:30–3:20)" }],
+        },
+        { criterionId: "clarity", sections: [] },
+      ],
+    });
+    expect((await usageOf(courseId)).map((row) => row.kind)).toEqual(["source_coverage"]);
+
+    // A source read again with new text makes the map outdated; checking again replaces it.
+    await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.update(sources).set({ contentHash: "v2" }).where(eq(sources.courseId, courseId)),
+    );
+    expect((await loadSourceCoverage(dbs.app.db, tenant.id, courseId))?.current).toBe(false);
+    expect(await map()).toEqual({ ok: true });
+    expect((await loadSourceCoverage(dbs.app.db, tenant.id, courseId))?.current).toBe(true);
+    const rows = await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx.select().from(sourceCoverage).where(eq(sourceCoverage.courseId, courseId)),
+    );
+    expect(rows).toHaveLength(1);
+
+    // An answer that skips a criterion is no map.
+    expect(
+      await mapSourceCoverage(
+        dbs.app.db,
+        tenant.id,
+        courseId,
+        { requestedBy: author },
+        fakeModel({ source_coverage: { criteria: [] } }, []),
+      ),
+    ).toEqual({ ok: false, error: "invalid_drafts" });
   });
 
   it("refuses an FAQ without questions or answers", async () => {
