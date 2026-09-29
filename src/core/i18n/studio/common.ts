@@ -204,6 +204,12 @@ export const en = {
     "Check that this text does not promise recordings: “{text}”",
   "common.publish.delivery.zfu_approval_missing":
     "Self-paced paid courses need the academy to confirm ZFU approval first.",
+  "common.publish.delivery.paid_recording_replaces_session":
+    "A paid course may accept a recording instead of a live session only as a self-paced course with ZFU approval. Ask for live attendance instead.",
+  "common.publish.session_draft":
+    "The session “{title}” is not published yet: learners are registered for it once it is.",
+  "common.publish.sessions_missing":
+    "The course asks for its live sessions, but no lesson is a session yet.",
 
   // Course and lesson actions
   "common.actions.titleMin": "Give the course a title (at least 3 characters).",
@@ -548,6 +554,12 @@ export const de: Record<keyof typeof en, string> = {
     "Prüf, dass dieser Text keine Aufzeichnungen verspricht: „{text}“",
   "common.publish.delivery.zfu_approval_missing":
     "Kostenpflichtige Selbstlernkurse brauchen zuerst die Bestätigung der ZFU-Zulassung durch die Akademie.",
+  "common.publish.delivery.paid_recording_replaces_session":
+    "Ein kostenpflichtiger Kurs darf eine Aufzeichnung statt der Live-Session nur als Selbstlernkurs mit ZFU-Zulassung gelten lassen. Verlange stattdessen die Teilnahme live.",
+  "common.publish.session_draft":
+    "Die Session „{title}“ ist noch nicht veröffentlicht: Lernende werden angemeldet, sobald sie es ist.",
+  "common.publish.sessions_missing":
+    "Der Kurs verlangt seine Live-Sessions, aber noch keine Lektion ist eine Session.",
 
   "common.actions.titleMin": "Gib dem Kurs einen Titel (mindestens 3 Zeichen).",
   "common.actions.artifactMin": "Benenne, was Lernende bauen.",

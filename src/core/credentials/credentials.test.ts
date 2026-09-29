@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { credentialImportSchema } from "@/core/credentials/import";
-import { earnedText, proofLine } from "@/core/credentials/proof";
+import { earnedText, proofLine, sessionsLine } from "@/core/credentials/proof";
 import {
   ctaPath,
   fromSharedCredential,
@@ -12,6 +12,7 @@ import {
   sharedUrl,
   suggestedPost,
 } from "@/core/credentials/share";
+import { lintWording } from "@/core/compliance/wording-lint";
 import { createTranslator } from "@/core/i18n/translator";
 import { linkedInAddToProfileUrl, linkedInShareUrl } from "@/core/credentials/linkedin";
 import {
@@ -193,6 +194,53 @@ describe("how a credential was earned", () => {
     );
     expect(earnedText(en, "test")).toBe("Earned by passing the Final Test.");
     expect(earnedText(en, "work")).toBe("Earned with real work that passed a rubric-based review.");
+  });
+
+  it("says what the sessions of a series were, and nothing when there were none", () => {
+    const work = { basis: "work" as const, artifactName: { en: "Pricing page", de: "Preisseite" } };
+    expect(proofLine(en, { ...work, evidence: ["artifact", "attendance"], sessionCount: 4 })).toBe(
+      "Deliverable: Pricing page · Attended all 4 live sessions",
+    );
+    expect(
+      proofLine(de, { ...work, evidence: ["artifact", "attendance", "relive"], sessionCount: 4 }),
+    ).toBe(
+      "Arbeitsergebnis: Preisseite · An allen 4 Sessions teilgenommen, live oder als Aufzeichnung",
+    );
+    // Quiz-only is allowed, and says so honestly next to the sessions.
+    expect(
+      proofLine(en, {
+        basis: "test",
+        artifactName: null,
+        evidence: ["quiz", "relive"],
+        sessionCount: 2,
+      }),
+    ).toBe("Final Test passed · Watched all 2 sessions as recordings");
+    expect(
+      proofLine(de, {
+        basis: "test",
+        artifactName: null,
+        evidence: ["quiz", "attendance"],
+        sessionCount: 1,
+      }),
+    ).toBe("Wissenstest bestanden · An der Live-Session teilgenommen");
+    expect(sessionsLine(en, { ...work, evidence: ["artifact"], sessionCount: 3 })).toBeNull();
+    expect(sessionsLine(en, work)).toBeNull();
+  });
+
+  it("keeps certification wording off every session line", () => {
+    for (const t of [en, de]) {
+      for (const evidence of [["attendance"], ["relive"], ["attendance", "relive"]] as const) {
+        for (const sessionCount of [1, 4]) {
+          const line = sessionsLine(t, {
+            basis: "work",
+            artifactName: null,
+            evidence,
+            sessionCount,
+          });
+          expect(lintWording(line ?? "", "credential_template")).toEqual([]);
+        }
+      }
+    }
   });
 });
 

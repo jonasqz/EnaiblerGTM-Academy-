@@ -6,6 +6,7 @@ import * as courses from "@/core/i18n/studio/courses";
 import * as drafts from "@/core/i18n/studio/drafts";
 import * as lessons from "@/core/i18n/studio/lessons";
 import * as media from "@/core/i18n/studio/media";
+import * as series from "@/core/i18n/studio/series";
 import * as settings from "@/core/i18n/studio/settings";
 import * as team from "@/core/i18n/studio/team";
 import * as webinars from "@/core/i18n/studio/webinars";
@@ -29,6 +30,7 @@ export const STUDIO_AREAS = {
   brand,
   media,
   webinars,
+  series,
 } as const;
 
 const en = {
@@ -42,6 +44,7 @@ const en = {
   ...brand.en,
   ...media.en,
   ...webinars.en,
+  ...series.en,
 };
 
 export type StudioKey = keyof typeof en;
@@ -57,6 +60,7 @@ const de: Record<StudioKey, string> = {
   ...brand.de,
   ...media.de,
   ...webinars.de,
+  ...series.de,
 };
 
 export const STUDIO_MESSAGES: Record<Locale, Record<StudioKey, string>> = { en, de };

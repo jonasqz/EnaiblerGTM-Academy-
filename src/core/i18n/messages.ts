@@ -198,6 +198,96 @@ const en = {
   "course.test.workToDo": "Not handed in yet",
   "course.test.endsWith": "Ends with the {term.test}",
   "course.test.plus": "Plus the {term.test}",
+
+  // A webinar series as a course (webinar brief §2.7): its session lessons and deadlines.
+  "series.sessionsTitle": "Live sessions",
+  "course.needsTitle": "What your {term.credential} needs",
+  "series.intro":
+    "This {term.course} includes {n} live sessions. Starting it registers you for all of them, with one confirmation and every date for your calendar.",
+  "series.introOne":
+    "This {term.course} includes a live session. Starting it registers you for it, with a confirmation for your calendar.",
+  "series.progress": "Live sessions: {done} of {total}",
+  "series.next": "Next session: {time}",
+  "series.rule.attended": "Your {term.credential} needs every live session attended live.",
+  "series.rule.attended_or_watched":
+    "Your {term.credential} needs every live session, attended live or watched as a recording within {days} days.",
+  "series.rule.attended_or_watchedOpen":
+    "Your {term.credential} needs every live session, attended live or watched as a recording.",
+  "series.participation":
+    "I started the {term.course} “{course}”, which registers me for its live session “{title}”. {academy} uses my email address for it: the confirmation, reminders and the link to join.",
+  "series.sessionsMissing":
+    "Your {term.credential} is ready once you've taken part in every live session.",
+  "session.eyebrow": "Live session",
+  "session.state.upcoming": "Coming up",
+  "session.state.live": "Live now",
+  "session.state.attended": "You were there",
+  "session.state.watched": "You watched the recording",
+  "session.state.catch_up": "Missed live: watch the recording by {date}",
+  "session.state.catchUpOpen": "Missed live: watch the recording",
+  "session.state.missed": "Missed",
+  "session.state.cancelled": "Cancelled",
+  "session.seat": "You have a seat.",
+  "session.waitlist":
+    "You're on the waitlist. If a seat becomes free, it's yours and we'll email you.",
+  "session.notRegistered": "You're not registered for this session.",
+  "session.register": "Register for this session",
+  "session.registered": "You're registered for this session.",
+  "session.closed": "Registration for this session is closed.",
+  "session.join": "Join the session",
+  "session.joinLater": "The link to join appears here {minutes} minutes before the start.",
+  "session.cancelledBody":
+    "{academy} cancelled this session. It no longer counts for your {term.credential}.",
+  "session.recording": "Recording",
+  "session.recordingSoon": "The recording appears here once {academy} adds it.",
+  "session.recordingDoesNotCount":
+    "For this {term.course}, only attending live counts. The recording is here to learn from.",
+  "session.catchUpHint":
+    "Watch at least {percent} % of it by {date}, and the session counts as done.",
+  "session.catchUpHintOpen": "Watch at least {percent} % of it, and the session counts as done.",
+  "session.catchUpOver": "The time to catch up on this session ended on {date}.",
+  "session.page": "Session page",
+  "session.doneAuto":
+    "This lesson is done once you've attended the session or watched its recording.",
+  "session.doneAutoLive": "This lesson is done once you've attended the session.",
+  "session.preparation": "Before the session",
+  "deadline.due": "Due {date}",
+  "deadline.passed": "The deadline was {date}.",
+  "deadline.lateAccepted": "You can still hand it in.",
+  "deadline.lateRefused": "The deadline has passed. This {term.course} takes no hand-ins after it.",
+  "deadline.policyRefused": "Hand-ins after the deadline are not accepted.",
+  "assignment.errorLate": "The deadline has passed, so this hand-in can't be accepted.",
+  "webinar.series.title": "Part of the {term.course} “{course}”",
+  "webinar.series.body":
+    "Registering starts the whole {term.course}: you get a seat in all {n} live sessions, one confirmation and every date for your calendar.",
+  "webinar.series.enrolled": "You're in the {term.course}: all its sessions are waiting there.",
+  "webinar.series.open": "Open the {term.course}",
+  "webinar.series.start": "Start the whole {term.course}",
+  "email.reviewReady.bodyPassedSessionsPending":
+    "Your work in “{course}” passed the review. Your {term.credential} is ready once you've taken part in every live session.",
+  "email.series.enrolled.subject": "Your live sessions in “{course}”",
+  "email.series.enrolled.heading": "You're registered for the live sessions",
+  "email.series.enrolled.body":
+    "You started the {term.course} “{course}” at {academy}, which registers you for its live sessions. The calendar file in this email holds every date you have a seat for.",
+  "email.series.added.subject": "New live session in “{course}”",
+  "email.series.added.heading": "A new live session",
+  "email.series.added.body":
+    "{academy} added a live session to the {term.course} “{course}”, and you're registered for it. The calendar file in this email holds its date.",
+  "email.series.waitlistNote":
+    "A session marked “waitlist” is fully booked: if a seat becomes free, it's yours and we'll email you.",
+  "email.series.session": "{title}: {time}",
+  "email.series.sessionWaitlist": "{title}: {time} (waitlist)",
+  "email.series.button": "Open the {term.course}",
+  "email.series.note":
+    "Join from the {term.course} or the session's page: the link appears there {minutes} minutes before each start. Can't make one? Cancel that session on its page.",
+  "email.series.reason": "You get this email because you started a {term.course} at {academy}.",
+  "email.homework.subject": "Due in two days: {artifact}",
+  "email.homework.heading": "Your {term.artifact} is due soon",
+  "email.homework.body":
+    "Hand in your {term.artifact} “{artifact}” for the {term.course} “{course}” by {deadline}.",
+  "email.homework.lateAccepted": "Running late? You can still hand it in after the deadline.",
+  "email.homework.lateRefused": "Hand-ins after the deadline are not accepted.",
+  "email.homework.button": "Open the {term.assignment}",
+  "email.homework.reason": "You get this email because you're taking a {term.course} at {academy}.",
   "file.kind.pdf": "PDF",
   "file.kind.image": "images (PNG, JPEG, WebP)",
   "file.kind.md": "Markdown (.md)",
@@ -269,6 +359,11 @@ const en = {
   "verify.backedByTest": "Earned by passing the {term.test}.",
   "verify.backedByWorkAndTest":
     "Earned with real work that passed a rubric-based review, and with the {term.test}.",
+  "verify.sessionsLive": "Attended all {n} live sessions",
+  "verify.sessionsLiveOne": "Attended the live session",
+  "verify.sessionsMixed": "Took part in all {n} sessions, live or as recording",
+  "verify.sessionsRelive": "Watched all {n} sessions as recordings",
+  "verify.sessionsReliveOne": "Watched the session as a recording",
   "verify.unavailable": "This credential is no longer available",
   "verify.addToProfile": "Add to LinkedIn profile",
   "verify.share": "Share on LinkedIn",
@@ -803,6 +898,99 @@ const de: Record<MessageKey, string> = {
   "course.test.workToDo": "Noch nicht eingereicht",
   "course.test.endsWith": "Endet mit dem {term.test}",
   "course.test.plus": "Dazu kommt der {term.test}",
+
+  "series.sessionsTitle": "Live-Sessions",
+  "course.needsTitle": "Was deine {term.credential} braucht",
+  "series.intro":
+    "Dieser {term.course} umfasst {n} Live-Sessions. Wenn du ihn startest, bist du für alle angemeldet – mit einer Bestätigung und allen Terminen für deinen Kalender.",
+  "series.introOne":
+    "Dieser {term.course} umfasst eine Live-Session. Wenn du ihn startest, bist du dafür angemeldet – mit einer Bestätigung für deinen Kalender.",
+  "series.progress": "Live-Sessions: {done} von {total}",
+  "series.next": "Nächste Session: {time}",
+  "series.rule.attended": "Für deine {term.credential} nimmst du an jeder Live-Session live teil.",
+  "series.rule.attended_or_watched":
+    "Für deine {term.credential} nimmst du an jeder Live-Session teil: live oder innerhalb von {days} Tagen als Aufzeichnung.",
+  "series.rule.attended_or_watchedOpen":
+    "Für deine {term.credential} nimmst du an jeder Live-Session teil: live oder als Aufzeichnung.",
+  "series.participation":
+    "Ich habe den {term.course} „{course}“ gestartet und bin damit für seine Live-Session „{title}“ angemeldet. {academy} nutzt meine E-Mail-Adresse dafür: für die Bestätigung, Erinnerungen und den Link zur Teilnahme.",
+  "series.sessionsMissing":
+    "Deine {term.credential} ist fertig, sobald du an jeder Live-Session teilgenommen hast.",
+  "session.eyebrow": "Live-Session",
+  "session.state.upcoming": "Steht bevor",
+  "session.state.live": "Jetzt live",
+  "session.state.attended": "Du warst dabei",
+  "session.state.watched": "Aufzeichnung angesehen",
+  "session.state.catch_up": "Live verpasst: Sieh dir die Aufzeichnung bis {date} an",
+  "session.state.catchUpOpen": "Live verpasst: Sieh dir die Aufzeichnung an",
+  "session.state.missed": "Verpasst",
+  "session.state.cancelled": "Abgesagt",
+  "session.seat": "Du hast einen Platz.",
+  "session.waitlist":
+    "Du stehst auf der Warteliste. Wird ein Platz frei, bekommst du ihn und eine E-Mail von uns.",
+  "session.notRegistered": "Du bist für diese Session nicht angemeldet.",
+  "session.register": "Für diese Session anmelden",
+  "session.registered": "Du bist für diese Session angemeldet.",
+  "session.closed": "Die Anmeldung für diese Session ist geschlossen.",
+  "session.join": "An der Session teilnehmen",
+  "session.joinLater": "Der Link zur Teilnahme erscheint hier {minutes} Minuten vor Beginn.",
+  "session.cancelledBody":
+    "{academy} hat diese Session abgesagt. Für deine {term.credential} zählt sie nicht mehr.",
+  "session.recording": "Aufzeichnung",
+  "session.recordingSoon": "Die Aufzeichnung erscheint hier, sobald {academy} sie hinzufügt.",
+  "session.recordingDoesNotCount":
+    "In diesem {term.course} zählt nur die Teilnahme live. Die Aufzeichnung ist zum Nachlernen da.",
+  "session.catchUpHint":
+    "Sieh dir bis {date} mindestens {percent} % davon an, dann zählt die Session als erledigt.",
+  "session.catchUpHintOpen":
+    "Sieh dir mindestens {percent} % davon an, dann zählt die Session als erledigt.",
+  "session.catchUpOver": "Die Zeit zum Nachholen dieser Session endete am {date}.",
+  "session.page": "Seite der Session",
+  "session.doneAuto":
+    "Diese Lektion ist erledigt, sobald du an der Session teilgenommen oder ihre Aufzeichnung angesehen hast.",
+  "session.doneAutoLive": "Diese Lektion ist erledigt, sobald du an der Session teilgenommen hast.",
+  "session.preparation": "Zur Vorbereitung",
+  "deadline.due": "Abgabe bis {date}",
+  "deadline.passed": "Die Frist endete am {date}.",
+  "deadline.lateAccepted": "Du kannst trotzdem noch abgeben.",
+  "deadline.lateRefused":
+    "Die Frist ist vorbei. Dieser {term.course} nimmt danach keine Abgaben mehr an.",
+  "deadline.policyRefused": "Abgaben nach der Frist werden nicht angenommen.",
+  "assignment.errorLate": "Die Frist ist vorbei, darum kann diese Abgabe nicht angenommen werden.",
+  "webinar.series.title": "Gehört zum {term.course} „{course}“",
+  "webinar.series.body":
+    "Mit der Anmeldung startest du den ganzen {term.course}: einen Platz in allen {n} Live-Sessions, eine Bestätigung und alle Termine für deinen Kalender.",
+  "webinar.series.enrolled": "Du bist im {term.course} dabei: Dort warten alle seine Sessions.",
+  "webinar.series.open": "{term.course} öffnen",
+  "webinar.series.start": "Den ganzen {term.course} starten",
+  "email.reviewReady.bodyPassedSessionsPending":
+    "Deine Arbeit in „{course}“ hat die Bewertung bestanden. Deine {term.credential} ist fertig, sobald du an jeder Live-Session teilgenommen hast.",
+  "email.series.enrolled.subject": "Deine Live-Sessions in „{course}“",
+  "email.series.enrolled.heading": "Du bist für die Live-Sessions angemeldet",
+  "email.series.enrolled.body":
+    "Du hast bei {academy} den {term.course} „{course}“ gestartet und bist damit für seine Live-Sessions angemeldet. Die Kalenderdatei in dieser E-Mail enthält jeden Termin, für den du einen Platz hast.",
+  "email.series.added.subject": "Neue Live-Session in „{course}“",
+  "email.series.added.heading": "Eine neue Live-Session",
+  "email.series.added.body":
+    "{academy} hat dem {term.course} „{course}“ eine Live-Session hinzugefügt, und du bist dafür angemeldet. Die Kalenderdatei in dieser E-Mail enthält den Termin.",
+  "email.series.waitlistNote":
+    "Eine Session mit „Warteliste“ ist ausgebucht: Wird ein Platz frei, bekommst du ihn und eine E-Mail von uns.",
+  "email.series.session": "{title}: {time}",
+  "email.series.sessionWaitlist": "{title}: {time} (Warteliste)",
+  "email.series.button": "{term.course} öffnen",
+  "email.series.note":
+    "Du nimmst über den {term.course} oder die Seite der Session teil: Der Link erscheint dort {minutes} Minuten vor jedem Beginn. Du kannst bei einer nicht? Sag diese Session auf ihrer Seite ab.",
+  "email.series.reason":
+    "Du bekommst diese E-Mail, weil du bei {academy} einen {term.course} gestartet hast.",
+  "email.homework.subject": "In zwei Tagen fällig: {artifact}",
+  "email.homework.heading": "Dein {term.artifact} ist bald fällig",
+  "email.homework.body":
+    "Gib dein {term.artifact} „{artifact}“ für den {term.course} „{course}“ bis {deadline} ab.",
+  "email.homework.lateAccepted": "Wird es knapp? Du kannst auch nach der Frist noch abgeben.",
+  "email.homework.lateRefused": "Abgaben nach der Frist werden nicht angenommen.",
+  "email.homework.button": "{term.assignment} öffnen",
+  "email.homework.reason":
+    "Du bekommst diese E-Mail, weil du bei {academy} einen {term.course} machst.",
   "file.kind.pdf": "PDF",
   "file.kind.image": "Bilder (PNG, JPEG, WebP)",
   "file.kind.md": "Markdown (.md)",
@@ -880,6 +1068,11 @@ const de: Record<MessageKey, string> = {
   "verify.backedByTest": "Erworben mit dem bestandenen {term.test}.",
   "verify.backedByWorkAndTest":
     "Erworben mit einer echten Arbeit, die eine Bewertung anhand klarer Kriterien bestanden hat, und dem bestandenen {term.test}.",
+  "verify.sessionsLive": "An allen {n} Live-Sessions teilgenommen",
+  "verify.sessionsLiveOne": "An der Live-Session teilgenommen",
+  "verify.sessionsMixed": "An allen {n} Sessions teilgenommen, live oder als Aufzeichnung",
+  "verify.sessionsRelive": "Alle {n} Sessions als Aufzeichnung angesehen",
+  "verify.sessionsReliveOne": "Die Session als Aufzeichnung angesehen",
   "verify.unavailable": "Dieser Nachweis ist nicht mehr verfügbar",
   "verify.addToProfile": "Zum LinkedIn-Profil hinzufügen",
   "verify.share": "Auf LinkedIn teilen",

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { SessionRule } from "@/core/courses/sessions";
+
 /**
  * Delivery modes and the FernUSG guardrails (brief §9). Not legal advice:
  * these rules encode what counsel asked for and must stay conservative.
@@ -8,6 +10,10 @@ import { z } from "zod";
  * - paid_live: paid, live sessions. Must not promise recordings.
  * - paid_async_approved: paid and self-paced, only with ZFU approval confirmed by the tenant.
  * Paid modes stay blocked until payments ship (phase 3).
+ *
+ * A series that lets a session's recording stand in for attending it
+ * (webinar brief §5) sells the recordings as self-paced learning: for a paid
+ * course that takes `paid_async_approved` with ZFU approval, never `paid_live`.
  */
 export const DELIVERY_MODES = ["free_async", "paid_live", "paid_async_approved"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];
@@ -33,13 +39,16 @@ export interface DeliveryModeInput {
   zfuApproval?: ZfuApproval | null;
   /** Marketing texts of the course (title, summary) to scan for recording promises. */
   texts?: readonly string[];
+  /** What the course asks of its live sessions (core/courses/sessions). */
+  sessionRule?: SessionRule;
 }
 
 export type DeliveryModeIssueCode =
   | "payments_not_available"
   | "paid_live_offers_recordings"
   | "zfu_approval_missing"
-  | "possible_recording_promise";
+  | "possible_recording_promise"
+  | "paid_recording_replaces_session";
 
 export interface DeliveryModeIssue {
   code: DeliveryModeIssueCode;
@@ -85,6 +94,16 @@ export function checkDeliveryMode(
         text: promising.slice(0, 80),
       });
     }
+  }
+
+  const approvedSelfPaced = input.deliveryMode === "paid_async_approved" && input.zfuApproval;
+  if (paid && input.sessionRule === "attended_or_watched" && !approvedSelfPaced) {
+    issues.push({
+      code: "paid_recording_replaces_session",
+      severity: "error",
+      message:
+        "A paid course may accept a recording instead of a live session only as a self-paced course with ZFU approval.",
+    });
   }
 
   if (input.deliveryMode === "paid_async_approved" && !input.zfuApproval) {

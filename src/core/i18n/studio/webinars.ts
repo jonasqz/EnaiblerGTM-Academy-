@@ -81,6 +81,8 @@ export const en = {
     "The address stays as it is once published: it is in every mail and shared link.",
   "webinars.error.course": "That course is not available.",
   "webinars.error.ended": "A published webinar cannot move into the past.",
+  "webinars.error.session":
+    "This webinar is a session of its course. To link it to another course, first make its lesson an ordinary lesson again.",
 
   "webinars.overview.checkin": "Check-in code",
   "webinars.overview.checkinHint":
@@ -340,6 +342,8 @@ export const de: Record<keyof typeof en, string> = {
     "Nach dem Veröffentlichen bleibt die Adresse: Sie steht in jeder E-Mail und jedem geteilten Link.",
   "webinars.error.course": "Dieser Kurs ist nicht verfügbar.",
   "webinars.error.ended": "Ein veröffentlichtes Webinar kann nicht in die Vergangenheit rücken.",
+  "webinars.error.session":
+    "Dieses Webinar ist eine Session seines Kurses. Um es mit einem anderen Kurs zu verknüpfen, mach seine Lektion zuerst wieder zu einer normalen Lektion.",
 
   "webinars.overview.checkin": "Check-in-Code",
   "webinars.overview.checkinHint":

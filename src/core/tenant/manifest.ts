@@ -1,6 +1,7 @@
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
+import { LATE_SUBMISSIONS } from "@/core/assignments/deadline";
 import {
   checkDeliveryMode,
   deliveryModeSchema,
@@ -109,6 +110,14 @@ export const videoSchema = z.strictObject({
   watched_percent: z.number().int().min(10).max(100).default(DEFAULT_WATCHED_PERCENT),
 });
 
+/**
+ * Homework (webinar brief §2.6): whether a first hand-in after the
+ * assignment's deadline is still taken. Accepted unless the academy says not.
+ */
+export const assignmentsSchema = z.strictObject({
+  late_submissions: z.enum(LATE_SUBMISSIONS).default("accepted"),
+});
+
 export const FEATURE_KEYS = ["paths", "levels", "cohorts", "ai_review", "showcase"] as const;
 
 export const featuresSchema = z.strictObject({
@@ -165,6 +174,7 @@ export const tenantSettingsSchema = z.strictObject({
   sharing: sharingSchema.prefault({}),
   review_tone: z.enum(REVIEW_TONES).default("warm"),
   video: videoSchema.prefault({}),
+  assignments: assignmentsSchema.prefault({}),
 });
 export type TenantSettings = z.output<typeof tenantSettingsSchema>;
 

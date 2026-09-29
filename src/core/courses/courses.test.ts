@@ -330,6 +330,50 @@ describe("publish checklist", () => {
     expect(result.errors.map((e) => e.code)).toEqual(["delivery_mode"]);
   });
 
+  it("keeps a paid live series from taking recordings instead of attendance (FernUSG)", () => {
+    const result = checkCoursePublishable({
+      ...ready,
+      course: { ...ready.course, deliveryMode: "paid_live", sessionRule: "attended_or_watched" },
+      sessions: [{ title: "Kick-off", status: "published" }],
+      platform: { paymentsEnabled: true },
+    });
+    expect(result.errors.map((e) => [e.code, e.deliveryMode])).toEqual([
+      ["delivery_mode", "paid_recording_replaces_session"],
+    ]);
+  });
+
+  it("warns about sessions learners cannot register for yet, and a rule without sessions", () => {
+    const series = checkCoursePublishable({
+      ...ready,
+      course: { ...ready.course, sessionRule: "attended" },
+      lessons: [
+        ...ready.lessons,
+        // The session is the lesson's content: no text needed.
+        {
+          key: "live-1",
+          locale: "en",
+          title: "Live",
+          markdown: "",
+          criterionIds: [],
+          session: true,
+        },
+      ],
+      sessions: [
+        { title: "Kick-off", status: "published" },
+        { title: "Review day", status: "draft" },
+      ],
+    });
+    expect(series.ok).toBe(true);
+    expect(series.warnings.map((w) => [w.code, w.params?.title])).toEqual([
+      ["session_draft", "Review day"],
+    ]);
+    const empty = checkCoursePublishable({
+      ...ready,
+      course: { ...ready.course, sessionRule: "attended_or_watched" },
+    });
+    expect(empty.warnings.map((w) => w.code)).toEqual(["sessions_missing"]);
+  });
+
   it("warns about missing translations and empty lessons", () => {
     const result = checkCoursePublishable({
       ...ready,

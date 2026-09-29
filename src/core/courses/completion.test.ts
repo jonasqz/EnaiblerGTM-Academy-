@@ -17,6 +17,31 @@ describe("how a course is completed", () => {
     expect(missingParts("work", { workPassed: false, testPassed: true })).toEqual(["work"]);
     expect(missingParts("test", { workPassed: true, testPassed: false })).toEqual(["test"]);
   });
+
+  it("waits for the sessions of a series like for the work and the test", () => {
+    const done = { workPassed: true, testPassed: true };
+    expect(missingParts("work", done, "none")).toEqual([]);
+    expect(missingParts("work", done, "attended")).toEqual(["sessions"]);
+    expect(missingParts("work", { ...done, sessionsPassed: false }, "attended_or_watched")).toEqual(
+      ["sessions"],
+    );
+    expect(missingParts("work", { ...done, sessionsPassed: true }, "attended")).toEqual([]);
+    expect(
+      missingParts(
+        "work_and_test",
+        { workPassed: false, testPassed: true, sessionsPassed: false },
+        "attended",
+      ),
+    ).toEqual(["work", "sessions"]);
+    // Sessions alone never finish a course: the work or the test is always asked for.
+    expect(
+      missingParts(
+        "test",
+        { workPassed: true, testPassed: false, sessionsPassed: true },
+        "attended",
+      ),
+    ).toEqual(["test"]);
+  });
 });
 
 describe("what an academy promises on its home page", () => {

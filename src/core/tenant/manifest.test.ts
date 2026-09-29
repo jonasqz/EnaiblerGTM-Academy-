@@ -126,6 +126,7 @@ describe("manifest validation", () => {
     });
     expect(result.manifest.tenant.anonymity_mode).toBe(true);
     expect(result.manifest.tenant.video).toEqual({ watched_percent: 80 });
+    expect(result.manifest.tenant.assignments).toEqual({ late_submissions: "accepted" });
     expect(result.manifest.theme).toBeUndefined();
     expect(result.manifest.paths).toEqual([]);
   });
@@ -139,6 +140,19 @@ describe("manifest validation", () => {
         /^tenant\.video\.watched_percent: /,
       );
     }
+  });
+
+  it("lets the academy refuse homework handed in after its deadline", () => {
+    const result = validateTenantManifest(
+      baseManifest({ assignments: { late_submissions: "refused" } }),
+    );
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(result.manifest.tenant.assignments.late_submissions).toBe("refused");
+    expect(
+      errorsOf(
+        baseManifest({ assignments: { late_submissions: "sometimes" as "accepted" } }),
+      ).join(),
+    ).toMatch(/^tenant\.assignments\.late_submissions: /);
   });
 
   it("requires default_locale to be one of the locales", () => {

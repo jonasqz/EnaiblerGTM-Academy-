@@ -110,4 +110,33 @@ describe("delivery modes (FernUSG)", () => {
       ),
     ).toBe(true);
   });
+
+  it("lets a recording stand in for a paid live session only with ZFU approval (webinar brief §5)", () => {
+    const platform = { paymentsEnabled: true };
+    const approval = { confirmedAt: "2027-10-01", confirmedBy: "tenant-admin" };
+    const codes = (input: Parameters<typeof checkDeliveryMode>[0]) =>
+      checkDeliveryMode(input, platform).map((issue) => issue.code);
+    expect(codes({ deliveryMode: "paid_live", sessionRule: "attended_or_watched" })).toEqual([
+      "paid_recording_replaces_session",
+    ]);
+    // Attending live is fine for a paid live series; free series have no restriction.
+    expect(codes({ deliveryMode: "paid_live", sessionRule: "attended" })).toEqual([]);
+    expect(codes({ deliveryMode: "free_async", sessionRule: "attended_or_watched" })).toEqual([]);
+    expect(
+      codes({
+        deliveryMode: "paid_async_approved",
+        zfuApproval: approval,
+        sessionRule: "attended_or_watched",
+      }),
+    ).toEqual([]);
+    expect(
+      codes({ deliveryMode: "paid_async_approved", sessionRule: "attended_or_watched" }),
+    ).toEqual(["paid_recording_replaces_session", "zfu_approval_missing"]);
+    // Blocked anyway while payments are not there.
+    expect(
+      checkDeliveryMode({ deliveryMode: "paid_live", sessionRule: "attended_or_watched" }).map(
+        (issue) => issue.code,
+      ),
+    ).toEqual(["payments_not_available", "paid_recording_replaces_session"]);
+  });
 });

@@ -14,6 +14,7 @@ import {
   type WordingFinding,
 } from "@/core/compliance/wording-lint";
 import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
+import { requiresSessions, type SessionRule } from "@/core/courses/sessions";
 import { localize, type Locale, type LocalizedText } from "@/core/i18n/locales";
 import {
   MIN_USEFUL_TEST_QUESTIONS,
@@ -44,7 +45,11 @@ export interface PublishCheckInput {
     zfuApproval?: ZfuApproval | null;
     estMinutes?: number | null;
     completionMode: CompletionMode;
+    /** What the course asks of its live sessions; none when left out. */
+    sessionRule?: SessionRule;
   };
+  /** The webinars its session lessons are (core/courses/sessions), in order. */
+  sessions?: ReadonlyArray<{ title: string; status: "draft" | "published" | "cancelled" }>;
   lessons: ReadonlyArray<{
     key: string;
     locale: Locale;
@@ -53,6 +58,8 @@ export interface PublishCheckInput {
     criterionIds: readonly string[];
     /** The lesson's knowledge check, if it has one. */
     questions?: readonly CheckQuestion[];
+    /** The lesson is a live session: the webinar is its content, the text only prepares it. */
+    session?: boolean;
   }>;
   assignment: {
     prompt: LocalizedText;
@@ -91,7 +98,9 @@ export type PublishIssueCode =
   | "no_duration"
   | "legal_pages_missing"
   | "calibration_missing"
-  | "calibration_low";
+  | "calibration_low"
+  | "session_draft"
+  | "sessions_missing";
 
 export interface PublishIssue {
   code: PublishIssueCode;
@@ -168,8 +177,8 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
     const keys = keysByLocale.get(lesson.locale) ?? new Set<string>();
     keys.add(lesson.key);
     keysByLocale.set(lesson.locale, keys);
-    // A knowledge check alone is content too.
-    if (!lesson.markdown.trim() && !lesson.questions?.length) {
+    // A knowledge check alone is content too, and so is a live session.
+    if (!lesson.markdown.trim() && !lesson.questions?.length && !lesson.session) {
       add({
         code: "empty_lesson",
         severity: "warning",
@@ -244,6 +253,7 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
       texts: [...Object.values(course.title), ...Object.values(course.summary ?? {})].filter(
         (value): value is string => typeof value === "string",
       ),
+      sessionRule: course.sessionRule,
     },
     input.platform,
   )) {
@@ -253,6 +263,26 @@ export function checkCoursePublishable(input: PublishCheckInput): PublishCheck {
       message: issue.message,
       deliveryMode: issue.code,
       ...(issue.text ? { params: { text: issue.text } } : {}),
+    });
+  }
+
+  // A series: its sessions reach learners only once published (they are registered then).
+  const sessions = input.sessions ?? [];
+  for (const session of sessions) {
+    if (session.status === "draft") {
+      add({
+        code: "session_draft",
+        severity: "warning",
+        params: { title: session.title },
+        message: `The session "${session.title}" is not published yet.`,
+      });
+    }
+  }
+  if (requiresSessions(course.sessionRule ?? "none") && sessions.length === 0) {
+    add({
+      code: "sessions_missing",
+      severity: "warning",
+      message: "The course asks for its live sessions, but no lesson is a session yet.",
     });
   }
 
