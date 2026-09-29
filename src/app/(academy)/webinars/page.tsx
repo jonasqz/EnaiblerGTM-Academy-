@@ -1,4 +1,4 @@
-import { CalendarDays, Radio, Users, Video } from "lucide-react";
+import { CalendarDays, Clapperboard, Radio, Users, Video } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -43,6 +43,11 @@ function WebinarCard(props: { item: WebinarListItem; t: Translator; now: Date; p
         {live && (
           <Badge tone="critical" icon={Radio}>
             {t.t("webinar.live")}
+          </Badge>
+        )}
+        {item.relive !== "none" && (
+          <Badge tone="info" icon={Clapperboard}>
+            {t.t("webinar.recordingBadge")}
           </Badge>
         )}
         <span className="text-sm font-semibold uppercase tracking-wide text-muted">

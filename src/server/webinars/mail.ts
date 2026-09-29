@@ -7,8 +7,9 @@ import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
 import { buildIcs, webinarUid, type IcsMethod } from "@/core/webinars/ics";
 import { JOIN_OPENS_MINUTES, webinarEnd } from "@/core/webinars/phase";
+import { reliveMailVariant } from "@/core/webinars/relive";
 import { reminderSchedule, webinarMailDue, type WebinarMailStep } from "@/core/webinars/reminders";
-import { formatWebinarTime } from "@/core/webinars/time";
+import { formatWebinarDate, formatWebinarTime } from "@/core/webinars/time";
 import type { Transaction } from "@/db/client";
 import {
   courses,
@@ -22,12 +23,16 @@ import { senderFor, type OutgoingEmail } from "@/server/email/mailer";
 import { renderNoticeEmail, type NoticeEmailInput } from "@/server/email/templates/notice";
 import { academyUrl } from "@/server/platform/config";
 import { cancelUrl, webinarUrl } from "@/server/webinars/links";
+import { reliveOf } from "@/server/webinars/recording";
 
 /*
  * Mail around a webinar (webinar brief §3, reminder sequence): queued in the
  * outbox in the transaction of what it reports, planned ahead for the
  * reminders, and written when it goes out, in the registrant's language.
  * A mail that is no longer true by then stays unsent (webinarMailDue).
+ * Whether a follow-up or a confirmation after the end brings the recording
+ * is decided when it is queued or upgraded (server/webinars/relive-mail.ts),
+ * never while it is sent: a retried mail says the same thing.
  */
 
 type WebinarRow = typeof webinars.$inferSelect;
@@ -44,6 +49,7 @@ export async function queueWebinarMail(
     sendAfter?: Date;
     plannedFor?: Date;
     hadSeat?: boolean;
+    recording?: boolean;
   },
 ): Promise<void> {
   const payload: WebinarMailPayload = {
@@ -52,6 +58,7 @@ export async function queueWebinarMail(
     step: input.step,
     ...(input.plannedFor ? { plannedFor: input.plannedFor.toISOString() } : {}),
     ...(input.hadSeat ? { hadSeat: true } : {}),
+    ...(input.recording ? { recording: true } : {}),
   };
   await tx.insert(notifications).values({
     tenantId,
@@ -170,6 +177,48 @@ type Content = Omit<NoticeEmailInput, "tenant" | "t" | "reason"> & {
   calendar?: IcsMethod;
 };
 
+/** The published course a webinar leads into: its line, button and entry link for the mail. */
+async function nextStep(
+  tx: Transaction,
+  tenant: TenantContext,
+  t: Translator,
+  webinar: WebinarRow,
+): Promise<{ paragraph: string; label: string; url: string } | null> {
+  if (!webinar.courseId) return null;
+  const [course] = await tx
+    .select({ slug: courses.slug, title: courses.title, status: courses.status })
+    .from(courses)
+    .where(eq(courses.id, webinar.courseId));
+  if (course?.status !== "published") return null;
+  return {
+    paragraph: t.t("email.webinar.followup.course", {
+      course: localize(course.title, t.locale, [tenant.settings.default_locale]),
+    }),
+    label: t.t("email.webinar.courseButton"),
+    url: courseEntryUrl(tenant, course.slug, webinar.slug, "email"),
+  };
+}
+
+async function attendedLive(tx: Transaction, webinarId: string, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: webinarAttendance.id })
+    .from(webinarAttendance)
+    .where(and(eq(webinarAttendance.webinarId, webinarId), eq(webinarAttendance.userId, userId)));
+  return row !== undefined;
+}
+
+/**
+ * A mail that was to bring the recording could not (it was taken off in
+ * the meantime): they count as not mailed, so a recording shown later
+ * reaches them after all (server/webinars/relive-mail.ts).
+ */
+async function forgetReliveMail(tx: Transaction, registrationId: string): Promise<void> {
+  await tx
+    .update(webinarRegistrations)
+    .set({ reliveMailedAt: null })
+    .where(eq(webinarRegistrations.id, registrationId));
+}
+
 async function content(
   tx: Transaction,
   tenant: TenantContext,
@@ -187,6 +236,7 @@ async function content(
     webinar.timeZone,
     t.locale,
   );
+  const recordedOn = formatWebinarDate(webinar.startsAt, webinar.timeZone, t.locale);
   const list = [
     t.t("email.webinar.when", { time }),
     t.t("email.webinar.language", {
@@ -250,23 +300,59 @@ async function content(
           ? { label: t.t("email.webinar.joinButton"), url: webinar.joinUrl }
           : page,
       };
-    case "followup": {
-      const [course] = webinar.courseId
-        ? await tx
-            .select({ slug: courses.slug, title: courses.title, status: courses.status })
-            .from(courses)
-            .where(eq(courses.id, webinar.courseId))
-        : [];
-      const open = course?.status === "published" ? course : null;
-      const [attended] = await tx
-        .select({ id: webinarAttendance.id })
-        .from(webinarAttendance)
-        .where(
-          and(
-            eq(webinarAttendance.webinarId, webinar.id),
-            eq(webinarAttendance.userId, registration.userId!),
+    case "followup":
+    case "relive_confirmation":
+    case "relive": {
+      const next = await nextStep(tx, tenant, t, webinar);
+      const attended = await attendedLive(tx, webinar.id, registration.userId!);
+      const relive = await reliveOf(tx, webinar, new Date());
+      const watch = {
+        label: t.t("email.webinar.watchButton"),
+        url: `${webinarUrl(tenant, webinar.slug)}#recording`,
+      };
+      // "relive" goes only with the recording ready (webinarMail); the others say what they carry.
+      const carries = step === "relive" || (payload.recording === true && relive === "ready");
+      if (payload.recording && !carries) await forgetReliveMail(tx, registration.id);
+      const mailedBefore = registration.reliveMailedAt !== null && !payload.recording;
+      const coming = !carries && relive === "coming" && !mailedBefore;
+      const recordingLine = carries
+        ? [text("email.webinar.recordingReady")]
+        : coming
+          ? [text("email.webinar.recordingComing")]
+          : [];
+      // The paragraph names the course; the link under the button leads there.
+      const nextLink = next ? { label: next.label, url: next.url } : undefined;
+      if (step === "relive") {
+        const variant = reliveMailVariant({
+          attended,
+          confirmedAt: registration.confirmedAt,
+          end: webinarEnd(webinar),
+        });
+        return {
+          subject: text(`email.webinar.relive.${variant}.subject`),
+          heading: text(`email.webinar.relive.${variant}.heading`),
+          paragraphs: [text(`email.webinar.relive.${variant}.body`), next?.paragraph ?? ""].filter(
+            Boolean,
           ),
-        );
+          list: [t.t("email.webinar.recordedOn", { date: recordedOn })],
+          button: watch,
+          link: nextLink,
+        };
+      }
+      if (step === "relive_confirmation") {
+        return {
+          subject: text("email.webinar.relive_confirmation.subject"),
+          heading: text("email.webinar.relive_confirmation.heading"),
+          paragraphs: [
+            text("email.webinar.relive_confirmation.body"),
+            ...recordingLine,
+            ...(next ? [next.paragraph] : []),
+          ],
+          list: [t.t("email.webinar.recordedOn", { date: recordedOn })],
+          button: carries ? watch : page,
+          link: nextLink,
+        };
+      }
       return {
         subject: text("email.webinar.followup.subject"),
         heading: attended
@@ -274,18 +360,12 @@ async function content(
           : text("email.webinar.followup.subject"),
         paragraphs: [
           text("email.webinar.followup.body"),
-          open
-            ? t.t("email.webinar.followup.course", {
-                course: localize(open.title, t.locale, [tenant.settings.default_locale]),
-              })
-            : text("email.webinar.followup.noCourse"),
+          ...recordingLine,
+          next ? next.paragraph : text("email.webinar.followup.noCourse"),
         ],
-        button: open
-          ? {
-              label: t.t("email.webinar.courseButton"),
-              url: courseEntryUrl(tenant, open.slug, webinar.slug, "email"),
-            }
-          : others,
+        // With the recording in it, watching comes first and the course is the next step.
+        button: carries ? watch : next ? { label: next.label, url: next.url } : others,
+        link: carries ? nextLink : undefined,
       };
     }
     case "rescheduled":
@@ -352,6 +432,11 @@ export async function webinarMail(
     startsAt: webinar.startsAt,
   });
   if (due !== "send") return { skip: due };
+  if (payload.step === "relive" && (await reliveOf(tx, webinar, new Date())) !== "ready") {
+    // Taken off (or failing) since it was queued: a recording shown later mails them then.
+    await forgetReliveMail(tx, registration.id);
+    return { skip: "no_recording" };
+  }
 
   const t = tenantTranslator(tenant, registration.locale);
   const { calendar, ...notice } = await content(tx, tenant, t, payload, webinar, registration);

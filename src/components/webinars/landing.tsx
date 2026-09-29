@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   CircleCheck,
+  Clapperboard,
   Hammer,
   Languages,
   Radio,
@@ -14,10 +15,12 @@ import { LocalTime } from "@/components/webinars/local-time";
 import { Badge } from "@/components/ui/badge";
 import type { Locale } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
+import { clockTime } from "@/core/media/captions";
 import type { CapacityState } from "@/core/webinars/capacity";
 import { shownPresenters, type LandingBlock, type Presenter } from "@/core/webinars/landing";
 import type { WebinarPhase, WebinarStatus } from "@/core/webinars/phase";
-import { formatClock, formatWebinarTime } from "@/core/webinars/time";
+import type { ReliveState } from "@/core/webinars/relive";
+import { formatClock, formatWebinarDate, formatWebinarTime } from "@/core/webinars/time";
 
 /** What the landing page shows of a webinar: nothing the public must not see. */
 export interface LandingView {
@@ -35,6 +38,8 @@ export interface LandingView {
   seats: { state: CapacityState; left: number | null };
   phase: WebinarPhase;
   status: WebinarStatus;
+  /** Over, with a recording: labelled as recorded, with the day it was held, never "live". */
+  relive: ReliveState;
 }
 
 function Meta(props: { icon: LucideIcon; children: ReactNode }) {
@@ -80,7 +85,9 @@ export function seatsLine(t: Translator, seats: LandingView["seats"]): string | 
  * A webinar's landing page from its blocks, in the academy's theme (webinar
  * brief §2.2). Presentational only, so the Studio's preview renders the same
  * page from unsaved blocks; `register` is what the page puts where the form
- * goes (the form, the registrant's status, or a preview of it).
+ * goes (the form, the registrant's status, the recording, or a preview of
+ * it). After the end with a recording it is an evergreen page (brief §3):
+ * labelled as recorded, with the day it was held.
  */
 export function WebinarLanding(props: {
   view: LandingView;
@@ -98,7 +105,9 @@ export function WebinarLanding(props: {
   const { view, t } = props;
   const start = new Date(view.startsAt);
   const time = formatWebinarTime(start, view.durationMinutes, view.timeZone, t.locale);
-  const seats = seatsLine(t, view.seats);
+  const recorded = view.relive !== "none";
+  // Seats only matter while there is a session to take part in.
+  const seats = view.phase === "ended" ? null : seatsLine(t, view.seats);
   const own = (heading: string | undefined) => (heading ? view.locale : undefined);
 
   const block = (item: LandingBlock, index: number): ReactNode => {
@@ -152,18 +161,24 @@ export function WebinarLanding(props: {
             <ol className="card-flat divide-y divide-line">
               {item.items.map((entry, position) => (
                 <li key={position} className="flex gap-4 p-4">
-                  {entry.minute !== undefined && (
-                    <time
-                      className="w-14 shrink-0 font-semibold tabular-nums"
-                      dateTime={new Date(start.getTime() + entry.minute * 60_000).toISOString()}
-                    >
-                      {formatClock(
-                        new Date(start.getTime() + entry.minute * 60_000),
-                        view.timeZone,
-                        t.locale,
-                      )}
-                    </time>
-                  )}
+                  {entry.minute !== undefined &&
+                    (recorded ? (
+                      // Where it is in the recording, not a time of day to be there.
+                      <span className="w-14 shrink-0 font-semibold tabular-nums">
+                        {clockTime(entry.minute * 60)}
+                      </span>
+                    ) : (
+                      <time
+                        className="w-14 shrink-0 font-semibold tabular-nums"
+                        dateTime={new Date(start.getTime() + entry.minute * 60_000).toISOString()}
+                      >
+                        {formatClock(
+                          new Date(start.getTime() + entry.minute * 60_000),
+                          view.timeZone,
+                          t.locale,
+                        )}
+                      </time>
+                    ))}
                   <span lang={view.locale}>{entry.title}</span>
                 </li>
               ))}
@@ -280,6 +295,10 @@ export function WebinarLanding(props: {
           <p className="eyebrow flex flex-wrap items-center gap-2">
             {view.status === "cancelled" ? (
               <Badge tone="critical">{t.t("webinar.cancelledBadge")}</Badge>
+            ) : recorded ? (
+              <Badge tone="info" icon={Clapperboard}>
+                {t.t("webinar.recordingBadge")}
+              </Badge>
             ) : view.phase === "ended" ? (
               <Badge>{t.t("webinar.endedBadge")}</Badge>
             ) : (
@@ -305,18 +324,29 @@ export function WebinarLanding(props: {
           )}
         </div>
         <aside className="card space-y-4 p-5">
-          <Meta icon={CalendarDays}>
-            <time dateTime={view.startsAt} className="block font-semibold">
-              {time}
-            </time>
-            <LocalTime
-              startsAt={view.startsAt}
-              durationMinutes={view.durationMinutes}
-              timeZone={view.timeZone}
-              locale={t.locale}
-              label={t.t("webinar.yourTime", { time: "{time}" })}
-            />
-          </Meta>
+          {recorded ? (
+            // A recording: the day it was held, and no time to be there.
+            <Meta icon={Clapperboard}>
+              <time dateTime={view.startsAt} className="block font-semibold">
+                {t.t("webinar.recordedOn", {
+                  date: formatWebinarDate(start, view.timeZone, t.locale),
+                })}
+              </time>
+            </Meta>
+          ) : (
+            <Meta icon={CalendarDays}>
+              <time dateTime={view.startsAt} className="block font-semibold">
+                {time}
+              </time>
+              <LocalTime
+                startsAt={view.startsAt}
+                durationMinutes={view.durationMinutes}
+                timeZone={view.timeZone}
+                locale={t.locale}
+                label={t.t("webinar.yourTime", { time: "{time}" })}
+              />
+            </Meta>
+          )}
           <Meta icon={Timer}>{t.t("webinar.minutes", { minutes: view.durationMinutes })}</Meta>
           <Meta icon={Languages}>
             {t.t("webinar.heldIn", {

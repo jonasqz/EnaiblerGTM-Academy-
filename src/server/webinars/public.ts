@@ -4,16 +4,20 @@ import { requiresWork, type CompletionMode } from "@/core/courses/completion";
 import type { EntryContext } from "@/core/entry/context";
 import type { LocalizedText } from "@/core/i18n/locales";
 import { webinarPhase } from "@/core/webinars/phase";
+import { reliveState, type ReliveState } from "@/core/webinars/relive";
 import type { Database } from "@/db/client";
 import {
   assignments,
   courses,
+  mediaAssets,
   webinarAttendance,
   webinarRegistrations,
   webinars,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { trackEvent } from "@/server/events";
+import type { MediaAsset } from "@/server/media/library";
+import { recordingOf } from "@/server/webinars/recording";
 import { seatsTaken } from "@/server/webinars/registration";
 
 /*
@@ -24,14 +28,19 @@ import { seatsTaken } from "@/server/webinars/registration";
 
 type WebinarRow = typeof webinars.$inferSelect;
 
-/** A webinar as the public page may show it: no join link, no check-in code. */
-export type PublicWebinar = Omit<WebinarRow, "joinUrl" | "checkinCode" | "externalId">;
+/** A webinar as the public page may show it: no join link, no check-in code, nobody's id. */
+export type PublicWebinar = Omit<
+  WebinarRow,
+  "joinUrl" | "checkinCode" | "externalId" | "reliveConfirmedBy" | "createdBy"
+>;
 
 function publicPart(row: WebinarRow): PublicWebinar {
   const view: Partial<WebinarRow> = { ...row };
   delete view.joinUrl;
   delete view.checkinCode;
   delete view.externalId;
+  delete view.reliveConfirmedBy;
+  delete view.createdBy;
   return view as PublicWebinar;
 }
 
@@ -48,6 +57,8 @@ export interface WebinarPage {
   webinar: PublicWebinar;
   course: WebinarCourse | null;
   taken: number;
+  /** The video it shows as its recording, whatever its state (the page decides what to show). */
+  recording: MediaAsset | null;
 }
 
 /** Published and cancelled webinars for everyone; drafts only when the caller may preview them. */
@@ -79,6 +90,7 @@ export async function loadWebinarPage(
           }
         : null,
       taken: await seatsTaken(tx, webinar.id),
+      recording: await recordingOf(tx, webinar),
     };
   });
 }
@@ -131,6 +143,8 @@ export async function viewerRegistration(
 export interface WebinarListItem {
   webinar: PublicWebinar;
   taken: number;
+  /** A past webinar's recording: ready to watch, or being prepared. */
+  relive: ReliveState;
 }
 
 /** Upcoming (and running) webinars first, soonest first; then the latest past ones. */
@@ -142,8 +156,9 @@ export async function listPublicWebinars(
   return withTenant(db, tenantId, async (tx) => {
     const withSeats = sql<number>`(select count(*)::int from ${webinarRegistrations} r where r.webinar_id = "webinars"."id" and r.status = 'registered')`;
     const rows = await tx
-      .select({ webinar: webinars, taken: withSeats })
+      .select({ webinar: webinars, taken: withSeats, recording: mediaAssets.status })
       .from(webinars)
+      .leftJoin(mediaAssets, eq(mediaAssets.id, webinars.recordingAssetId))
       .where(
         and(
           eq(webinars.status, "published"),
@@ -155,8 +170,9 @@ export async function listPublicWebinars(
       )
       .orderBy(asc(webinars.startsAt));
     const past = await tx
-      .select({ webinar: webinars, taken: withSeats })
+      .select({ webinar: webinars, taken: withSeats, recording: mediaAssets.status })
       .from(webinars)
+      .leftJoin(mediaAssets, eq(mediaAssets.id, webinars.recordingAssetId))
       .where(
         and(
           eq(webinars.status, "published"),
@@ -168,9 +184,14 @@ export async function listPublicWebinars(
       )
       .orderBy(desc(webinars.startsAt))
       .limit(12);
-    const item = (row: { webinar: WebinarRow; taken: number }) => ({
+    const item = (row: {
+      webinar: WebinarRow;
+      taken: number;
+      recording: MediaAsset["status"] | null;
+    }) => ({
       webinar: publicPart(row.webinar),
       taken: row.taken,
+      relive: reliveState(row.webinar, row.recording ? { status: row.recording } : null, now),
     });
     return { upcoming: rows.map(item), past: past.map(item) };
   });
@@ -197,6 +218,7 @@ export interface MyWebinar {
   webinarStatus: WebinarRow["status"];
   phase: ReturnType<typeof webinarPhase>;
   attended: boolean;
+  relive: ReliveState;
 }
 
 /** The learner's registrations (seat or waitlist), for "My learning". */
@@ -213,6 +235,7 @@ export async function myWebinars(
         status: webinarRegistrations.status,
         webinar: webinars,
         attended: webinarAttendance.id,
+        recording: mediaAssets.status,
       })
       .from(webinarRegistrations)
       .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))
@@ -223,6 +246,7 @@ export async function myWebinars(
           eq(webinarAttendance.userId, webinarRegistrations.userId),
         ),
       )
+      .leftJoin(mediaAssets, eq(mediaAssets.id, webinars.recordingAssetId))
       .where(
         and(
           eq(webinarRegistrations.userId, userId),
@@ -244,6 +268,7 @@ export async function myWebinars(
     webinarStatus: row.webinar.status,
     phase: webinarPhase(row.webinar, now),
     attended: row.attended !== null,
+    relive: reliveState(row.webinar, row.recording ? { status: row.recording } : null, now),
   }));
 }
 

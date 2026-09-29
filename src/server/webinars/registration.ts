@@ -24,6 +24,7 @@ import { trackEvent } from "@/server/events";
 import { ensureLearner } from "@/server/learners";
 import { rateLimit } from "@/server/rate-limit";
 import { planReminders, queueWebinarMail, skipWebinarMails } from "@/server/webinars/mail";
+import { reliveOf } from "@/server/webinars/recording";
 
 /*
  * Registering for a webinar (webinar brief §2.2: registration = learner
@@ -31,7 +32,9 @@ import { planReminders, queueWebinarMail, skipWebinarMails } from "@/server/webi
  * the form and gets one mail with a magic link: the click proves the
  * address, signs them in and confirms the registration, with a seat or a
  * place on the waitlist. Seats are decided with the webinar's row locked,
- * so two confirmations never take the last seat twice.
+ * so two confirmations never take the last seat twice. After the end,
+ * registering is for the recording (webinar brief §3, evergreen pages): no
+ * seats to fill, no reminders, a confirmation that brings the recording.
  */
 
 type WebinarRow = typeof webinars.$inferSelect;
@@ -63,18 +66,27 @@ export type SeatResult =
 /** The wording the form showed, per purpose, in the viewer's language. */
 export function registrationConsents(
   tenant: TenantContext,
-  webinar: Pick<WebinarRow, "title" | "recorded" | "recordingNotice" | "form">,
+  webinar: Pick<
+    WebinarRow,
+    "title" | "recorded" | "recordingNotice" | "form" | "startsAt" | "durationMinutes"
+  >,
   t: Translator,
   choices: { marketing: boolean; leadHandoff: boolean },
   now: Date,
 ): GivenConsent[] {
   const academy = tenant.settings.author_display_name;
+  // After the end the form was for the recording, as it said (components/webinars/form-fields).
+  const forRecording = webinarPhase(webinar, now) === "ended";
   return givenConsents(
     {
-      participation: t.t("webinar.form.participation", { title: webinar.title, academy }),
-      recording: webinar.recorded
-        ? (webinar.recordingNotice ?? t.t("webinar.form.recording", { academy }))
-        : null,
+      participation: t.t(
+        forRecording ? "webinar.form.participationRecording" : "webinar.form.participation",
+        { title: webinar.title, academy },
+      ),
+      recording:
+        webinar.recorded && !forRecording
+          ? (webinar.recordingNotice ?? t.t("webinar.form.recording", { academy }))
+          : null,
       // Only what the form offered counts, whatever was posted.
       marketing:
         choices.marketing && webinar.form.consents.marketing
@@ -97,6 +109,18 @@ function eventProps(webinar: Pick<WebinarRow, "id" | "slug">, extra: Record<stri
 async function lockWebinar(tx: Transaction, webinarId: string): Promise<WebinarRow | undefined> {
   const [row] = await tx.select().from(webinars).where(eq(webinars.id, webinarId)).for("update");
   return row;
+}
+
+/** Whether the webinar takes registrations now: until its end, then for its recording. */
+async function openNow(tx: Transaction, webinar: WebinarRow, now: Date): Promise<boolean> {
+  if (registrationOpen(webinar, now)) return true;
+  return registrationOpen(webinar, now, await reliveOf(tx, webinar, now));
+}
+
+/** A seat or the waitlist; after the end there is no room to fill, the recording has space for all. */
+async function seatNow(tx: Transaction, webinar: WebinarRow, now: Date): Promise<Seat> {
+  if (webinarPhase(webinar, now) === "ended") return "registered";
+  return seatFor(webinar.capacity, await seatsTaken(tx, webinar.id));
 }
 
 export async function seatsTaken(tx: Transaction, webinarId: string): Promise<number> {
@@ -127,7 +151,7 @@ export async function startRegistration(
   return withTenant(db, tenant.id, async (tx) => {
     const [webinar] = await tx.select().from(webinars).where(eq(webinars.slug, input.slug));
     if (!webinar || webinar.status === "draft") return { ok: false, error: "not_found" } as const;
-    if (!registrationOpen(webinar, now)) return { ok: false, error: "closed" } as const;
+    if (!(await openNow(tx, webinar, now))) return { ok: false, error: "closed" } as const;
     const checked = validateAnswers(webinar.form, input.request.answers);
     if (!checked.ok) return { ok: false, error: "answers", issues: checked.issues } as const;
 
@@ -176,14 +200,33 @@ async function afterConfirmed(
   },
   now: Date,
 ): Promise<void> {
-  await queueWebinarMail(tx, tenant.id, {
-    userId: registration.userId,
-    webinarId: webinar.id,
-    registrationId: registration.id,
-    step: registration.status === "registered" ? "confirmation" : "waitlist",
-  });
-  if (registration.status === "registered") {
-    await planReminders(tx, tenant.id, webinar, registration, now);
+  if (webinarPhase(webinar, now) === "ended") {
+    // For the recording: no calendar, no reminders. Ready now, the confirmation brings it;
+    // still being prepared, it follows by mail when ready (server/webinars/relive-mail.ts).
+    const ready = (await reliveOf(tx, webinar, now)) === "ready";
+    await queueWebinarMail(tx, tenant.id, {
+      userId: registration.userId,
+      webinarId: webinar.id,
+      registrationId: registration.id,
+      step: "relive_confirmation",
+      recording: ready,
+    });
+    if (ready) {
+      await tx
+        .update(webinarRegistrations)
+        .set({ reliveMailedAt: now })
+        .where(eq(webinarRegistrations.id, registration.id));
+    }
+  } else {
+    await queueWebinarMail(tx, tenant.id, {
+      userId: registration.userId,
+      webinarId: webinar.id,
+      registrationId: registration.id,
+      step: registration.status === "registered" ? "confirmation" : "waitlist",
+    });
+    if (registration.status === "registered") {
+      await planReminders(tx, tenant.id, webinar, registration, now);
+    }
   }
   const handoff = registration.consents.find((consent) => consent.purpose === "lead_handoff");
   if (handoff) await applyContactOptIn(tx, tenant.id, registration.userId, true, handoff.wording);
@@ -231,7 +274,7 @@ export async function confirmRegistration(
       return { ok: false, error: "invalid" } as const;
     }
     const webinar = await lockWebinar(tx, pending.webinarId);
-    if (!webinar || !registrationOpen(webinar, now)) {
+    if (!webinar || !(await openNow(tx, webinar, now))) {
       await tx.delete(webinarRegistrations).where(eq(webinarRegistrations.id, pending.id));
       return { ok: false, error: "closed" } as const;
     }
@@ -262,7 +305,7 @@ export async function confirmRegistration(
       } as const;
     }
 
-    const status = seatFor(webinar.capacity, await seatsTaken(tx, webinar.id));
+    const status = await seatNow(tx, webinar, now);
     const confirmed = {
       status,
       answers: pending.answers,
@@ -326,7 +369,7 @@ export async function registerSignedIn(
       .where(eq(webinars.slug, input.slug));
     const webinar = found ? await lockWebinar(tx, found.id) : undefined;
     if (!webinar || webinar.status === "draft") return { ok: false, error: "not_found" } as const;
-    if (!registrationOpen(webinar, now)) return { ok: false, error: "closed" } as const;
+    if (!(await openNow(tx, webinar, now))) return { ok: false, error: "closed" } as const;
     const checked = validateAnswers(webinar.form, input.request.answers);
     if (!checked.ok) return { ok: false, error: "answers", issues: checked.issues } as const;
     const consents = registrationConsents(tenant, webinar, input.t, input.request, now);
@@ -373,7 +416,7 @@ export async function registerSignedIn(
       props: eventProps(webinar),
     });
 
-    const status = seatFor(webinar.capacity, await seatsTaken(tx, webinar.id));
+    const status = await seatNow(tx, webinar, now);
     const values = {
       status,
       answers: checked.answers,

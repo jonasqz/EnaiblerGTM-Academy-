@@ -16,6 +16,7 @@ import {
   memberships,
   sources,
   watchProgress,
+  webinars,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { deleteFiles, loadFile, type FileRecord } from "@/server/files";
@@ -23,12 +24,14 @@ import type { Enqueue } from "@/server/jobs/producer";
 import { QUEUES } from "@/server/jobs/queues";
 import { admitMediaBytes } from "@/server/media/quota";
 import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
+import { detachVideoEverywhere } from "@/server/webinars/recording";
 
 /*
  * The academy's media library (webinar brief §2.4): videos uploaded here,
  * made from a course recording, or embedded from YouTube and Vimeo. Lessons
- * show them with the re-live player; webinar sessions will too. Used by the
- * Studio, the worker and the tests, so no Next.js here.
+ * show them with the re-live player, and a webinar shows one as its
+ * recording (server/webinars/recording.ts). Used by the Studio, the worker
+ * and the tests, so no Next.js here.
  */
 
 export type MediaAsset = typeof mediaAssets.$inferSelect;
@@ -321,11 +324,18 @@ export async function updateVideo(
       if (!renamed) return "chapters_changed";
       chapters = renamed;
     }
+    // A webinar's recording has its access set on the webinar (server/webinars/recording.ts).
+    const [shownBy] = edit.access
+      ? await tx
+          .select({ id: webinars.id })
+          .from(webinars)
+          .where(eq(webinars.recordingAssetId, assetId))
+      : [];
     await tx
       .update(mediaAssets)
       .set({
         ...(edit.title?.trim() ? { title: edit.title.trim().slice(0, 200) } : {}),
-        ...(edit.access ? { access: edit.access } : {}),
+        ...(edit.access && !shownBy ? { access: edit.access } : {}),
         chapters,
       })
       .where(eq(mediaAssets.id, assetId));
@@ -336,7 +346,8 @@ export async function updateVideo(
 /**
  * Deletes a video with its renditions, its poster and its uploaded original
  * (a course recording stays with its course). Viewers' progress goes with
- * it; lessons that showed it show nothing in its place.
+ * it; lessons that showed it show nothing in its place, and a webinar that
+ * showed it as its recording loses it first.
  */
 export async function deleteVideo(
   db: Database,
@@ -345,13 +356,16 @@ export async function deleteVideo(
 ): Promise<boolean> {
   const asset = await loadVideo(db, tenantId, assetId);
   if (!asset) return false;
-  // Storage first: if it fails, the video is still whole and the author can try again.
+  // Off its webinar before anything else: its page never points at half a video.
+  await withTenant(db, tenantId, (tx) => detachVideoEverywhere(tx, asset.id));
+  // Storage next: if it fails, the video is still whole and the author can try again.
   if (asset.kind === "upload" && storageConfigured()) {
     await deleteUnderPrefix(tenantId, `media/${mediaPrefix(asset.id)}`);
   }
-  await withTenant(db, tenantId, (tx) =>
-    tx.delete(mediaAssets).where(eq(mediaAssets.id, asset.id)),
-  );
+  await withTenant(db, tenantId, async (tx) => {
+    await detachVideoEverywhere(tx, asset.id);
+    await tx.delete(mediaAssets).where(eq(mediaAssets.id, asset.id));
+  });
   if (asset.fileId) {
     const original = await loadFile(db, tenantId, asset.fileId);
     if (original?.purpose === "video") await deleteFiles(db, tenantId, [original]);

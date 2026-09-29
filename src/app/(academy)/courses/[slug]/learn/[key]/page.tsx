@@ -8,7 +8,6 @@ import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
 import { MediaBlock } from "@/components/media/media-block";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
-import { can } from "@/core/access/roles";
 import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { courseProgress, neighbours, type LessonProgressMap } from "@/core/courses/lessons";
 import { localize } from "@/core/i18n/locales";
@@ -17,6 +16,7 @@ import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
 import { videosById } from "@/server/media/library";
 import { progressOf } from "@/server/media/progress";
+import { mediaViewers } from "@/server/media/viewer";
 import { checkQuestionsOf, markdownOf, mediaAssetIdsOf } from "@/server/studio/lessons";
 import { getTranslator } from "@/server/request";
 
@@ -42,7 +42,9 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
   const mediaIds = mediaAssetIdsOf(lesson.blocks);
   const videos = await videosById(getDb(), tenant.id, mediaIds);
   const watched = await progressOf(getDb(), tenant.id, viewer.userId, mediaIds);
-  const mediaViewer = { member: roles.length > 0, canEditCourses: can(roles, "courses.edit") };
+  const mediaViewer = await mediaViewers(getDb(), tenant.id, { userId: viewer.userId, roles }, [
+    ...videos.values(),
+  ]);
   const courseTitle = localize(data.course.title, data.locale, [tenant.settings.default_locale]);
 
   const syllabus = (
@@ -138,7 +140,7 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
               key={id}
               asset={videos.get(id)}
               t={t}
-              viewer={mediaViewer}
+              viewer={mediaViewer(id)}
               progress={watched.get(id) ?? null}
             />
           ))}

@@ -112,6 +112,19 @@ export function utcToZonedInput(instant: Date, timeZone: string): { date: string
 
 const INTL_LOCALE: Record<string, string> = { en: "en-GB", de: "de-DE" };
 
+/**
+ * "6 October 2026": the day a webinar was held, in its own zone. A
+ * recording says when it was made, never a time to be there.
+ */
+export function formatWebinarDate(startsAt: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale] ?? locale, {
+    timeZone,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(startsAt);
+}
+
 /** "18:15": a time of day in a zone (the agenda's items). */
 export function formatClock(instant: Date, timeZone: string, locale: string): string {
   return new Intl.DateTimeFormat(INTL_LOCALE[locale] ?? locale, {

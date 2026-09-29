@@ -1,3 +1,4 @@
+import { reliveState } from "@/core/webinars/relive";
 import { getDb } from "@/db/client";
 import { getTenant, getTranslator } from "@/server/request";
 import { renderWebinarImage } from "@/server/webinars/image";
@@ -12,7 +13,13 @@ export async function GET(
   const tenant = await getTenant();
   const page = await loadWebinarPage(getDb(), tenant.id, slug, { drafts: false });
   if (!page) return new Response("Not found", { status: 404 });
-  const png = await renderWebinarImage(getDb(), tenant, page.webinar, await getTranslator());
+  const png = await renderWebinarImage(
+    getDb(),
+    tenant,
+    page.webinar,
+    await getTranslator(),
+    reliveState(page.webinar, page.recording, new Date()),
+  );
   return new Response(png, {
     headers: { "content-type": "image/png", "cache-control": "public, max-age=300" },
   });

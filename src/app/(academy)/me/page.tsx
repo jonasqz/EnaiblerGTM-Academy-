@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarX,
   CircleCheck,
+  Clapperboard,
   Clock,
   Download,
   Globe,
@@ -246,6 +247,14 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
                       t.locale,
                     )}
                   </p>
+                  {webinar.relive === "ready" && (
+                    <Link
+                      href={`/webinars/${webinar.slug}#recording`}
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                    >
+                      <Clapperboard aria-hidden size={16} /> {t.t("me.webinar.recording")}
+                    </Link>
+                  )}
                 </div>
                 {webinar.webinarStatus === "cancelled" ? (
                   <Badge tone="warning" icon={CalendarX}>
