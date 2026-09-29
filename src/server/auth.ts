@@ -14,6 +14,7 @@ import { sendEmail, senderFor } from "@/server/email/mailer";
 import { renderMagicLinkEmail } from "@/server/email/templates/magic-link";
 import { env, isProduction } from "@/server/env";
 import { rateLimit } from "@/server/rate-limit";
+import { webinarSignInMail } from "@/server/webinars/sign-in-mail";
 
 /**
  * Better Auth, one instance per academy (brief §11: magic links only, one
@@ -108,12 +109,26 @@ function createTenantAuth(tenant: TenantContext) {
             return;
           }
           const t = tenantTranslator(tenant, metadata?.locale);
-          const rendered = await renderMagicLinkEmail({
-            tenant,
-            t,
-            url: confirmUrlFor(url),
-            expiresInMinutes: MAGIC_LINK_TTL_MINUTES,
-          });
+          const link = confirmUrlFor(url);
+          // Sent from a webinar's form: the link confirms the seat, and the mail says so.
+          const webinar =
+            typeof metadata?.webinarRegistration === "string"
+              ? await webinarSignInMail(getDb(), tenant, {
+                  registrationId: metadata.webinarRegistration,
+                  email,
+                  url: link,
+                  t,
+                  minutes: MAGIC_LINK_TTL_MINUTES,
+                })
+              : null;
+          const rendered =
+            webinar ??
+            (await renderMagicLinkEmail({
+              tenant,
+              t,
+              url: link,
+              expiresInMinutes: MAGIC_LINK_TTL_MINUTES,
+            }));
           const from = senderFor(tenant);
           await sendEmail({
             to: email,

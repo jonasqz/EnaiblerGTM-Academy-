@@ -260,6 +260,20 @@
       "when": 1790646124416,
       "tag": "0036_force_rls_media",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790646540886,
+      "tag": "0037_webinars",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790646542038,
+      "tag": "0038_force_rls_webinars",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { WebinarMailStep } from "@/core/webinars/reminders";
 import { createdAt, tenantIsolation } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { tenants } from "@/db/schema/tenancy";
@@ -20,6 +21,7 @@ export const notificationKind = pgEnum("notification_kind", [
   "level_up",
   "team_invite",
   "review_waiting",
+  "webinar",
 ]);
 export const notificationStatus = pgEnum("notification_status", [
   "pending",
@@ -54,8 +56,26 @@ export interface ReviewWaitingPayload {
   submissionIds: string[];
 }
 
+/**
+ * A mail about someone's webinar registration (server/webinars/mail.ts).
+ * Reminders carry the start they were planned for: a webinar that moved
+ * since skips them (it re-plans its own).
+ */
+export interface WebinarMailPayload {
+  webinarId: string;
+  registrationId: string;
+  step: WebinarMailStep;
+  plannedFor?: string;
+  /** A cancelled registration that had a seat: only then is there a calendar entry to remove. */
+  hadSeat?: boolean;
+}
+
 export type NotificationPayload =
-  ReviewReadyPayload | LevelUpPayload | TeamInvitePayload | ReviewWaitingPayload;
+  | ReviewReadyPayload
+  | LevelUpPayload
+  | TeamInvitePayload
+  | ReviewWaitingPayload
+  | WebinarMailPayload;
 
 /**
  * Someone's review alert that has not gone out yet; the unique index below

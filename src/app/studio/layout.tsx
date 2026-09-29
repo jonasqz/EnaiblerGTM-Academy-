@@ -53,6 +53,10 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
     ...(cohortsOn && (can(roles, "cohorts.manage") || roles.includes("mentor"))
       ? [{ icon: "cohorts", href: "/studio/cohorts", label: t.t("common.nav.cohorts") } as const]
       : []),
+    // Authors set webinars up; reviewers with people.view see who registered.
+    ...(can(roles, "courses.edit") || can(roles, "people.view")
+      ? [{ icon: "webinars", href: "/studio/webinars", label: t.t("common.nav.webinars") } as const]
+      : []),
     ...(reviewer
       ? [
           {

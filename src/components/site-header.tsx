@@ -12,6 +12,8 @@ export function SiteHeader(props: {
   locales: readonly Locale[];
   signedIn: boolean;
   showStudio: boolean;
+  /** The academy has published webinars: they get a link. */
+  webinars?: boolean;
 }) {
   const { t } = props;
   return (
@@ -29,6 +31,11 @@ export function SiteHeader(props: {
           {(!props.logo || props.logo.show_name) && props.academyName}
         </Link>
         <nav className="flex flex-wrap items-center gap-1 text-sm sm:gap-2">
+          {props.webinars && (
+            <Link href="/webinars" className="btn btn-ghost btn-sm">
+              {t.t("webinar.nav")}
+            </Link>
+          )}
           {props.signedIn && (
             <Link href="/me" className="btn btn-ghost btn-sm">
               {t.t("nav.myLearning")}

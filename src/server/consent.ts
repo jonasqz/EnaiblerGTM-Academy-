@@ -11,7 +11,7 @@ import {
 import { tenantTranslator } from "@/core/i18n/tenant-translator";
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
-import type { Database } from "@/db/client";
+import type { Database, Transaction } from "@/db/client";
 import { consents, learnerProfiles, user } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { sendEmail, senderFor } from "@/server/email/mailer";
@@ -219,6 +219,48 @@ export async function sendMarketingConfirmation(
     ...rendered,
     headers: { "Auto-Submitted": "auto-generated" },
   });
+}
+
+/**
+ * Lead handoff ("may contact me"): its own opt-in, confirmed as given, and
+ * withdrawn at any time. Runs in the caller's transaction ("My learning",
+ * a webinar registration).
+ */
+export async function applyContactOptIn(
+  tx: Transaction,
+  tenantId: string,
+  userId: string,
+  optIn: boolean,
+  wording: string,
+): Promise<void> {
+  const now = new Date();
+  const [before] = await tx
+    .select({ confirmedAt: consents.confirmedAt, revokedAt: consents.revokedAt })
+    .from(consents)
+    .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
+  const wasGiven = Boolean(before?.confirmedAt && !before.revokedAt);
+  if (optIn) {
+    await tx
+      .insert(consents)
+      .values({ tenantId, userId, kind: "lead_handoff", wording, confirmedAt: now })
+      .onConflictDoUpdate({
+        target: [consents.tenantId, consents.userId, consents.kind],
+        set: { wording, requestedAt: now, confirmedAt: now, revokedAt: null },
+      });
+  } else {
+    await tx
+      .update(consents)
+      .set({ revokedAt: now })
+      .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
+  }
+  // A CRM following the academy learns about changes, not about repeated saves.
+  if (optIn !== wasGiven) {
+    await queueWebhookEvent(tx, {
+      tenantId,
+      type: optIn ? "contact_consent_given" : "contact_consent_withdrawn",
+      userId,
+    });
+  }
 }
 
 export type ContactList = "tenant_marketing" | "lead_handoff";

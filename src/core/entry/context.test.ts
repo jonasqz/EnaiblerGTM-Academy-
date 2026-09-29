@@ -90,6 +90,10 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/courses/validation-lab/learn/intro")).toBe(
       "/courses/validation-lab/learn/intro",
     );
+    // A webinar form's magic link comes back to confirm the seat.
+    expect(safeNextPath("/webinars/pricing-live/confirm?token=abc_DEF-123")).toBe(
+      "/webinars/pricing-live/confirm?token=abc_DEF-123",
+    );
   });
 
   it("drops everything else", async () => {
@@ -119,6 +123,12 @@ describe("embedded path picker", () => {
       lang: "de",
       utm: { medium: "sidebar", content: "path-picker", source: "website" },
     });
+  });
+
+  it("names the webinar widget as the content when it is the one embedded", () => {
+    expect(embedEntryContext(new URLSearchParams("utm_source=partner"), tenant, "webinar")).toEqual(
+      { utm: { medium: "embed", content: "webinar", source: "partner" } },
+    );
   });
 
   it("leaves the path and course to the learner's click", () => {

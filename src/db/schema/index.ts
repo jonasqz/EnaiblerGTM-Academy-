@@ -14,3 +14,4 @@ export * from "@/db/schema/integrations";
 export * from "@/db/schema/cohorts";
 export * from "@/db/schema/usage";
 export * from "@/db/schema/media";
+export * from "@/db/schema/webinars";

@@ -31,6 +31,7 @@ import { processSubmission } from "@/server/review/process-submission";
 import { purgeExpiredSignIns } from "@/server/sessions";
 import { storageConfigured } from "@/server/storage";
 import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
+import { expirePendingRegistrations } from "@/server/webinars/registration";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -149,8 +150,10 @@ await boss.work(
     await forEachTenant(QUEUES.housekeeping, { activeOnly: false }, async (tenant) => {
       const deliveries = await purgeOldDeliveries(db, tenant.id);
       const mails = await purgeProcessedNotifications(db, tenant.id);
-      if (deliveries + mails > 0) {
-        log.info("housekeeping", { tenant: tenant.slug, deliveries, mails });
+      // Webinar forms whose address was never confirmed: no seat, just a typed address.
+      const registrations = await expirePendingRegistrations(db, tenant.id);
+      if (deliveries + mails + registrations > 0) {
+        log.info("housekeeping", { tenant: tenant.slug, deliveries, mails, registrations });
       }
     });
     // Sessions and sign-in links are global rows: once per run, not per academy.

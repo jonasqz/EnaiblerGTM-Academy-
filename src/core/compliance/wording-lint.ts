@@ -24,11 +24,15 @@ export const WORDING_CONTEXTS = {
   cta_label: "error",
   /** A learner's excerpt on their public credential page. */
   showcase: "error",
+  /** A webinar's title and the headings of its landing page: what it promises (webinar brief §5). */
+  webinar_title: "error",
   lesson_text: "warning",
   /** The final test's questions: running text like lessons (knowledge checks are lesson text). */
   test_question: "warning",
   course_description: "warning",
   assignment_prompt: "warning",
+  /** Running text of a webinar's landing page, its form and its presenters. */
+  landing_text: "warning",
 } as const satisfies Record<string, WordingSeverity>;
 
 export type WordingContext = keyof typeof WORDING_CONTEXTS;

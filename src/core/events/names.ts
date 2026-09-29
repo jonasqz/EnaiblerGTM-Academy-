@@ -20,6 +20,12 @@ export const EVENT_NAMES = [
   "video_started",
   /** Their played ranges covered the academy's threshold, once per video (props: asset_id, percent). */
   "video_watched",
+  // Webinars (webinar brief §3): the landing page, the form, the proven address, the session.
+  "webinar_page_viewed",
+  "webinar_registered",
+  "webinar_confirmed",
+  "webinar_attended",
+  "webinar_registration_cancelled",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

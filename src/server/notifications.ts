@@ -30,6 +30,7 @@ import {
   type ReviewReadyPayload,
   type ReviewWaitingPayload,
   type TeamInvitePayload,
+  type WebinarMailPayload,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { senderFor, type OutgoingEmail, type SendEmail } from "@/server/email/mailer";
@@ -37,13 +38,15 @@ import { renderNoticeEmail } from "@/server/email/templates/notice";
 import { academyUrl } from "@/server/platform/config";
 import { lastReviewAlertAt, stillWaitingFor } from "@/server/review/alerts";
 import { rolesOf } from "@/server/team";
+import { webinarMail } from "@/server/webinars/mail";
 
 /*
  * Transactional mail (brief §9). Learners hear that feedback is ready or a
- * level was reached; the team gets its invitations and hears about hand-ins
- * waiting for review (server/team.ts, server/review/alerts.ts). Queued in the
- * transaction of what it reports, so a rolled-back decision never mails;
- * sent by the worker.
+ * level was reached, and get what their webinar registration needs
+ * (server/webinars/mail.ts); the team gets its invitations and hears about
+ * hand-ins waiting for review (server/team.ts, server/review/alerts.ts).
+ * Queued in the transaction of what it reports, so a rolled-back decision
+ * never mails; sent by the worker.
  */
 
 export async function queueReviewReady(
@@ -426,6 +429,8 @@ async function prepare(
         row.userId,
         row.payload as ReviewWaitingPayload,
       );
+    case "webinar":
+      return webinarMail(tx, tenant, account.email, row.userId, row.payload as WebinarMailPayload);
   }
 }
 

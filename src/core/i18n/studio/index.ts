@@ -8,6 +8,7 @@ import * as lessons from "@/core/i18n/studio/lessons";
 import * as media from "@/core/i18n/studio/media";
 import * as settings from "@/core/i18n/studio/settings";
 import * as team from "@/core/i18n/studio/team";
+import * as webinars from "@/core/i18n/studio/webinars";
 
 /**
  * The Studio's words, in English and German (brief §12: DE/EN). One file per
@@ -27,6 +28,7 @@ export const STUDIO_AREAS = {
   settings,
   brand,
   media,
+  webinars,
 } as const;
 
 const en = {
@@ -39,6 +41,7 @@ const en = {
   ...settings.en,
   ...brand.en,
   ...media.en,
+  ...webinars.en,
 };
 
 export type StudioKey = keyof typeof en;
@@ -53,6 +56,7 @@ const de: Record<StudioKey, string> = {
   ...settings.de,
   ...brand.de,
   ...media.de,
+  ...webinars.de,
 };
 
 export const STUDIO_MESSAGES: Record<Locale, Record<StudioKey, string>> = { en, de };

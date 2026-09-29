@@ -15,13 +15,16 @@ export interface NoticeEmailInput {
   button: { label: string; url: string };
   /** Small print under the button (e.g. how long a link works). */
   note?: string;
+  /** A second, quieter way on ("Can't make it? Cancel your registration"). */
+  link?: { before?: string; label: string; url: string };
   /** Why the learner gets this mail, first line of the footer. */
   reason?: string;
 }
 
 /**
  * One message, one button: review ready, level-up, the marketing confirmation,
- * and for the team an invitation or hand-ins waiting for review.
+ * a webinar's invitations and reminders, and for the team an invitation or
+ * hand-ins waiting for review.
  */
 export async function renderNoticeEmail(
   input: NoticeEmailInput,
@@ -57,6 +60,14 @@ export async function renderNoticeEmail(
         </EmailButton>
       </p>
       {input.note && <p style={{ margin: 0, fontSize: 13 }}>{input.note}</p>}
+      {input.link && (
+        <p style={{ margin: "12px 0 0", fontSize: 13 }}>
+          {input.link.before && `${input.link.before} `}
+          <a href={input.link.url} style={{ color: "inherit" }}>
+            {input.link.label}
+          </a>
+        </p>
+      )}
     </EmailLayout>
   );
   return {

@@ -18,6 +18,7 @@ export const FILE_PURPOSES = [
   "showcase",
   "export",
   "video",
+  "presenter_photo",
 ] as const;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -146,6 +147,16 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     access: "studio",
     area: "media",
     ownerPrefix: false,
+  },
+  // A webinar's landing page shows it (only while the academy's anonymity mode is off).
+  presenter_photo: {
+    families: ["image"],
+    mimes: ["image/png", "image/jpeg", "image/webp"],
+    maxBytes: 5 * MB,
+    access: "public",
+    area: "assets",
+    ownerPrefix: false,
+    maxImageSide: 800,
   },
 };
 

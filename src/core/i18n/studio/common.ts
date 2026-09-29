@@ -14,6 +14,7 @@ export const en = {
   "common.nav.courses": "Courses",
   "common.nav.paths": "Paths & levels",
   "common.nav.cohorts": "Cohorts",
+  "common.nav.webinars": "Webinars",
   "common.nav.reviews": "Reviews",
   "common.nav.people": "People",
   "common.nav.settings": "Settings",
@@ -134,6 +135,8 @@ export const en = {
   "common.wording.where.test_question": "the final test",
   "common.wording.where.course_description": "the course summary",
   "common.wording.where.assignment_prompt": "the assignment prompt",
+  "common.wording.where.webinar_title": "webinar titles and headings",
+  "common.wording.where.landing_text": "webinar pages",
   "common.wording.hint.certified":
     "Say “Certificate of Completion” or describe what the learner built.",
   "common.wording.hint.accredited":
@@ -358,6 +361,7 @@ export const de: Record<keyof typeof en, string> = {
   "common.nav.courses": "Kurse",
   "common.nav.paths": "Lernpfade & Level",
   "common.nav.cohorts": "Gruppen",
+  "common.nav.webinars": "Webinare",
   "common.nav.reviews": "Bewertungen",
   "common.nav.people": "Personen",
   "common.nav.settings": "Einstellungen",
@@ -473,6 +477,8 @@ export const de: Record<keyof typeof en, string> = {
   "common.wording.where.test_question": "dem Abschlusstest",
   "common.wording.where.course_description": "der Kursbeschreibung",
   "common.wording.where.assignment_prompt": "der Aufgabenstellung",
+  "common.wording.where.webinar_title": "Webinartiteln und -überschriften",
+  "common.wording.where.landing_text": "Webinarseiten",
   "common.wording.hint.certified":
     "Sprich von „Abschlussbescheinigung“ oder beschreibe, was gebaut wurde.",
   "common.wording.hint.accredited":

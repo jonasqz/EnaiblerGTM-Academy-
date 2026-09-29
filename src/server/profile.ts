@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { courseProgress, resumeLessonKey, type LessonProgressMap } from "@/core/courses/lessons";
 import { nextStep } from "@/core/courses/next-step";
@@ -28,11 +28,15 @@ import {
   user,
   watchProgress,
   webhookDeliveries,
+  webinarAttendance,
+  webinarRegistrations,
+  webinars,
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
+import { applyContactOptIn } from "@/server/consent";
 import { testStates, workOutcomes } from "@/server/learning";
 import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
-import { queueWebhookEvent } from "@/server/webhooks";
+import { promoteWaitlist } from "@/server/webinars/registration";
 
 /*
  * The learner's own data in this academy (brief §5 profile, §9 data rights
@@ -135,36 +139,7 @@ export async function setContactOptIn(
   optIn: boolean,
   wording: string,
 ): Promise<void> {
-  await withTenant(db, tenant.id, async (tx) => {
-    const now = new Date();
-    const [before] = await tx
-      .select({ confirmedAt: consents.confirmedAt, revokedAt: consents.revokedAt })
-      .from(consents)
-      .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
-    const wasGiven = Boolean(before?.confirmedAt && !before.revokedAt);
-    if (optIn) {
-      await tx
-        .insert(consents)
-        .values({ tenantId: tenant.id, userId, kind: "lead_handoff", wording, confirmedAt: now })
-        .onConflictDoUpdate({
-          target: [consents.tenantId, consents.userId, consents.kind],
-          set: { wording, requestedAt: now, confirmedAt: now, revokedAt: null },
-        });
-    } else {
-      await tx
-        .update(consents)
-        .set({ revokedAt: now })
-        .where(and(eq(consents.userId, userId), eq(consents.kind, "lead_handoff")));
-    }
-    // A CRM following the academy learns about changes, not about repeated saves.
-    if (optIn !== wasGiven) {
-      await queueWebhookEvent(tx, {
-        tenantId: tenant.id,
-        type: optIn ? "contact_consent_given" : "contact_consent_withdrawn",
-        userId,
-      });
-    }
-  });
+  await withTenant(db, tenant.id, (tx) => applyContactOptIn(tx, tenant.id, userId, optIn, wording));
 }
 
 /** Whether the learner agreed to be contacted by the academy and has not withdrawn. */
@@ -276,6 +251,43 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
         })
         .from(notifications)
         .where(eq(notifications.userId, userId)),
+      // Their own registrations, and forms sent with their address that were never confirmed.
+      webinarRegistrations: await tx
+        .select({
+          webinar: webinars.slug,
+          title: webinars.title,
+          startsAt: webinars.startsAt,
+          status: webinarRegistrations.status,
+          answers: webinarRegistrations.answers,
+          consents: webinarRegistrations.consents,
+          entryContext: webinarRegistrations.entryContext,
+          locale: webinarRegistrations.locale,
+          createdAt: webinarRegistrations.createdAt,
+          confirmedAt: webinarRegistrations.confirmedAt,
+          promotedAt: webinarRegistrations.promotedAt,
+          cancelledAt: webinarRegistrations.cancelledAt,
+        })
+        .from(webinarRegistrations)
+        .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))
+        .where(
+          account
+            ? or(
+                eq(webinarRegistrations.userId, userId),
+                eq(webinarRegistrations.email, account.email.toLowerCase()),
+              )
+            : eq(webinarRegistrations.userId, userId),
+        ),
+      webinarAttendance: await tx
+        .select({
+          webinar: webinars.slug,
+          source: webinarAttendance.source,
+          joinedAt: webinarAttendance.joinedAt,
+          leftAt: webinarAttendance.leftAt,
+          durationMinutes: webinarAttendance.durationMinutes,
+        })
+        .from(webinarAttendance)
+        .innerJoin(webinars, eq(webinars.id, webinarAttendance.webinarId))
+        .where(eq(webinarAttendance.userId, userId)),
       events: await tx
         .select({
           name: events.name,
@@ -326,7 +338,30 @@ export async function deleteMyData(
       await deleteUnderPrefix(tenant.id, `${area}/${userId}/`);
     }
   }
+  const [account] = await db.select({ email: user.email }).from(user).where(eq(user.id, userId));
   await withTenant(db, tenant.id, async (tx) => {
+    // Webinar seats they held go to the waitlist, as if they had cancelled.
+    const seats = await tx
+      .select({ webinarId: webinarRegistrations.webinarId })
+      .from(webinarRegistrations)
+      .where(
+        and(eq(webinarRegistrations.userId, userId), eq(webinarRegistrations.status, "registered")),
+      );
+    await tx.delete(webinarAttendance).where(eq(webinarAttendance.userId, userId));
+    await tx.delete(webinarRegistrations).where(eq(webinarRegistrations.userId, userId));
+    if (account) {
+      await tx
+        .delete(webinarRegistrations)
+        .where(eq(webinarRegistrations.email, account.email.toLowerCase()));
+    }
+    for (const { webinarId } of seats) {
+      const [webinar] = await tx
+        .select()
+        .from(webinars)
+        .where(eq(webinars.id, webinarId))
+        .for("update");
+      if (webinar) await promoteWaitlist(tx, tenant, webinar, new Date());
+    }
     const mySubmissionIds = (
       await tx
         .select({ id: submissions.id })

@@ -4,8 +4,9 @@ import type { TenantContext } from "@/core/tenant/context";
 
 /**
  * Transactional mail (magic link, review ready, level-up, the marketing
- * confirmation link) goes through the EU SMTP relay. Marketing mail itself is
- * never sent from here: the academy exports its confirmed contacts (brief §9).
+ * confirmation link, webinar invitations) goes through the EU SMTP relay.
+ * Marketing mail itself is never sent from here: the academy exports its
+ * confirmed contacts (brief §9).
  */
 export interface OutgoingEmail {
   to: string;
@@ -15,6 +16,12 @@ export interface OutgoingEmail {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  /**
+   * A calendar file (core/webinars/ics). Sent as the text/calendar part mail
+   * clients turn into an invitation (or a cancellation) with Add/Remove, and
+   * shown as invite.ics where they do not.
+   */
+  calendar?: { method: "PUBLISH" | "REQUEST" | "CANCEL"; content: string };
 }
 
 /**
@@ -51,7 +58,10 @@ export const sendEmail: SendEmail = async (mail) => {
   const { smtpUrl, production } = mailSettings();
   if (!smtpUrl) {
     if (production) throw new Error("SMTP_URL is not configured");
-    console.info(`[email] to=${mail.to} subject="${mail.subject}"\n${mail.text}`);
+    const calendar = mail.calendar
+      ? `\n[calendar ${mail.calendar.method} invite.ics]\n${mail.calendar.content}`
+      : "";
+    console.info(`[email] to=${mail.to} subject="${mail.subject}"\n${mail.text}${calendar}`);
     return;
   }
   transport ??= nodemailer.createTransport(smtpUrl);
@@ -63,5 +73,12 @@ export const sendEmail: SendEmail = async (mail) => {
     html: mail.html,
     text: mail.text,
     headers: mail.headers,
+    icalEvent: mail.calendar
+      ? {
+          method: mail.calendar.method,
+          filename: "invite.ics",
+          content: mail.calendar.content,
+        }
+      : undefined,
   });
 };
