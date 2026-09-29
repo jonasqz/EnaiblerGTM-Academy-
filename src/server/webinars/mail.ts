@@ -209,8 +209,8 @@ async function attendedLive(tx: Transaction, webinarId: string, userId: string):
 
 /**
  * A mail that was to bring the recording could not (it was taken off in
- * the meantime): they count as not mailed, so a recording shown later
- * reaches them after all (server/webinars/relive-mail.ts).
+ * the meantime, or the mail no longer went out): they count as not mailed,
+ * so the recording reaches them after all (server/webinars/relive-mail.ts).
  */
 async function forgetReliveMail(tx: Transaction, registrationId: string): Promise<void> {
   await tx
@@ -431,7 +431,12 @@ export async function webinarMail(
     plannedFor: payload.plannedFor,
     startsAt: webinar.startsAt,
   });
-  if (due !== "send") return { skip: due };
+  if (due !== "send") {
+    // It was to bring the recording (a follow-up the sweep upgraded) and goes nowhere now,
+    // e.g. after the time was corrected: the next sweep mails the recording on its own.
+    if (payload.recording) await forgetReliveMail(tx, registration.id);
+    return { skip: due };
+  }
   if (payload.step === "relive" && (await reliveOf(tx, webinar, new Date())) !== "ready") {
     // Taken off (or failing) since it was queued: a recording shown later mails them then.
     await forgetReliveMail(tx, registration.id);

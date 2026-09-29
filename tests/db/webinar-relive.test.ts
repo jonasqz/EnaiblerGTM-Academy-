@@ -629,6 +629,35 @@ describe.skipIf(!hasDatabase)("webinar re-live", () => {
     expect(await queueReliveMails(dbs.app.db, tenant.id)).toBe(0);
   });
 
+  it("mails the recording on its own when the follow-up carrying it no longer goes out", async () => {
+    const { id, slug } = await published({ title: "Time corrected" });
+    const person = await register(slug);
+    await endIt(id);
+    await settle();
+    await attachRecording(dbs.app.db, tenant.id, id, await video());
+    // The follow-up still waits, so the sweep hands it the recording.
+    expect(await queueReliveMails(dbs.app.db, tenant.id)).toBe(1);
+    // The host corrects the time afterwards: that follow-up was planned for the old one.
+    await withTenant(dbs.app.db, tenant.id, (tx) =>
+      tx
+        .update(webinars)
+        .set({ startsAt: new Date(Date.now() - 6 * HOUR) })
+        .where(eq(webinars.id, id)),
+    );
+    sent.length = 0;
+    await makeDue(id);
+    await dispatchNotifications(dbs.app.db, tenant, { send, limit: 200 });
+    expect(mailTo(person.userId)).toEqual([]);
+    // The next sweep sends the recording by itself, once.
+    expect(await queueReliveMails(dbs.app.db, tenant.id)).toBe(1);
+    expect(await queueReliveMails(dbs.app.db, tenant.id)).toBe(0);
+    await makeDue(id);
+    await dispatchNotifications(dbs.app.db, tenant, { send, limit: 200 });
+    expect(mailTo(person.userId).map((mail) => mail.subject)).toEqual([
+      "Missed it? Here's the recording: Time corrected",
+    ]);
+  });
+
   it("takes registrations for the recording after the end: no seats, no reminders", async () => {
     const { id, slug } = await published({ capacity: 1, title: "Evergreen" });
     const seated = await register(slug);
