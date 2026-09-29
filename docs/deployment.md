@@ -160,7 +160,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 
 ## 9. Secrets
 
-- `DATA_ENCRYPTION_SECRET` seals each academy's Open Badges signing key and its webhook signing secrets in the database (AES-256-GCM). With a different value, the sealed keys can no longer be opened: badge downloads and webhook deliveries fail until the keys are replaced (a new signing key, a new secret for every endpoint). The public keys stay published, so badges issued before still verify. Keep the secret in the password manager next to the database backups, and never rotate it without re-sealing.
+- `DATA_ENCRYPTION_SECRET` seals each academy's Open Badges signing key and its webhook signing secrets in the database (AES-256-GCM). With a different value, the sealed keys can no longer be opened: badge downloads and webhook deliveries fail until the keys are replaced (a new signing key, a new secret for every endpoint). The public keys stay published, so badges issued before still verify. Keep the secret in the password manager next to the database backups, and never rotate it without re-sealing. It also keys the cancel links in webinar mails: after a change, links in mails already sent stop working, and registrants cancel on the webinar page instead.
 - `BETTER_AUTH_SECRET` signs sessions: changing it signs everyone out.
 - `PROXY_CONFIG_TOKEN` guards the proxy endpoints: rotate it in the app and the proxy configuration together.
 
@@ -175,6 +175,7 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
 - A course that ends with a final test goes through end to end: a failed attempt, a retake and the credential saying "Final Test passed".
+- A webinar goes through end to end: the confirmation's calendar invitation opens in Google Calendar, Outlook and Apple Calendar, a new time updates that entry instead of adding one, and check-in works on a phone.
 - Mail: the domain of `EMAIL_FROM_ADDRESS` has SPF, DKIM and a DMARC policy at the SMTP relay, and a magic link lands in the inbox (not spam) at Gmail, Outlook and GMX/Web.de.
 - Backups: Postgres and storage from the same night have been restored once into a scratch stack, and that stack starts.
 - After every deploy: `npm run smoke -- --academy https://<an academy> --platform https://<PLATFORM_HOST>` passes (health, pages, security headers, no tracking cookies, link previews, signup, legal pages, content reports).
