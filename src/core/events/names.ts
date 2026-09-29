@@ -16,6 +16,12 @@ export const EVENT_NAMES = [
   "credential_shared_linkedin",
   "verification_page_viewed",
   "verification_cta_clicked",
+  // Webinars (webinar brief §3): the landing page, the form, the proven address, the session.
+  "webinar_page_viewed",
+  "webinar_registered",
+  "webinar_confirmed",
+  "webinar_attended",
+  "webinar_registration_cancelled",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

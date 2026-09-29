@@ -12,10 +12,11 @@ export const CONSENT_EVENTS = [
   "contact_consent_withdrawn",
 ] as const;
 
-type QuietEvent = "signup_started" | "verification_page_viewed";
+type QuietEvent = "signup_started" | "verification_page_viewed" | "webinar_page_viewed";
 const QUIET: readonly string[] = [
   "signup_started",
   "verification_page_viewed",
+  "webinar_page_viewed",
 ] satisfies QuietEvent[];
 
 type ReportedEvent = Exclude<EventName, QuietEvent> | (typeof CONSENT_EVENTS)[number];
@@ -42,6 +43,13 @@ export const WEBHOOK_EVENT_GROUPS = {
     "level_up",
   ],
   credentials: ["credential_made_public", "credential_shared_linkedin", "verification_cta_clicked"],
+  // Lead signals (webinar brief §3): named only with the learner's consent to be contacted.
+  webinars: [
+    "webinar_registered",
+    "webinar_confirmed",
+    "webinar_attended",
+    "webinar_registration_cancelled",
+  ],
   consent: CONSENT_EVENTS,
 } as const satisfies Record<string, readonly ReportedEvent[]>;
 
