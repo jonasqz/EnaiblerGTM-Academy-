@@ -5,21 +5,25 @@ import { notFound, redirect } from "next/navigation";
 import { completeLessonAction } from "@/app/(academy)/courses/[slug]/actions";
 import { KnowledgeCheck } from "@/components/knowledge-check";
 import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
+import { MediaBlock } from "@/components/media/media-block";
 import { Markdown } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
+import { can } from "@/core/access/roles";
 import { requiresTest, requiresWork } from "@/core/courses/completion";
 import { courseProgress, neighbours, type LessonProgressMap } from "@/core/courses/lessons";
 import { localize } from "@/core/i18n/locales";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
-import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
+import { videosById } from "@/server/media/library";
+import { progressOf } from "@/server/media/progress";
+import { checkQuestionsOf, markdownOf, mediaAssetIdsOf } from "@/server/studio/lessons";
 import { getTranslator } from "@/server/request";
 
 /** Lesson player (brief §5): short, resumable, works on a phone. */
 export default async function LessonPage({ params }: PageProps<"/courses/[slug]/learn/[key]">) {
   const { slug, key } = await params;
-  const { tenant, viewer } = await requireViewer(`/courses/${slug}/learn/${key}`);
+  const { tenant, viewer, roles } = await requireViewer(`/courses/${slug}/learn/${key}`);
   const t = await getTranslator();
   const data = await loadLearnerCourse(getDb(), tenant, slug, viewer.userId, t.locale);
   if (!data) notFound();
@@ -35,6 +39,10 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
   const body = markdownOf(lesson.blocks);
   // Answer key included: knowledge checks are practice, checked in the browser.
   const questions = checkQuestionsOf(lesson.blocks);
+  const mediaIds = mediaAssetIdsOf(lesson.blocks);
+  const videos = await videosById(getDb(), tenant.id, mediaIds);
+  const watched = await progressOf(getDb(), tenant.id, viewer.userId, mediaIds);
+  const mediaViewer = { member: roles.length > 0, canEditCourses: can(roles, "courses.edit") };
   const courseTitle = localize(data.course.title, data.locale, [tenant.settings.default_locale]);
 
   const syllabus = (
@@ -124,12 +132,21 @@ export default async function LessonPage({ params }: PageProps<"/courses/[slug]/
           {t.term("lesson")} {keys.indexOf(key) + 1} / {keys.length}
         </p>
         <h1 className="mt-2 font-display text-3xl leading-tight">{lesson.title}</h1>
-        <div className="mt-6">
+        <div className="mt-6 space-y-8">
+          {mediaIds.map((id) => (
+            <MediaBlock
+              key={id}
+              asset={videos.get(id)}
+              t={t}
+              viewer={mediaViewer}
+              progress={watched.get(id) ?? null}
+            />
+          ))}
           {body.trim() ? (
             <Markdown source={body} />
-          ) : (
+          ) : mediaIds.length === 0 ? (
             <p className="text-muted">{t.t("lesson.empty")}</p>
-          )}
+          ) : null}
         </div>
         {questions.length > 0 && (
           <KnowledgeCheck

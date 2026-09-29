@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 /**
  * Watch tracking (webinar brief §2.4): the seconds of a video a viewer
  * actually played, not the furthest position they reached, so "watched"
@@ -99,22 +97,14 @@ export function applyReport(
   };
 }
 
-/** Longest video we measure (a long webinar recording); anything reported beyond is noise. */
-export const MAX_DURATION_SEC = 12 * 60 * 60;
-/** Enough for a viewer who skips around a lot; merged lists are far shorter. */
-export const MAX_REPORTED_RANGES = 500;
-
-const seconds = z.number().finite().min(0).max(MAX_DURATION_SEC);
-
-/** What the player posts: its ranges of this page view, where it is, and (embeds) how long the video is. */
-export const progressReportSchema = z.strictObject({
-  asset: z.uuid(),
-  ranges: z.array(z.tuple([seconds, seconds])).max(MAX_REPORTED_RANGES),
-  position: seconds.optional(),
+/** What the player posts: its ranges of this page view, where it is, and (embeds) the length. */
+export interface ProgressReport {
+  asset: string;
+  ranges: Array<[number, number]>;
+  position?: number;
   /** Only used for external embeds, whose length only their player knows. */
-  duration: z.number().finite().positive().max(MAX_DURATION_SEC).optional(),
-});
-export type ProgressReport = z.output<typeof progressReportSchema>;
+  duration?: number;
+}
 
 /**
  * Follows a player while it plays. Each position while playing extends the

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   captionCues,
+  clockTime,
   cueAt,
   parseWebVtt,
   searchCues,
@@ -10,6 +11,13 @@ import {
 } from "@/core/media/captions";
 
 describe("captions", () => {
+  it("shows times like a player does", () => {
+    expect(clockTime(0)).toBe("0:00");
+    expect(clockTime(65.9)).toBe("1:05");
+    expect(clockTime(3725)).toBe("1:02:05");
+    expect(clockTime(-3)).toBe("0:00");
+  });
+
   it("writes WebVTT times", () => {
     expect(vttTime(0)).toBe("00:00:00.000");
     expect(vttTime(3725.5)).toBe("01:02:05.500");

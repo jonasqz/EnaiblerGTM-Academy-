@@ -6,10 +6,10 @@ import {
   createRangeTracker,
   mergeRanges,
   percentWatched,
-  progressReportSchema,
   reachesThreshold,
   watchedSeconds,
 } from "@/core/media/ranges";
+import { progressReportSchema } from "@/core/media/report";
 
 describe("watched ranges", () => {
   it("merges overlapping and nearly touching ranges, in order", () => {

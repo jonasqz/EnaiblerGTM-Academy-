@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 
 import { KnowledgeCheck } from "@/components/knowledge-check";
 import { knowledgeCheckLabels } from "@/components/knowledge-check-labels";
+import { MediaBlock } from "@/components/media/media-block";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
 import { requiresTest, requiresWork } from "@/core/courses/completion";
@@ -15,9 +16,11 @@ import { createTranslator } from "@/core/i18n/translator";
 import { publicTestQuestions } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
+import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { videosById } from "@/server/media/library";
 import { getCourseEditor } from "@/server/studio/course-context";
-import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
+import { checkQuestionsOf, markdownOf, mediaAssetIdsOf } from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -59,6 +62,11 @@ export default async function PreviewPage({
   const work = requiresWork(editor.course.completionMode);
   const test = requiresTest(editor.course.completionMode);
   const testQuestions = publicTestQuestions(editor.test?.questions ?? [], locale, fallback);
+  const videos = await videosById(
+    getDb(),
+    tenant.id,
+    current ? mediaAssetIdsOf(current.blocks) : [],
+  );
 
   return (
     <div className="space-y-6">
@@ -142,12 +150,22 @@ export default async function PreviewPage({
               {learner.term("lesson")} {lessons.indexOf(current) + 1} / {lessons.length}
             </p>
             <h2 className="mt-2 font-display text-3xl leading-tight">{current.title}</h2>
-            <div className="mt-6">
+            <div className="mt-6 space-y-8">
+              {/* Nothing is recorded here: the video plays without watch tracking. */}
+              {mediaAssetIdsOf(current.blocks).map((id) => (
+                <MediaBlock
+                  key={id}
+                  asset={videos.get(id)}
+                  t={learner}
+                  viewer={{ member: true, canEditCourses: true }}
+                  track={false}
+                />
+              ))}
               {markdownOf(current.blocks).trim() ? (
                 <Markdown source={markdownOf(current.blocks)} />
-              ) : (
+              ) : mediaAssetIdsOf(current.blocks).length === 0 ? (
                 <p className="text-muted">{learner.t("lesson.empty")}</p>
-              )}
+              ) : null}
             </div>
             <KnowledgeCheck
               key={current.id}

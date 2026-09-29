@@ -1,5 +1,6 @@
 import { can } from "@/core/access/roles";
-import { progressReportSchema, type ProgressReport } from "@/core/media/ranges";
+import type { ProgressReport } from "@/core/media/ranges";
+import { progressReportSchema } from "@/core/media/report";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
 import { recordProgress } from "@/server/media/progress";

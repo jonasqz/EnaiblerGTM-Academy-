@@ -4,7 +4,9 @@ import {
   embedUrl,
   isExternalVideo,
   parseVideoUrl,
+  playerSubscriptions,
   providerOrigin,
+  readPlayerMessage,
   watchUrl,
 } from "@/core/media/embeds";
 
@@ -92,5 +94,66 @@ describe("external videos", () => {
     expect(isExternalVideo({ provider: "youtube", id: "x" })).toBe(false);
     expect(isExternalVideo({ provider: "vimeo", id: "76979871", hash: "../x" })).toBe(false);
     expect(isExternalVideo(null)).toBe(false);
+  });
+});
+
+describe("provider player messages", () => {
+  it("subscribes without loading a provider script", () => {
+    expect(playerSubscriptions("youtube").map((message) => JSON.parse(message).event)).toEqual([
+      "listening",
+      "command",
+    ]);
+    expect(playerSubscriptions("vimeo").map((message) => JSON.parse(message).value)).toContain(
+      "timeupdate",
+    );
+  });
+
+  it("reads YouTube's position, length, state and speed", () => {
+    expect(
+      readPlayerMessage(
+        "youtube",
+        JSON.stringify({
+          event: "infoDelivery",
+          info: { currentTime: 12.5, duration: 300, playerState: 1, playbackRate: 1.5 },
+        }),
+      ),
+    ).toEqual({ time: 12.5, duration: 300, playing: true, rate: 1.5 });
+    // Partial updates carry only what changed.
+    expect(
+      readPlayerMessage(
+        "youtube",
+        JSON.stringify({ event: "infoDelivery", info: { playerState: 2 } }),
+      ),
+    ).toEqual({ playing: false });
+    expect(readPlayerMessage("youtube", { event: "onStateChange", info: 1 })).toEqual({
+      playing: true,
+    });
+    expect(
+      readPlayerMessage("youtube", JSON.stringify({ event: "infoDelivery", info: { volume: 50 } })),
+    ).toBeNull();
+    expect(readPlayerMessage("youtube", "not json")).toBeNull();
+  });
+
+  it("reads Vimeo's events", () => {
+    expect(readPlayerMessage("vimeo", '{"event":"ready","player_id":"x"}')).toEqual({
+      ready: true,
+    });
+    expect(
+      readPlayerMessage("vimeo", {
+        event: "timeupdate",
+        data: { seconds: 61.2, percent: 0.2, duration: 306 },
+      }),
+    ).toEqual({ time: 61.2, duration: 306 });
+    expect(readPlayerMessage("vimeo", { event: "seeked", data: { seconds: 5 } })).toMatchObject({
+      jumped: true,
+      time: 5,
+    });
+    expect(readPlayerMessage("vimeo", { event: "pause", data: { seconds: 70 } })).toMatchObject({
+      playing: false,
+    });
+    expect(
+      readPlayerMessage("vimeo", { event: "playbackratechange", data: { playbackRate: 2 } }),
+    ).toEqual({ rate: 2 });
+    expect(readPlayerMessage("vimeo", { event: "volumechange", data: {} })).toBeNull();
   });
 });

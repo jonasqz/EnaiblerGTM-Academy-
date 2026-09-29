@@ -58,6 +58,15 @@ export function captionCues(
   });
 }
 
+/** 65 → "1:05", 3725 → "1:02:05": times next to chapters and transcript lines. */
+export function clockTime(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
 /** 3725.5 → "01:02:05.500" */
 export function vttTime(seconds: number): string {
   const total = Math.max(0, Math.round(seconds * 1000));

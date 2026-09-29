@@ -125,3 +125,96 @@ export const PROVIDER_NAMES: Record<EmbedProvider, string> = {
   youtube: "YouTube",
   vimeo: "Vimeo",
 };
+
+/** The providers' own privacy policies, linked next to the consent button. */
+export const PROVIDER_PRIVACY: Record<EmbedProvider, string> = {
+  youtube: "https://policies.google.com/privacy",
+  vimeo: "https://vimeo.com/privacy",
+};
+
+/**
+ * What the page asks the player once it has loaded: YouTube's iframe API
+ * starts reporting after "listening", Vimeo's player.js API after an
+ * addEventListener per event. Plain postMessage, so no provider script runs
+ * on the academy's page.
+ */
+export function playerSubscriptions(provider: EmbedProvider): string[] {
+  if (provider === "youtube") {
+    return [
+      JSON.stringify({ event: "listening", id: 1, channel: "widget" }),
+      JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"] }),
+    ];
+  }
+  return ["timeupdate", "play", "pause", "seeked", "ended", "playbackratechange"].map((value) =>
+    JSON.stringify({ method: "addEventListener", value }),
+  );
+}
+
+/** What watch tracking needs from a player message; fields a message does not carry stay unset. */
+export interface PlayerState {
+  time?: number;
+  duration?: number;
+  playing?: boolean;
+  rate?: number;
+  /** The position moved by a seek: the next tick must not count the jump. */
+  jumped?: boolean;
+  /** Vimeo says it is ready for the subscriptions. */
+  ready?: boolean;
+}
+
+const finite = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+
+function parsed(data: unknown): Record<string, unknown> | null {
+  if (typeof data === "string") {
+    try {
+      const value: unknown = JSON.parse(data);
+      return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+  return data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+}
+
+/** YouTube's player states: 1 playing, 3 buffering; everything else stands still. */
+const youtubePlaying = (state: unknown) => (typeof state === "number" ? state === 1 : undefined);
+
+/** A message from the provider's player (after its origin was checked); null when it says nothing useful. */
+export function readPlayerMessage(provider: EmbedProvider, data: unknown): PlayerState | null {
+  const message = parsed(data);
+  if (!message || typeof message.event !== "string") return null;
+  if (provider === "youtube") {
+    if (message.event === "onStateChange") return { playing: youtubePlaying(message.info) };
+    if (message.event !== "infoDelivery" && message.event !== "initialDelivery") return null;
+    const info = parsed(message.info);
+    if (!info) return null;
+    const state: PlayerState = {
+      time: finite(info.currentTime),
+      duration: finite(info.duration) || undefined,
+      playing: youtubePlaying(info.playerState),
+      rate: finite(info.playbackRate) || undefined,
+    };
+    return Object.values(state).some((value) => value !== undefined) ? state : null;
+  }
+  const payload = parsed(message.data) ?? {};
+  const time = finite(payload.seconds);
+  const duration = finite(payload.duration) || undefined;
+  switch (message.event) {
+    case "ready":
+      return { ready: true };
+    case "timeupdate":
+      return { time, duration };
+    case "play":
+      return { playing: true, time, duration };
+    case "pause":
+    case "ended":
+      return { playing: false, time, duration };
+    case "seeked":
+      return { jumped: true, time, duration };
+    case "playbackratechange":
+      return { rate: finite(payload.playbackRate) || undefined };
+    default:
+      return null;
+  }
+}

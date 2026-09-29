@@ -4,8 +4,16 @@ import { lessonKeyFor } from "@/core/courses/lessons";
 import type { Locale } from "@/core/i18n/locales";
 import type { CheckQuestion } from "@/core/questions/questions";
 import { sameJson } from "@/core/shared/json";
-import type { Database } from "@/db/client";
-import { assignments, courses, lessons, lessonVersions, rubrics, sources } from "@/db/schema";
+import type { Database, Transaction } from "@/db/client";
+import {
+  assignments,
+  courses,
+  lessons,
+  lessonVersions,
+  mediaAssets,
+  rubrics,
+  sources,
+} from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
 
@@ -28,9 +36,37 @@ export function checkQuestionsOf(blocks: readonly LessonBlock[]): CheckQuestion[
   return blocks.flatMap((block) => (block.type === "check" ? block.questions : []));
 }
 
-/** The text, then the knowledge check at the end; a lesson without questions has no check. */
-function lessonBlocks(markdown: string, questions: CheckQuestion[]): LessonBlock[] {
+/** Only this academy's videos, once each, in the order given (a deleted one is left out). */
+async function libraryVideos(tx: Transaction, ids: readonly string[]): Promise<string[]> {
+  const wanted = [...new Set(ids.filter((id) => UUID.test(id)))];
+  if (wanted.length === 0) return [];
+  const found = new Set(
+    (
+      await tx
+        .select({ id: mediaAssets.id })
+        .from(mediaAssets)
+        .where(inArray(mediaAssets.id, wanted))
+    ).map((row) => row.id),
+  );
+  return wanted.filter((id) => found.has(id));
+}
+
+/** Videos of the media library the lesson shows, in order. */
+export function mediaAssetIdsOf(blocks: readonly LessonBlock[]): string[] {
+  return blocks.flatMap((block) => (block.type === "media" ? [block.assetId] : []));
+}
+
+/**
+ * The video first (a re-live lesson opens with it), then the text, then the
+ * knowledge check at the end; a lesson without questions has no check.
+ */
+function lessonBlocks(
+  markdown: string,
+  questions: CheckQuestion[],
+  mediaAssetIds: readonly string[] = [],
+): LessonBlock[] {
   return [
+    ...mediaAssetIds.map((assetId) => ({ type: "media" as const, assetId })),
     { type: "markdown", markdown },
     ...(questions.length > 0 ? [{ type: "check" as const, questions }] : []),
   ];
@@ -201,7 +237,8 @@ export async function setLessonSources(
 
 /**
  * Saves a new version; unchanged content saves nothing. The knowledge check
- * is part of the content (versions keep it); left out, it stays as it is.
+ * and the video are part of the content (versions keep them); left out, they
+ * stay as they are.
  */
 export async function updateLesson(
   db: Database,
@@ -212,6 +249,8 @@ export async function updateLesson(
     markdown: string;
     criterionIds: string[];
     questions?: CheckQuestion[];
+    /** The media library's videos the lesson shows ([] for none). */
+    mediaAssetIds?: string[];
     userId: string;
   },
 ): Promise<{ version: number; changed: boolean }> {
@@ -219,11 +258,15 @@ export async function updateLesson(
     const [lesson] = await tx.select().from(lessons).where(eq(lessons.id, lessonId));
     if (!lesson) throw new Error("Lesson not found");
     const questions = input.questions ?? checkQuestionsOf(lesson.blocks);
-    const blocks = lessonBlocks(input.markdown, questions);
+    const media = input.mediaAssetIds
+      ? await libraryVideos(tx, input.mediaAssetIds)
+      : mediaAssetIdsOf(lesson.blocks);
+    const blocks = lessonBlocks(input.markdown, questions, media);
     const unchanged =
       lesson.title === input.title &&
       markdownOf(lesson.blocks) === input.markdown &&
       sameJson(checkQuestionsOf(lesson.blocks), questions) &&
+      mediaAssetIdsOf(lesson.blocks).join() === media.join() &&
       JSON.stringify([...lesson.criterionIds].sort()) ===
         JSON.stringify([...input.criterionIds].sort());
     if (unchanged) return { version: lesson.version, changed: false };
@@ -264,6 +307,7 @@ export async function restoreLessonVersion(
           markdown: markdownOf(row.blocks),
           // The check as it was then: restoring a version without one removes today's.
           questions: checkQuestionsOf(row.blocks),
+          mediaAssetIds: mediaAssetIdsOf(row.blocks),
           criterionIds: lesson.criterionIds,
         }
       : null;
