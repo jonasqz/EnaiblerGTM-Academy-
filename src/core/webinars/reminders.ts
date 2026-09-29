@@ -8,7 +8,11 @@ import { webinarEnd, type WebinarTimes } from "@/core/webinars/phase";
 export const REMINDER_STEPS = ["reminder_24h", "reminder_1h", "starting", "followup"] as const;
 export type ReminderStep = (typeof REMINDER_STEPS)[number];
 
-/** Every mail a registrant can get, for the outbox payload. */
+/**
+ * Every mail a registrant can get, for the outbox payload. After the end,
+ * a registration is for the recording: its confirmation brings it (or says
+ * it is coming), and "relive" brings a recording that became ready later.
+ */
 export const WEBINAR_MAIL_STEPS = [
   "confirmation",
   "waitlist",
@@ -17,6 +21,8 @@ export const WEBINAR_MAIL_STEPS = [
   "rescheduled",
   "cancelled",
   "registration_cancelled",
+  "relive_confirmation",
+  "relive",
 ] as const;
 export type WebinarMailStep = (typeof WEBINAR_MAIL_STEPS)[number];
 
@@ -82,10 +88,12 @@ export function webinarMailDue(
   switch (step) {
     case "confirmation":
     case "promoted":
+    case "relive_confirmation":
       return seated ? "send" : "superseded";
     case "waitlist":
       return state.registration === "waitlist" ? "send" : "superseded";
     case "rescheduled":
+    case "relive":
       return confirmed ? "send" : "superseded";
     default:
       if (!seated) return "superseded";

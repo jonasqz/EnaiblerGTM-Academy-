@@ -32,6 +32,7 @@ import { purgeExpiredSignIns } from "@/server/sessions";
 import { storageConfigured } from "@/server/storage";
 import { dispatchWebhooks, purgeOldDeliveries } from "@/server/webhooks";
 import { expirePendingRegistrations } from "@/server/webinars/registration";
+import { queueReliveMails } from "@/server/webinars/relive-mail";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -113,13 +114,17 @@ async function forEachTenant(
   }
 }
 
-// Learner mail (review ready, level-up), every minute for every active academy.
+// Learner mail (review ready, level-up, webinars), every minute for every active academy.
 await boss.work(
   QUEUES.notifications,
   reported(QUEUES.notifications, () =>
     forEachTenant(QUEUES.notifications, { activeOnly: true }, async ({ id }) => {
       const tenant = await findTenantById(db, id);
       if (!tenant) return;
+      // Recordings that became watchable reach their registrants in this same run.
+      const recordings = await queueReliveMails(db, tenant.id);
+      if (recordings > 0)
+        log.info("webinar recordings queued", { tenant: tenant.slug, recordings });
       const result = await dispatchNotifications(db, tenant, { send: sendEmail });
       if (result.sent + result.failed > 0)
         log.info("mail sent", { tenant: tenant.slug, ...result });

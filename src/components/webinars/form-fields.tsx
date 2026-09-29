@@ -31,9 +31,19 @@ export function formLabels(
     recordingNotice: string | null;
     email: string | null;
     linkMinutes: number;
+    /** After the end: the form is for the recording (no seat, no session to appear in). */
+    forRecording?: boolean;
   },
 ): FormLabels {
   const { academy } = input;
+  if (input.forRecording) {
+    return {
+      ...formLabels(t, { ...input, recorded: false, forRecording: false }),
+      participation: t.t("webinar.form.participationRecording", { title: input.title, academy }),
+      submit: t.t("webinar.relive.submit"),
+      sentHint: t.t("webinar.form.sentHintRecording", { minutes: input.linkMinutes }),
+    };
+  }
   return {
     name: t.t("webinar.form.name"),
     email: t.t("webinar.form.email"),

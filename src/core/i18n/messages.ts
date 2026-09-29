@@ -492,6 +492,9 @@ const en = {
     "Almost done: open the link we sent to {email} to confirm your registration.",
   "webinar.form.sentHint":
     "The link works for {minutes} minutes. Your seat is held once you click it.",
+  "webinar.form.participationRecording":
+    "I register for the recording of “{title}”. {academy} uses my email address for it: the confirmation and the recording.",
+  "webinar.form.sentHintRecording": "The link works for {minutes} minutes.",
   "webinar.form.error": "Something went wrong. Please try again.",
   "webinar.form.errorRequired": "Please fill this in.",
   "webinar.form.errorTooLong": "This is too long.",
@@ -534,6 +537,26 @@ const en = {
   "webinar.cancelPage.back": "Back to the webinar",
   "webinar.embed.title": "Register for “{title}”",
   "webinar.embed.more": "More about this webinar",
+  // After the end (webinar brief §3, evergreen pages): a recording, never "live".
+  "webinar.recordingBadge": "Recording",
+  "webinar.recordedOn": "Recorded on {date}",
+  "webinar.relive.title": "Watch the recording",
+  "webinar.relive.comingTitle": "The recording is coming",
+  "webinar.relive.cta": "Watch the recording",
+  "webinar.relive.getCta": "Get the recording",
+  "webinar.relive.register": "Register to watch the recording right away.",
+  "webinar.relive.registerComing":
+    "Register, and we'll email you the recording as soon as it's ready.",
+  "webinar.relive.submit": "Get the recording",
+  "webinar.relive.signIn": "Already registered? Sign in to watch",
+  "webinar.relive.coming":
+    "The recording is being prepared. We'll email you as soon as you can watch it.",
+  "webinar.relive.build": "Now build it yourself: {artifact}, in the {term.course} “{course}”.",
+  "webinar.relive.buildCta": "Start building",
+  "webinar.confirm.relive": "Done: the recording is yours.",
+  "webinar.confirm.reliveComing": "Done: we'll email you the recording as soon as it's ready.",
+  "webinar.embed.watch": "Watch the recording",
+  "me.webinar.recording": "Watch the recording",
   "me.webinarsTitle": "Webinars",
   "me.webinar.registered": "Registered",
   "me.webinar.waitlist": "On the waitlist",
@@ -605,6 +628,31 @@ const en = {
   "email.webinar.reason": "You get this email because you registered for a webinar at {academy}.",
   "email.webinar.calendarNote":
     "Join from the webinar page: the link appears there {minutes} minutes before the start.",
+  // The recording (webinar brief §2.4): once per registrant, in its own mail or with another.
+  "email.webinar.recordedOn": "Recorded on {date}",
+  "email.webinar.watchButton": "Watch the recording",
+  "email.webinar.recordingReady": "The recording is ready: watch it whenever it suits you.",
+  "email.webinar.recordingComing":
+    "The recording is being prepared. We'll email you as soon as you can watch it.",
+  "email.webinar.confirmLink.reliveHeading": "One click to get the recording",
+  "email.webinar.confirmLink.reliveBody":
+    "You asked for the recording of “{title}” at {academy}. Confirm with the button: it also signs you in, so the recording waits for you on the webinar page.",
+  "email.webinar.confirmLink.reliveButton": "Get the recording",
+  "email.webinar.relive_confirmation.subject": "Your recording: {title}",
+  "email.webinar.relive_confirmation.heading": "The recording is yours",
+  "email.webinar.relive_confirmation.body": "You registered for the recording of “{title}”.",
+  "email.webinar.relive.again.subject": "The recording is ready: {title}",
+  "email.webinar.relive.again.heading": "Watch it again",
+  "email.webinar.relive.again.body":
+    "Thanks for being part of “{title}”. The recording is ready: watch it again whenever you like.",
+  "email.webinar.relive.missed.subject": "Missed it? Here's the recording: {title}",
+  "email.webinar.relive.missed.heading": "Missed it? Watch the recording",
+  "email.webinar.relive.missed.body":
+    "You couldn't make it to “{title}”? No problem: the recording is ready, and you can watch it whenever it suits you.",
+  "email.webinar.relive.ready.subject": "The recording is ready: {title}",
+  "email.webinar.relive.ready.heading": "The recording is ready",
+  "email.webinar.relive.ready.body":
+    "The recording of “{title}” is ready. Watch it whenever it suits you.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -1108,6 +1156,9 @@ const de: Record<MessageKey, string> = {
     "Fast geschafft: Öffne den Link, den wir an {email} geschickt haben, um deine Anmeldung zu bestätigen.",
   "webinar.form.sentHint":
     "Der Link gilt {minutes} Minuten. Dein Platz ist reserviert, sobald du ihn anklickst.",
+  "webinar.form.participationRecording":
+    "Ich melde mich für die Aufzeichnung von „{title}“ an. {academy} nutzt meine E-Mail-Adresse dafür: für die Bestätigung und die Aufzeichnung.",
+  "webinar.form.sentHintRecording": "Der Link gilt {minutes} Minuten.",
   "webinar.form.error": "Etwas ist schiefgegangen. Bitte versuch es noch einmal.",
   "webinar.form.errorRequired": "Bitte füll das aus.",
   "webinar.form.errorTooLong": "Das ist zu lang.",
@@ -1152,6 +1203,26 @@ const de: Record<MessageKey, string> = {
   "webinar.cancelPage.back": "Zurück zum Webinar",
   "webinar.embed.title": "Anmeldung zu „{title}“",
   "webinar.embed.more": "Mehr zu diesem Webinar",
+  "webinar.recordingBadge": "Aufzeichnung",
+  "webinar.recordedOn": "Aufgezeichnet am {date}",
+  "webinar.relive.title": "Aufzeichnung ansehen",
+  "webinar.relive.comingTitle": "Die Aufzeichnung kommt",
+  "webinar.relive.cta": "Aufzeichnung ansehen",
+  "webinar.relive.getCta": "Aufzeichnung erhalten",
+  "webinar.relive.register": "Melde dich an und sieh dir die Aufzeichnung sofort an.",
+  "webinar.relive.registerComing":
+    "Melde dich an, und wir schicken dir die Aufzeichnung, sobald sie fertig ist.",
+  "webinar.relive.submit": "Aufzeichnung erhalten",
+  "webinar.relive.signIn": "Schon für das Webinar angemeldet? Hier geht's zur Aufzeichnung",
+  "webinar.relive.coming":
+    "Die Aufzeichnung wird gerade vorbereitet. Wir schreiben dir, sobald du sie ansehen kannst.",
+  "webinar.relive.build": "Jetzt baust du es selbst: {artifact}, im {term.course} „{course}“.",
+  "webinar.relive.buildCta": "Loslegen",
+  "webinar.confirm.relive": "Erledigt: Die Aufzeichnung gehört dir.",
+  "webinar.confirm.reliveComing":
+    "Erledigt: Wir schicken dir die Aufzeichnung, sobald sie fertig ist.",
+  "webinar.embed.watch": "Aufzeichnung ansehen",
+  "me.webinar.recording": "Aufzeichnung ansehen",
   "me.webinarsTitle": "Webinare",
   "me.webinar.registered": "Angemeldet",
   "me.webinar.waitlist": "Auf der Warteliste",
@@ -1224,6 +1295,32 @@ const de: Record<MessageKey, string> = {
     "Du bekommst diese E-Mail, weil du dich bei {academy} für ein Webinar angemeldet hast.",
   "email.webinar.calendarNote":
     "Teilnahme über die Seite des Webinars: Der Link erscheint dort {minutes} Minuten vor dem Start.",
+  "email.webinar.recordedOn": "Aufgezeichnet am {date}",
+  "email.webinar.watchButton": "Aufzeichnung ansehen",
+  "email.webinar.recordingReady":
+    "Die Aufzeichnung ist fertig: Sieh sie dir an, wann es dir passt.",
+  "email.webinar.recordingComing":
+    "Die Aufzeichnung wird gerade vorbereitet. Wir schreiben dir, sobald du sie ansehen kannst.",
+  "email.webinar.confirmLink.reliveHeading": "Ein Klick, und die Aufzeichnung gehört dir",
+  "email.webinar.confirmLink.reliveBody":
+    "Du hast bei {academy} die Aufzeichnung von „{title}“ angefragt. Bestätige mit dem Button: Er meldet dich auch an, damit die Aufzeichnung auf der Seite des Webinars auf dich wartet.",
+  "email.webinar.confirmLink.reliveButton": "Aufzeichnung erhalten",
+  "email.webinar.relive_confirmation.subject": "Deine Aufzeichnung: {title}",
+  "email.webinar.relive_confirmation.heading": "Die Aufzeichnung gehört dir",
+  "email.webinar.relive_confirmation.body":
+    "Du hast dich für die Aufzeichnung von „{title}“ angemeldet.",
+  "email.webinar.relive.again.subject": "Die Aufzeichnung ist da: {title}",
+  "email.webinar.relive.again.heading": "Sieh es dir noch einmal an",
+  "email.webinar.relive.again.body":
+    "Danke, dass du bei „{title}“ dabei warst. Die Aufzeichnung ist fertig: Sieh sie dir noch einmal an, wann immer du magst.",
+  "email.webinar.relive.missed.subject": "Verpasst? Hier ist die Aufzeichnung: {title}",
+  "email.webinar.relive.missed.heading": "Verpasst? Sieh dir die Aufzeichnung an",
+  "email.webinar.relive.missed.body":
+    "Du konntest bei „{title}“ nicht dabei sein? Kein Problem: Die Aufzeichnung ist fertig, und du kannst sie ansehen, wann es dir passt.",
+  "email.webinar.relive.ready.subject": "Die Aufzeichnung ist da: {title}",
+  "email.webinar.relive.ready.heading": "Die Aufzeichnung ist da",
+  "email.webinar.relive.ready.body":
+    "Die Aufzeichnung von „{title}“ ist fertig. Sieh sie dir an, wann es dir passt.",
 };
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = { en, de };
