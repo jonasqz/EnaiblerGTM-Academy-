@@ -16,8 +16,9 @@ import {
   user,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
-import { ensureEnrollment, ensureLearner } from "@/server/learners";
+import { ensureLearner } from "@/server/learners";
 import { accountForTeam } from "@/server/team";
+import { enrollLearner } from "@/server/webinars/series";
 
 /*
  * Cohorts (brief §4, phase 2): a group taking a course together, joined by
@@ -260,7 +261,7 @@ export async function joinCohort(
   return withTenant(db, tenant.id, async (tx) => {
     const entry = { ...input.entry, course: found.course.slug };
     await ensureLearner(tx, tenant, userId, { locale: input.locale, entry });
-    await ensureEnrollment(tx, tenant, userId, {
+    await enrollLearner(tx, tenant, userId, {
       courseSlug: found.course.slug,
       locale: input.locale,
       entry,

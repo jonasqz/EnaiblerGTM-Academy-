@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { CheckInState } from "@/app/(academy)/webinars/[slug]/actions";
 import { requiresWork, type CompletionPart } from "@/core/courses/completion";
 import { localize } from "@/core/i18n/locales";
 import { TEST_ATTEMPTS_PER_HOUR } from "@/core/questions/quiz";
@@ -17,6 +18,8 @@ import {
 } from "@/server/learning";
 import { rateLimit } from "@/server/rate-limit";
 import { getTranslator } from "@/server/request";
+import { checkIn } from "@/server/webinars/registration";
+import { registerForSession } from "@/server/webinars/series";
 
 const HOUR = 60 * 60_000;
 
@@ -36,11 +39,48 @@ export async function completeLessonAction(formData: FormData): Promise<void> {
   );
 }
 
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The check-in code of a session, entered in its lesson; the course catches up at once. */
+export async function sessionCheckInAction(
+  _previous: CheckInState,
+  formData: FormData,
+): Promise<CheckInState> {
+  const webinar = String(formData.get("slug") ?? "");
+  const course = String(formData.get("course") ?? "");
+  if (!SLUG.test(webinar) || !SLUG.test(course)) return { status: "closed" };
+  const { tenant, viewer } = await requireViewer(`/courses/${course}`);
+  const result = await checkIn(getDb(), tenant, {
+    slug: webinar,
+    userId: viewer.userId,
+    code: String(formData.get("code") ?? ""),
+  });
+  if (result === "done") revalidatePath(`/courses/${course}`, "layout");
+  return { status: result };
+}
+
+/** A seat in one session of the series again (after cancelling it, or one added later). */
+export async function registerForSessionAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+  const key = String(formData.get("key") ?? "");
+  const webinarId = String(formData.get("webinar") ?? "");
+  if (!SLUG.test(slug) || !UUID.test(webinarId)) redirect("/");
+  const { tenant, viewer } = await requireViewer(`/courses/${slug}`);
+  const result = await registerForSession(getDb(), tenant, {
+    userId: viewer.userId,
+    courseSlug: slug,
+    webinarId,
+  });
+  revalidatePath(`/courses/${slug}`, "layout");
+  redirect(`/courses/${slug}/learn/${encodeURIComponent(key)}?session=${result}`);
+}
+
 export type SubmitState =
   | { status: "idle" }
   | {
       status: "error";
-      error: "empty" | "not_allowed" | "invalid" | "not_enrolled";
+      error: "empty" | "not_allowed" | "invalid" | "not_enrolled" | "late";
       fieldErrors?: Record<string, string>;
     };
 

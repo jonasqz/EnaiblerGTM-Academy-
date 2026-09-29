@@ -22,7 +22,7 @@ export function SubmissionForm(props: {
     submit: string;
     submitting: string;
     required: string;
-    errors: Record<"empty" | "not_allowed" | "invalid" | "not_enrolled", string>;
+    errors: Record<"empty" | "not_allowed" | "invalid" | "not_enrolled" | "late", string>;
   };
 }) {
   const { state, pending, onSubmit } = useActionForm<SubmitState>(submitAssignmentAction, {

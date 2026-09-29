@@ -286,12 +286,16 @@ export async function recordDecision(
   await trackEvent(tx, { ...base, name: "review_completed", props: { pass: input.pass } });
   let levelUp: number | null = null;
   let testPending = false;
+  let sessionsPending = false;
   if (input.pass) {
     await trackEvent(tx, { ...base, name: "review_passed" });
-    // The credential waits for the final test when the course has one.
+    // The credential waits for the final test, and a series for its sessions.
     const completion = await completeCourse(tx, tenant, input);
     if (completion.issued) levelUp = completion.levelUp?.n ?? null;
-    else testPending = completion.missing.includes("test");
+    else {
+      testPending = completion.missing.includes("test");
+      sessionsPending = completion.missing.includes("sessions");
+    }
   }
   await queueReviewReady(tx, tenant.id, {
     userId: input.userId,
@@ -299,5 +303,6 @@ export async function recordDecision(
     levelUp,
     secondLook: input.secondLook ?? false,
     testPending,
+    sessionsPending,
   });
 }

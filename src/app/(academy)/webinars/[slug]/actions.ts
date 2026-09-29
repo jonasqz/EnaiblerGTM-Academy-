@@ -15,6 +15,7 @@ import { startNewsOptIn } from "@/server/consent";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { getTenant, getTranslator } from "@/server/request";
 import { cancelKeyValid } from "@/server/webinars/links";
+import { joinSeriesAfterSeat } from "@/server/webinars/series";
 import {
   cancelRegistration,
   checkIn,
@@ -102,13 +103,13 @@ export async function registerAction(
   // Embedded on another site the session cookie never arrives; the form is the way in.
   const viewer = formData.get("embedded") === "1" ? null : await getViewer(tenant);
   if (viewer) {
-    const result = await registerSignedIn(getDb(), tenant, {
-      slug,
-      userId: viewer.userId,
-      email: viewer.email,
-      request,
-      t,
-    });
+    // A session of a series enrolls in the whole series (server/webinars/series).
+    const result = await registerSignedIn(
+      getDb(),
+      tenant,
+      { slug, userId: viewer.userId, email: viewer.email, request, t },
+      { afterSeat: joinSeriesAfterSeat(tenant) },
+    );
     if (!result.ok) {
       if (result.error === "answers") return answerErrors(result.issues);
       return result.error === "closed"

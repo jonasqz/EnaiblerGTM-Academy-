@@ -24,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Where each finding is fixed. Wording findings carry the context the word was found in. */
 function fixHref(issue: PublishIssue, base: string): string {
   if (issue.code === "legal_pages_missing") return "/studio/settings";
+  if (issue.code === "session_draft") return "/studio/webinars";
   return `${base}/${fixTab(issue)}`;
 }
 
@@ -55,6 +56,8 @@ const FIX_TAB: Record<PublishIssue["code"], string> = {
   legal_pages_missing: "details",
   calibration_missing: "calibrate",
   calibration_low: "calibrate",
+  session_draft: "lessons",
+  sessions_missing: "lessons",
 };
 
 export default async function PublishPage({

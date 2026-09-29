@@ -27,13 +27,15 @@ import { trackEvent } from "@/server/events";
  */
 export async function issueCredential(
   tx: Transaction,
-  tenant: TenantContext,
+  tenant: Pick<TenantContext, "id" | "settings">,
   input: {
     userId: string;
     courseId: string;
     basis: CompletionMode;
     /** Sessions the learner took part in, live or as a re-live, when the course asks for them. */
     sessions?: ReadonlyArray<"attendance" | "relive">;
+    /** How many sessions the course asked for; null when it asked for none. */
+    sessionCount?: number | null;
     submissionId: string | null;
     testAttemptId: string | null;
   },
@@ -96,6 +98,7 @@ export async function issueCredential(
     courseTitle: course.title,
     basis: input.basis,
     evidence: evidenceFor(input.basis, input.sessions ?? []),
+    sessionCount: input.sessions?.length ? (input.sessionCount ?? null) : null,
     // Every language the course has, like the title: each reader sees their own.
     artifactName:
       assignment && localizedEntries(assignment.artifactName).length > 0

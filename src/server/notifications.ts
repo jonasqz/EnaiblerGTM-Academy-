@@ -26,6 +26,7 @@ import {
   reviews,
   submissions,
   user,
+  type CourseMailPayload,
   type LevelUpPayload,
   type ReviewReadyPayload,
   type ReviewWaitingPayload,
@@ -33,6 +34,7 @@ import {
   type WebinarMailPayload,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { courseMail } from "@/server/courses/mail";
 import { senderFor, type OutgoingEmail, type SendEmail } from "@/server/email/mailer";
 import { renderNoticeEmail } from "@/server/email/templates/notice";
 import { academyUrl } from "@/server/platform/config";
@@ -74,6 +76,7 @@ export async function queueReviewReady(
       levelUp: input.levelUp,
       secondLook: input.secondLook,
       testPending: input.testPending ?? false,
+      ...(input.sessionsPending ? { sessionsPending: true } : {}),
     },
     sendAfter: new Date(Date.now() + REVIEW_MAIL_DELAY_SECONDS * 1000),
   });
@@ -166,7 +169,9 @@ async function reviewReadyMail(
         ? "email.reviewReady.bodyRevise"
         : payload.testPending
           ? "email.reviewReady.bodyPassedTestPending"
-          : "email.reviewReady.bodyPassed",
+          : payload.sessionsPending
+            ? "email.reviewReady.bodyPassedSessionsPending"
+            : "email.reviewReady.bodyPassed",
       { course: courseTitle },
     ),
   );
@@ -184,7 +189,7 @@ async function reviewReadyMail(
   }
   // A pass that completed the course leads to the credential, where sharing it starts.
   const [credential] =
-    passed && !payload.testPending
+    passed && !payload.testPending && !payload.sessionsPending
       ? await tx
           .select({ publicId: credentials.publicId })
           .from(credentials)
@@ -431,6 +436,8 @@ async function prepare(
       );
     case "webinar":
       return webinarMail(tx, tenant, account.email, row.userId, row.payload as WebinarMailPayload);
+    case "course":
+      return courseMail(tx, tenant, account.email, row.userId, row.payload as CourseMailPayload);
   }
 }
 

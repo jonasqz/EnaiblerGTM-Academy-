@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import type { LateSubmissions } from "@/core/assignments/deadline";
 import {
   postsWithoutUrl,
   sharingIssues,
@@ -49,6 +50,8 @@ export interface AcademySettingsInput {
   features?: Features;
   /** When a video counts as watched (percent played); unchanged when omitted. */
   videoWatchedPercent?: number;
+  /** Whether homework is still taken after its deadline; unchanged when omitted. */
+  lateSubmissions?: LateSubmissions;
 }
 
 /** Keeps a manifest's sender name and address; only the reply address is set here. */
@@ -115,6 +118,10 @@ export async function updateAcademySettings(
         ...(input.videoWatchedPercent === undefined
           ? {}
           : { watched_percent: input.videoWatchedPercent }),
+      },
+      assignments: {
+        ...row.config.assignments,
+        ...(input.lateSubmissions === undefined ? {} : { late_submissions: input.lateSubmissions }),
       },
     }),
   );

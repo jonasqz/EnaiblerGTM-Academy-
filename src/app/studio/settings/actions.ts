@@ -70,6 +70,11 @@ export async function saveAcademySettingsAction(
     videoWatchedPercent: formData.has("videoWatchedPercent")
       ? Number(text(formData, "videoWatchedPercent"))
       : undefined,
+    lateSubmissions: formData.has("lateSubmissions")
+      ? text(formData, "lateSubmissions") === "refused"
+        ? "refused"
+        : "accepted"
+      : undefined,
   });
   if (!result.ok) return { errors: result.errors.map((error) => readable(t, error)) };
   revalidatePath("/", "layout");

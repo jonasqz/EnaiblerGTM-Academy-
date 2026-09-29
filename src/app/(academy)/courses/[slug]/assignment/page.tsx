@@ -1,4 +1,13 @@
-import { ArrowLeft, Clock, Hammer, ListChecks, RotateCcw, CircleCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CalendarDays,
+  Clock,
+  Hammer,
+  ListChecks,
+  RotateCcw,
+  CircleCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -7,12 +16,15 @@ import { CredentialReady } from "@/components/credential-ready";
 import { SubmittedFiles } from "@/components/submitted-files";
 import { uploadLabels } from "@/components/upload-labels";
 import { FeedbackView } from "@/components/feedback-view";
+import { LocalDeadline } from "@/components/local-deadline";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Notice } from "@/components/ui/notice";
+import { deadlineState, formatDeadline, handInDecision } from "@/core/assignments/deadline";
 import { MAX_FILES_PER_SUBMISSION, type FileKind } from "@/core/assignments/submission-types";
 import { requiresWork } from "@/core/courses/completion";
+import { requiresSessions, sessionsOverview } from "@/core/courses/sessions";
 import { localize } from "@/core/i18n/locales";
 import { canResubmit, type Outcome } from "@/core/review/outcome";
 import { getDb } from "@/db/client";
@@ -20,6 +32,7 @@ import { requireViewer } from "@/server/access";
 import { loadLearnerCourse } from "@/server/learning";
 import { markResultSeen } from "@/server/notifications";
 import { getTranslator } from "@/server/request";
+import { appTimeZone } from "@/server/time-zone";
 
 const FILE_ACCEPT: Record<FileKind, string> = {
   pdf: ".pdf,application/pdf",
@@ -38,6 +51,21 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
 
   const fallback = [tenant.settings.default_locale];
   const latest = data.attempts[0] ?? null;
+  // The deadline is set in the academy's zone and read in the viewer's too.
+  const now = new Date();
+  const zone = appTimeZone();
+  const dueAt = data.assignment.dueAt;
+  const deadline = deadlineState(dueAt, now);
+  const refusesLate = tenant.settings.assignments.late_submissions === "refused";
+  const timing = handInDecision({
+    dueAt,
+    policy: tenant.settings.assignments.late_submissions,
+    revision: latest !== null,
+    now,
+  });
+  const sessions = sessionsOverview(data.sessions);
+  const sessionsMissing =
+    requiresSessions(data.sessionRequirement.rule) && sessions.done < sessions.total;
   // Seen here, the result needs no "feedback is ready" mail.
   if (latest?.unseen) await markResultSeen(getDb(), tenant.id, viewer.userId, latest.id);
   const outcomeBadge = (outcome: Outcome) =>
@@ -77,6 +105,34 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
           {localize(data.assignment.artifactName, data.locale, fallback)}
         </h1>
         <Markdown source={localize(data.assignment.prompt, data.locale, fallback)} />
+        {dueAt && (
+          <div
+            className={`flex gap-3 rounded-card p-4 ${deadline === "passed" ? "bg-subtle" : "bg-primary-soft"}`}
+          >
+            <CalendarClock aria-hidden size={22} className="mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-semibold">
+                {t.t(deadline === "passed" ? "deadline.passed" : "deadline.due", {
+                  date: formatDeadline(dueAt, zone, t.locale),
+                })}
+              </p>
+              {deadline !== "passed" && (
+                <LocalDeadline
+                  dueAt={dueAt.toISOString()}
+                  timeZone={zone}
+                  locale={t.locale}
+                  label={t.t("webinar.yourTime")}
+                />
+              )}
+              {deadline === "passed" && latest === null && timing === "late" && (
+                <p className="text-sm">{t.t("deadline.lateAccepted")}</p>
+              )}
+              {deadline !== "passed" && refusesLate && (
+                <p className="text-sm">{t.t("deadline.policyRefused")}</p>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       <section className="card-flat space-y-3 p-5">
@@ -132,7 +188,24 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
         </Notice>
       )}
 
-      {canResubmit(latest?.outcome ?? null) && (
+      {!data.credential && data.workPassed && !data.test && sessionsMissing && (
+        <Notice tone="info" title={t.t("test.oneStepLeft")}>
+          <div className="space-y-2">
+            <p>{t.t("series.sessionsMissing")}</p>
+            <Link
+              href={`/courses/${slug}`}
+              className="inline-flex items-center gap-1.5 font-semibold underline"
+            >
+              <CalendarDays aria-hidden size={16} /> {t.t("series.sessionsTitle")}
+            </Link>
+          </div>
+        </Notice>
+      )}
+      {latest === null && timing === "refused" && (
+        <Notice tone="critical" title={t.t("deadline.lateRefused")} />
+      )}
+
+      {canResubmit(latest?.outcome ?? null) && !(latest === null && timing === "refused") && (
         <section className="card space-y-4 p-6" aria-labelledby="work-heading">
           <h2 id="work-heading" className="font-display text-2xl">
             {latest ? t.t("assignment.revise") : t.t("assignment.yourWork")}
@@ -171,6 +244,7 @@ export default async function AssignmentPage({ params }: PageProps<"/courses/[sl
                 not_allowed: t.t("assignment.errorNotAllowed"),
                 invalid: t.t("assignment.errorInvalid"),
                 not_enrolled: t.t("assignment.errorNotEnrolled"),
+                late: t.t("assignment.errorLate"),
               },
             }}
           />

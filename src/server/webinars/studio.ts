@@ -39,8 +39,11 @@ import {
   webinars,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { completeWaitingLearners } from "@/server/courses/completion";
+import { courseSessions } from "@/server/courses/sessions";
 import { planReminders, queueWebinarMail, skipWebinarMails } from "@/server/webinars/mail";
 import { promoteWaitlist, recordAttendance } from "@/server/webinars/registration";
+import { registerLearnersForWebinar } from "@/server/webinars/series";
 
 /*
  * Webinars in the Studio (webinar brief §2.2, §3): set one up, build its
@@ -102,7 +105,7 @@ export async function createWebinar(
 }
 
 export type SetupError =
-  "not_found" | "cancelled" | "slug_taken" | "slug_locked" | "course" | "ended";
+  "not_found" | "cancelled" | "slug_taken" | "slug_locked" | "course" | "ended" | "session";
 
 /**
  * Saves the setup. A published webinar that moves gets a new calendar
@@ -152,6 +155,13 @@ export async function updateWebinarSetup(
         .from(courses)
         .where(and(eq(courses.id, setup.courseId), ne(courses.status, "archived")));
       if (!course) return { ok: false, error: "course" } as const;
+    }
+    // A session of a series stays with its course until its lesson lets it go.
+    if (webinar.courseId && setup.courseId !== webinar.courseId) {
+      const sessions = await courseSessions(tx, webinar.courseId);
+      if (sessions.some((session) => session.webinar.id === webinar.id)) {
+        return { ok: false, error: "session" } as const;
+      }
     }
     const moved =
       setup.startsAt.getTime() !== webinar.startsAt.getTime() ||
@@ -303,10 +313,13 @@ export async function publishWebinar(
     const issues = await checklist(tx, tenant, webinarId, now);
     if (!issues) return { ok: false, issues: [] };
     if (issues.some((issue) => issue.severity === "error")) return { ok: false, issues };
-    await tx
+    const [published] = await tx
       .update(webinars)
       .set({ status: "published", publishedAt: now })
-      .where(and(eq(webinars.id, webinarId), eq(webinars.status, "draft")));
+      .where(and(eq(webinars.id, webinarId), eq(webinars.status, "draft")))
+      .returning();
+    // A session of a live series: the course's learners get their seat now.
+    if (published) await registerLearnersForWebinar(tx, tenant, published, now);
     return { ok: true };
   });
 }
@@ -330,6 +343,8 @@ export async function cancelWebinar(
       .returning();
     if (!webinar) return { ok: false, notified: 0 };
     await skipWebinarMails(tx, { webinarId }, "webinar_cancelled");
+    // A cancelled session asks nothing of a series' learners: some may be done now.
+    if (webinar.courseId) await completeWaitingLearners(tx, tenant, webinar.courseId, now);
     await tx
       .delete(webinarRegistrations)
       .where(

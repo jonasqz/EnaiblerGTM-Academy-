@@ -8,8 +8,9 @@ import { getDb } from "@/db/client";
 import { withTenant } from "@/db/tenant-scope";
 import { getViewer } from "@/server/auth";
 import { startNewsOptIn } from "@/server/consent";
-import { ensureEnrollment, ensureLearner } from "@/server/learners";
+import { ensureLearner } from "@/server/learners";
 import { getLocale, getOrigin, getTenant } from "@/server/request";
+import { enrollLearner } from "@/server/webinars/series";
 
 /**
  * Landing point after the magic link (and the "Start" button): makes the user
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const enrolled = await withTenant(getDb(), tenant.id, async (tx) => {
     await ensureLearner(tx, tenant, viewer.userId, { locale, entry });
     if (!entry.course) return null;
-    return ensureEnrollment(tx, tenant, viewer.userId, { courseSlug: entry.course, locale, entry });
+    // A series registers its sessions with the enrollment (server/webinars/series).
+    return enrollLearner(tx, tenant, viewer.userId, { courseSlug: entry.course, locale, entry });
   });
 
   const news = newsOptInLocale(

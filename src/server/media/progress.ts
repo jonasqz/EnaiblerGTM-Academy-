@@ -6,6 +6,7 @@ import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
 import { mediaAssets, watchProgress } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
+import { afterRecordingWatched } from "@/server/courses/completion";
 import { trackEvent } from "@/server/events";
 
 /*
@@ -101,6 +102,8 @@ export async function recordProgress(
         userId: viewer.userId,
         props: { asset_id: asset.id, percent: update.percent },
       });
+      // A session's recording caught up on: its lesson, maybe the whole series.
+      await afterRecordingWatched(tx, tenant, { userId: viewer.userId, assetId: asset.id, now });
     }
     return {
       percent: update?.percent ?? stored.percent,

@@ -281,6 +281,13 @@
       "when": 1790646850393,
       "tag": "0039_webinar_series_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790648109876,
+      "tag": "0040_webinar_series",
+      "breakpoints": true
     }
   ]
 }

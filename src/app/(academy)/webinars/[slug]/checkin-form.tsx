@@ -8,6 +8,8 @@ import { useActionForm } from "@/components/ui/use-action-form";
 /** The field for the code the host shows during the session. */
 export function CheckInForm(props: {
   slug: string;
+  /** Checked in from a course's session lesson: that course's pages catch up. */
+  course?: { slug: string; action: typeof checkInAction };
   labels: {
     title: string;
     body: string;
@@ -20,9 +22,10 @@ export function CheckInForm(props: {
   };
 }) {
   const { labels } = props;
-  const { state, pending, onSubmit } = useActionForm<CheckInState>(checkInAction, {
-    status: "idle",
-  });
+  const { state, pending, onSubmit } = useActionForm<CheckInState>(
+    props.course?.action ?? checkInAction,
+    { status: "idle" },
+  );
   if (state.status === "done" || state.status === "already") {
     return (
       <p role="status" className="flex items-center gap-2 font-semibold">
@@ -41,6 +44,7 @@ export function CheckInForm(props: {
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-card border border-line p-4">
       <input type="hidden" name="slug" value={props.slug} />
+      {props.course && <input type="hidden" name="course" value={props.course.slug} />}
       <p className="font-semibold">{labels.title}</p>
       <p className="text-sm text-muted">{labels.body}</p>
       <div className="flex flex-wrap items-end gap-2">

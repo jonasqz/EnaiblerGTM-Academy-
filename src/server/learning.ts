@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { handInDecision } from "@/core/assignments/deadline";
 import {
   acceptedFileKind,
   acceptsText,
@@ -55,6 +56,7 @@ import {
 import type { ReviewCriterionResult, ReviewOverall, SubmittedFile } from "@/db/schema/learning";
 import { withTenant } from "@/db/tenant-scope";
 import { completeCourse, type CompletionResult } from "@/server/courses/completion";
+import { learnerSessions, webinarIdOf } from "@/server/courses/sessions";
 import { trackEvent } from "@/server/events";
 import { attachFiles } from "@/server/files";
 import type { Enqueue } from "@/server/jobs/producer";
@@ -272,10 +274,20 @@ export async function loadLearnerCourse(
           )
       : [];
 
+    const requirement = { rule: course.sessionRule, catchUpDays: course.catchUpDays };
     return {
       course,
       /** How learners finish: the work, the final test or both. */
       completionMode: course.completionMode,
+      /** What a series asks of its sessions (core/courses/sessions). */
+      sessionRequirement: requirement,
+      /** Its live sessions, with where the learner stands with each (server/courses/sessions). */
+      sessions: await learnerSessions(tx, {
+        courseId: course.id,
+        userId: enrollment ? userId : null,
+        requirement,
+        now: new Date(),
+      }),
       locale,
       lessons: lessonRows,
       enrollment: enrollment ?? null,
@@ -379,17 +391,18 @@ export async function completeLesson(
       .innerJoin(courses, eq(courses.id, enrollments.courseId))
       .where(and(eq(courses.slug, input.courseSlug), eq(enrollments.userId, userId)));
     if (!row) return null;
-    const keys = (
-      await tx
-        .select({ key: lessons.key })
-        .from(lessons)
-        .where(and(eq(lessons.courseId, row.courseId), eq(lessons.locale, row.enrollment.locale)))
-        .orderBy(asc(lessons.position))
-    ).map((lesson) => lesson.key);
+    const rows = await tx
+      .select({ key: lessons.key, blocks: lessons.blocks })
+      .from(lessons)
+      .where(and(eq(lessons.courseId, row.courseId), eq(lessons.locale, row.enrollment.locale)))
+      .orderBy(asc(lessons.position));
+    const keys = rows.map((lesson) => lesson.key);
     if (!keys.includes(input.key)) return null;
+    // A session is done by being there or watching it (server/courses/sessions), never by a click.
+    const session = rows.some((lesson) => lesson.key === input.key && webinarIdOf(lesson.blocks));
 
     const progress = row.enrollment.lessonProgress as LessonProgressMap;
-    if (!progress[input.key]) {
+    if (!progress[input.key] && !session) {
       await tx
         .update(enrollments)
         .set({
@@ -408,7 +421,7 @@ export async function completeLesson(
         props: { lesson: input.key },
       });
     }
-    const updated = { ...progress, [input.key]: { completedAt: "now" } };
+    const updated = session ? progress : { ...progress, [input.key]: { completedAt: "now" } };
     return {
       nextKey: nextLessonKey(keys, updated, input.key),
       completionMode: row.completionMode,
@@ -428,7 +441,8 @@ export type SubmitResult =
   | { ok: true; submissionId: string; attemptNo: number }
   | {
       ok: false;
-      error: "not_enrolled" | "not_allowed" | "empty" | "invalid";
+      /** `late`: past the deadline, and the academy takes no late hand-ins. */
+      error: "not_enrolled" | "not_allowed" | "empty" | "invalid" | "late";
       fieldErrors?: Record<string, string>;
     };
 
@@ -498,6 +512,14 @@ export async function submitAssignment(
           return { ok: false, error: "not_allowed" };
         }
       }
+      // The deadline holds the first hand-in; a revision of work already in stays open.
+      const timing = handInDecision({
+        dueAt: row.assignment.dueAt,
+        policy: tenant.settings.assignments.late_submissions,
+        revision: last !== undefined,
+        now: new Date(),
+      });
+      if (timing === "refused") return { ok: false, error: "late" };
 
       const types = row.assignment.submissionTypes;
       const text = input.text?.trim() ?? "";
@@ -571,7 +593,7 @@ export async function submitAssignment(
         pathId: row.enrollment.pathId,
         locale: row.enrollment.locale,
         entry: row.enrollment.entryContext,
-        props: { attempt: attemptNo },
+        props: { attempt: attemptNo, ...(timing === "late" ? { late: true } : {}) },
       });
       await enqueue(
         tx,

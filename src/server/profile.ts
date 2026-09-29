@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { courseProgress, resumeLessonKey, type LessonProgressMap } from "@/core/courses/lessons";
 import { nextStep } from "@/core/courses/next-step";
+import { sessionsOverview, waitingSessionKeys } from "@/core/courses/sessions";
 import { gradePercent } from "@/core/questions/questions";
 import type { TenantContext } from "@/core/tenant/context";
 import type { Database } from "@/db/client";
@@ -34,6 +35,7 @@ import {
 } from "@/db/schema";
 import { withTenant, withUser } from "@/db/tenant-scope";
 import { applyContactOptIn } from "@/server/consent";
+import { learnerSessions, type LearnerSession } from "@/server/courses/sessions";
 import { testStates, workOutcomes } from "@/server/learning";
 import { deleteUnderPrefix, storageConfigured } from "@/server/storage";
 import { promoteWaitlist } from "@/server/webinars/registration";
@@ -84,10 +86,27 @@ export async function loadMe(db: Database, tenant: TenantContext, userId: string
     const courseIds = courseRows.map((row) => row.course.id);
     const work = await workOutcomes(tx, userId, courseIds);
     const tests = await testStates(tx, userId, courseIds);
+    const now = new Date();
+    const sessions = new Map<string, LearnerSession[]>();
+    for (const { course, enrollment } of courseRows) {
+      if (enrollment.completedAt) continue;
+      sessions.set(
+        course.id,
+        await learnerSessions(tx, {
+          courseId: course.id,
+          userId,
+          requirement: { rule: course.sessionRule, catchUpDays: course.catchUpDays },
+          now,
+        }),
+      );
+    }
     return {
       profile: profile ?? null,
       path: path ?? null,
       courses: courseRows.map(({ enrollment, course }) => {
+        const series = sessions.get(course.id) ?? [];
+        // Sessions still to come are not where "continue" leads: they complete themselves.
+        const waiting = waitingSessionKeys(series);
         const keys = lessonKeys
           .filter((l) => l.courseId === course.id && l.locale === enrollment.locale)
           .map((l) => l.key);
@@ -99,10 +118,15 @@ export async function loadMe(db: Database, tenant: TenantContext, userId: string
           /** What the learner does next while the course is in progress. */
           next: nextStep({
             mode: course.completionMode,
-            resumeKey: resumeLessonKey(keys, progress),
+            resumeKey: resumeLessonKey(
+              keys.filter((key) => !waiting.has(key)),
+              progress,
+            ),
             work: work.get(course.id) ?? null,
             test: tests.get(course.id) ?? { taken: false, passed: false },
           }),
+          /** A series: its next live session, if one is still to come. */
+          nextSession: sessionsOverview(series).next,
         };
       }),
       credentials: creds,

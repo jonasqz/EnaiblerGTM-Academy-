@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 
 import type { SubmissionType } from "@/core/assignments/submission-types";
 import {
@@ -7,6 +7,11 @@ import {
   type PlatformCapabilities,
 } from "@/core/compliance/delivery-mode";
 import { requiresTest, requiresWork, type CompletionMode } from "@/core/courses/completion";
+import {
+  asksLessOfSessions,
+  type SessionRequirement,
+  type SessionRule,
+} from "@/core/courses/sessions";
 import {
   checkCoursePublishable,
   type PublishCheck,
@@ -30,10 +35,11 @@ import {
   lessons,
   rubrics,
   submissions,
-  testAttempts,
 } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
-import { completeCourse } from "@/server/courses/completion";
+import { completeWaitingLearners } from "@/server/courses/completion";
+import { replanHomeworkReminders } from "@/server/courses/deadline";
+import { courseSessions } from "@/server/courses/sessions";
 import { checkQuestionsOf, markdownOf } from "@/server/studio/lessons";
 
 /*
@@ -247,48 +253,30 @@ export interface CompletionChange {
 }
 
 /**
- * Learners an ending that asks for less finishes: they had passed what it
- * still asks for (e.g. the work, while the test was also required) and hold
- * no credential yet. Issued through completeCourse like any other pass;
- * everyone else finishes as usual.
+ * In the transaction that stored the new ending: what it needs, and whom it
+ * finishes. An ending that asks for less (a part dropped, a gentler session
+ * rule or a longer catch-up window) finishes learners who had passed the rest.
  */
-async function completeFinishedLearners(
-  tx: Transaction,
-  tenant: TenantContext,
-  courseId: string,
-): Promise<number> {
-  const candidates = await tx
-    .select({ userId: enrollments.userId })
-    .from(enrollments)
-    .where(
-      and(
-        eq(enrollments.courseId, courseId),
-        isNull(enrollments.completedAt),
-        or(
-          sql`exists (select 1 from ${testAttempts} ta where ta.course_id = ${enrollments.courseId} and ta.user_id = ${enrollments.userId} and ta.passed)`,
-          sql`exists (select 1 from ${submissions} s join ${assignments} a on a.id = s.assignment_id where a.course_id = ${enrollments.courseId} and s.user_id = ${enrollments.userId} and s.status in ('passed', 'overridden'))`,
-        ),
-      ),
-    );
-  let completed = 0;
-  for (const { userId } of candidates) {
-    if ((await completeCourse(tx, tenant, { userId, courseId })).issued) completed += 1;
-  }
-  return completed;
-}
-
-/** In the transaction that stored the new mode: what it needs, and whom it finishes. */
 async function applyCompletionMode(
   tx: Transaction,
   tenant: TenantContext,
-  course: { id: string; languages: readonly string[]; completionMode: CompletionMode },
+  course: {
+    id: string;
+    languages: readonly string[];
+    completionMode: CompletionMode;
+    sessionRule: SessionRule;
+    catchUpDays: number | null;
+  },
   mode: CompletionMode,
+  sessions?: SessionRequirement,
 ): Promise<CompletionChange> {
   const added = await addMissingParts(tx, tenant.id, course, mode);
+  const before = { rule: course.sessionRule, catchUpDays: course.catchUpDays };
   const asksLess =
     (requiresWork(course.completionMode) && !requiresWork(mode)) ||
-    (requiresTest(course.completionMode) && !requiresTest(mode));
-  return { added, completed: asksLess ? await completeFinishedLearners(tx, tenant, course.id) : 0 };
+    (requiresTest(course.completionMode) && !requiresTest(mode)) ||
+    asksLessOfSessions(before, sessions ?? before);
+  return { added, completed: asksLess ? await completeWaitingLearners(tx, tenant, course.id) : 0 };
 }
 
 /**
@@ -348,6 +336,8 @@ export async function loadCourseEditor(db: Database, tenantId: string, courseId:
       /** The final test, kept even while the course ends with work only. */
       test: test ?? null,
       calibration: calibration ?? null,
+      /** Its live sessions (a series), in lesson order. */
+      sessions: await courseSessions(tx, courseId),
     };
   });
 }
@@ -363,6 +353,8 @@ export interface CourseSettingsInput {
   plannedLaunch: string | null;
   slug: string;
   completionMode: CompletionMode;
+  /** What a series asks of its sessions; unchanged when left out (a course without sessions). */
+  sessions?: SessionRequirement;
 }
 
 export async function updateCourseSettings(
@@ -389,13 +381,17 @@ export async function updateCourseSettings(
         plannedLaunch: input.plannedLaunch,
         slug,
         completionMode: input.completionMode,
+        ...(input.sessions
+          ? { sessionRule: input.sessions.rule, catchUpDays: input.sessions.catchUpDays }
+          : {}),
       })
       .where(eq(courses.id, courseId));
     return applyCompletionMode(
       tx,
       tenant,
-      { id: course.id, languages: input.languages, completionMode: course.completionMode },
+      { ...course, languages: input.languages },
       input.completionMode,
+      input.sessions,
     );
   });
 }
@@ -405,6 +401,8 @@ export interface OutcomeInput {
   artifactName: LocalizedText;
   submissionTypes: SubmissionType[];
   rubric: Rubric;
+  /** Hand in by then (null: no deadline); unchanged when left out. */
+  dueAt?: Date | null;
 }
 
 export async function updateOutcome(
@@ -426,8 +424,16 @@ export async function updateOutcome(
         prompt: input.prompt,
         artifactName: input.artifactName,
         submissionTypes: input.submissionTypes,
+        ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
       })
       .where(eq(assignments.id, assignment.id));
+    // A new deadline: reminders planned for the old one stay unsent, new ones are planned.
+    if (
+      input.dueAt !== undefined &&
+      (input.dueAt?.getTime() ?? null) !== (assignment.dueAt?.getTime() ?? null)
+    ) {
+      await replanHomeworkReminders(tx, tenantId, courseId, new Date());
+    }
     const [current] = await tx.select().from(rubrics).where(eq(rubrics.id, assignment.rubricId));
     if (current && !sameJson(current.definition, rubric)) {
       // A new version keeps earlier reviews comparable (reviews store rubric_version).
@@ -477,6 +483,7 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
       zfuApproval: editor.course.zfuApproval,
       estMinutes: editor.course.estMinutes,
       completionMode: editor.course.completionMode,
+      sessionRule: editor.course.sessionRule,
     },
     lessons: editor.lessons.map((lesson) => ({
       key: lesson.key,
@@ -485,6 +492,11 @@ function checkInput(editor: CourseEditor, platform: PlatformCapabilities) {
       markdown: markdownOf(lesson.blocks),
       criterionIds: lesson.criterionIds,
       questions: checkQuestionsOf(lesson.blocks),
+      session: editor.sessions.some((session) => session.lessonKey === lesson.key),
+    })),
+    sessions: editor.sessions.map((session) => ({
+      title: session.webinar.title,
+      status: session.webinar.status,
     })),
     assignment: editor.assignment
       ? {
@@ -505,6 +517,11 @@ export interface PublishContext {
   /** Whether the academy uses AI review (features.ai_review); calibration is checked then. */
   aiReview?: boolean;
   platform?: PlatformCapabilities;
+  /**
+   * In the publishing transaction: a course that comes back with learners
+   * registers them for sessions added meanwhile (server/webinars/series).
+   */
+  onPublished?: (tx: Transaction, courseId: string) => Promise<unknown>;
 }
 
 export function publishCheckFor(editor: CourseEditor, context: PublishContext = {}): PublishCheck {
@@ -538,16 +555,17 @@ export async function publishCourse(
   if (!editor) throw new Error("Course not found");
   const check = publishCheckFor(editor, context);
   if (!check.ok) return check;
-  await withTenant(db, tenantId, (tx) =>
-    tx
+  await withTenant(db, tenantId, async (tx) => {
+    await tx
       .update(courses)
       .set({
         status: "published",
         version: editor.course.version + 1,
         publishedAt: new Date(),
       })
-      .where(and(eq(courses.id, courseId), ne(courses.status, "archived"))),
-  );
+      .where(and(eq(courses.id, courseId), ne(courses.status, "archived")));
+    await context.onPublished?.(tx, courseId);
+  });
   return check;
 }
 

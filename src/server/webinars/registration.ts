@@ -20,6 +20,7 @@ import type { Database, Transaction } from "@/db/client";
 import { webinarAttendance, webinarRegistrations, webinars } from "@/db/schema";
 import { withTenant } from "@/db/tenant-scope";
 import { applyContactOptIn } from "@/server/consent";
+import { afterSessionTaken } from "@/server/courses/completion";
 import { trackEvent } from "@/server/events";
 import { ensureLearner } from "@/server/learners";
 import { rateLimit } from "@/server/rate-limit";
@@ -165,6 +166,23 @@ export async function startRegistration(
   });
 }
 
+/** A seat someone just got, as whatever else happens in its transaction sees it. */
+export interface ConfirmedSeat {
+  webinar: WebinarRow;
+  registrationId: string;
+  userId: string;
+  status: Seat;
+  locale: string;
+  entry: EntryContext;
+}
+
+/**
+ * Runs in the registration's transaction once the seat is taken, e.g. to
+ * enroll in the series the webinar belongs to (server/webinars/series).
+ * `mailed`: its own mail announces the seat, so the webinar sends none.
+ */
+export type AfterSeat = (tx: Transaction, seat: ConfirmedSeat) => Promise<{ mailed: boolean }>;
+
 /** What follows a confirmed registration, in its transaction: mail, reminders, consent, the event. */
 async function afterConfirmed(
   tx: Transaction,
@@ -175,13 +193,26 @@ async function afterConfirmed(
     status: Seat;
   },
   now: Date,
+  afterSeat?: AfterSeat,
 ): Promise<void> {
-  await queueWebinarMail(tx, tenant.id, {
-    userId: registration.userId,
-    webinarId: webinar.id,
-    registrationId: registration.id,
-    step: registration.status === "registered" ? "confirmation" : "waitlist",
-  });
+  const then = afterSeat
+    ? await afterSeat(tx, {
+        webinar,
+        registrationId: registration.id,
+        userId: registration.userId,
+        status: registration.status,
+        locale: registration.locale,
+        entry: registration.entryContext,
+      })
+    : { mailed: false };
+  if (!then.mailed) {
+    await queueWebinarMail(tx, tenant.id, {
+      userId: registration.userId,
+      webinarId: webinar.id,
+      registrationId: registration.id,
+      step: registration.status === "registered" ? "confirmation" : "waitlist",
+    });
+  }
   if (registration.status === "registered") {
     await planReminders(tx, tenant.id, webinar, registration, now);
   }
@@ -207,6 +238,7 @@ export async function confirmRegistration(
   db: Database,
   tenant: TenantContext,
   input: { slug: string; token: string; userId: string; email: string; now?: Date },
+  options: { afterSeat?: AfterSeat } = {},
 ): Promise<SeatResult> {
   const now = input.now ?? new Date();
   return withTenant(db, tenant.id, async (tx) => {
@@ -300,6 +332,7 @@ export async function confirmRegistration(
       webinar,
       { ...confirmed, id: registrationId, userId: input.userId },
       now,
+      options.afterSeat,
     );
     return { ok: true, status, already: false, marketing, locale: pending.locale } as const;
   });
@@ -317,6 +350,7 @@ export async function registerSignedIn(
     t: Translator;
     now?: Date;
   },
+  options: { afterSeat?: AfterSeat } = {},
 ): Promise<SeatResult> {
   const now = input.now ?? new Date();
   return withTenant(db, tenant.id, async (tx) => {
@@ -400,6 +434,7 @@ export async function registerSignedIn(
       webinar,
       { ...values, id: row!.id, userId: input.userId },
       now,
+      options.afterSeat,
     );
     return {
       ok: true,
@@ -409,6 +444,82 @@ export async function registerSignedIn(
       locale: input.request.locale,
     } as const;
   });
+}
+
+/**
+ * A seat (or a place on the waitlist) for a learner whose address is proven,
+ * in the caller's transaction: how a series registers its learners for each
+ * of its sessions (server/webinars/series). Nothing to fill in: the series'
+ * own consents stand for this session. Someone registered already keeps what
+ * they have; a webinar no longer open for registration gives nothing.
+ */
+export async function seatLearner(
+  tx: Transaction,
+  tenant: TenantContext,
+  webinarId: string,
+  input: {
+    userId: string;
+    consents: GivenConsent[];
+    entry: EntryContext;
+    locale: string;
+    now: Date;
+    /** The caller's own mail announces the seat. */
+    confirmationMail: boolean;
+  },
+): Promise<{ registrationId: string; status: Seat; already: boolean } | null> {
+  const webinar = await lockWebinar(tx, webinarId);
+  if (!webinar || !registrationOpen(webinar, input.now)) return null;
+  const [existing] = await tx
+    .select()
+    .from(webinarRegistrations)
+    .where(
+      and(
+        eq(webinarRegistrations.webinarId, webinar.id),
+        eq(webinarRegistrations.userId, input.userId),
+      ),
+    );
+  if (existing && existing.status !== "cancelled") {
+    return { registrationId: existing.id, status: existing.status as Seat, already: true };
+  }
+  const status = seatFor(webinar.capacity, await seatsTaken(tx, webinar.id));
+  const values = {
+    status,
+    answers: {},
+    consents: input.consents,
+    entryContext: input.entry,
+    locale: input.locale,
+    confirmedAt: input.now,
+    cancelledAt: null,
+    promotedAt: null,
+  };
+  const [row] = existing
+    ? await tx
+        .update(webinarRegistrations)
+        .set(values)
+        .where(eq(webinarRegistrations.id, existing.id))
+        .returning({ id: webinarRegistrations.id })
+    : await tx
+        .insert(webinarRegistrations)
+        .values({ tenantId: tenant.id, webinarId: webinar.id, userId: input.userId, ...values })
+        .returning({ id: webinarRegistrations.id });
+  await trackEvent(tx, {
+    tenantId: tenant.id,
+    name: "webinar_registered",
+    userId: input.userId,
+    courseId: webinar.courseId,
+    locale: input.locale,
+    entry: input.entry,
+    props: eventProps(webinar, { series: true }),
+  });
+  await afterConfirmed(
+    tx,
+    tenant,
+    webinar,
+    { ...values, id: row!.id, userId: input.userId },
+    input.now,
+    input.confirmationMail ? undefined : async () => ({ mailed: true }),
+  );
+  return { registrationId: row!.id, status, already: false };
 }
 
 /**
@@ -573,21 +684,28 @@ export async function checkIn(
       return "too_many";
     }
     if (!checkinCodeMatches(webinar.checkinCode, input.code)) return "wrong";
-    const recorded = await recordAttendance(tx, tenant, webinar, {
-      userId: input.userId,
-      source: "checkin_code",
-      joinedAt: now,
-      leftAt: null,
-      durationMinutes: null,
-      locale: registration.locale,
-    });
+    const recorded = await recordAttendance(
+      tx,
+      tenant,
+      webinar,
+      {
+        userId: input.userId,
+        source: "checkin_code",
+        joinedAt: now,
+        leftAt: null,
+        durationMinutes: null,
+        locale: registration.locale,
+      },
+      now,
+    );
     return recorded ? "done" : "already";
   });
 }
 
 /**
  * Stores someone's attendance; a later file or report fills in times and
- * duration. True when they had none before (that is when the event fires).
+ * duration. True when they had none before (that is when the event fires,
+ * and when a session of a series completes its lesson and maybe the course).
  */
 export async function recordAttendance(
   tx: Transaction,
@@ -601,6 +719,7 @@ export async function recordAttendance(
     durationMinutes: number | null;
     locale?: string | null;
   },
+  now: Date = new Date(),
 ): Promise<boolean> {
   const [before] = await tx
     .select()
@@ -644,6 +763,7 @@ export async function recordAttendance(
       ...(row.durationMinutes !== null ? { duration_minutes: row.durationMinutes } : {}),
     }),
   });
+  await afterSessionTaken(tx, tenant, { userId: row.userId, webinarId: webinar.id, now });
   return true;
 }
 

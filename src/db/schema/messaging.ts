@@ -12,6 +12,9 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { WebinarMailStep } from "@/core/webinars/reminders";
+
+export const COURSE_MAIL_STEPS = ["series_enrolled", "session_added", "homework_due"] as const;
+export type CourseMailStep = (typeof COURSE_MAIL_STEPS)[number];
 import { createdAt, tenantIsolation } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { tenants } from "@/db/schema/tenancy";
@@ -22,6 +25,7 @@ export const notificationKind = pgEnum("notification_kind", [
   "team_invite",
   "review_waiting",
   "webinar",
+  "course",
 ]);
 export const notificationStatus = pgEnum("notification_status", [
   "pending",
@@ -38,6 +42,8 @@ export interface ReviewReadyPayload {
   secondLook: boolean;
   /** The work passed, but the credential waits for the course's final test. */
   testPending?: boolean;
+  /** The work passed, but the credential waits for the sessions of the series. */
+  sessionsPending?: boolean;
 }
 
 export interface LevelUpPayload {
@@ -70,12 +76,28 @@ export interface WebinarMailPayload {
   hadSeat?: boolean;
 }
 
+/**
+ * A mail about the learner's course (server/courses/mail.ts): the one
+ * confirmation of a series with every session, a session added later, the
+ * homework reminder. Written when it goes out; a reminder carries the
+ * deadline it was planned for and stays unsent when that moved.
+ */
+export interface CourseMailPayload {
+  courseId: string;
+  step: CourseMailStep;
+  /** Series mails: the session registrations they announce. */
+  registrationIds?: string[];
+  /** Homework reminder: the deadline it was planned for (ISO). */
+  plannedFor?: string;
+}
+
 export type NotificationPayload =
   | ReviewReadyPayload
   | LevelUpPayload
   | TeamInvitePayload
   | ReviewWaitingPayload
-  | WebinarMailPayload;
+  | WebinarMailPayload
+  | CourseMailPayload;
 
 /**
  * Someone's review alert that has not gone out yet; the unique index below

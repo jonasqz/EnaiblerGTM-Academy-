@@ -12,14 +12,16 @@ import {
   type FileKind,
   type SubmissionType,
 } from "@/core/assignments/submission-types";
-import { deliveryModeSchema } from "@/core/compliance/delivery-mode";
+import { checkDeliveryMode, deliveryModeSchema } from "@/core/compliance/delivery-mode";
 import { COMPLETION_MODES, requiresWork } from "@/core/courses/completion";
+import { isSessionRule, MAX_CATCH_UP_DAYS, type SessionRequirement } from "@/core/courses/sessions";
 import { isLocale, type Locale } from "@/core/i18n/locales";
 import { checkIssueText, publishIssueText } from "@/core/i18n/studio/helpers";
 import { parseCheckQuestions } from "@/core/questions/knowledge-check";
 import { questionTexts } from "@/core/questions/questions";
 import { rubricSchema } from "@/core/review/rubric";
 import { slugify } from "@/core/shared/slug";
+import { zonedTimeToUtc } from "@/core/webinars/time";
 import { getDb } from "@/db/client";
 import { requireCapability, reviewScopeOf } from "@/server/access";
 import {
@@ -42,7 +44,8 @@ import {
   updateLesson,
 } from "@/server/studio/lessons";
 import { decideSubmission } from "@/server/studio/reviews";
-import { getStudioText } from "@/server/studio-text";
+import { getStudioText, studioTimeZone } from "@/server/studio-text";
+import { registerLearnersForSessions, sessionsChangedFor } from "@/server/webinars/series";
 
 /*
  * Studio actions. Every action re-checks the capability (a form can be posted
@@ -150,7 +153,30 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
   if (!deliveryMode.success) errors.push(t.t("common.actions.chooseDeliveryMode"));
   const completionMode = z.enum(COMPLETION_MODES).safeParse(text(formData, "completionMode"));
   if (!completionMode.success) errors.push(t.t("courses.completion.choose"));
+  // A series says what its sessions count for; a form without the field leaves it as it is.
+  let sessions: SessionRequirement | undefined;
+  if (formData.has("sessionRule")) {
+    const rule = text(formData, "sessionRule");
+    const days = text(formData, "catchUpDays");
+    const catchUpDays = days ? Number(days) : null;
+    if (!isSessionRule(rule)) errors.push(t.t("series.rule.choose"));
+    else if (
+      rule === "attended_or_watched" &&
+      catchUpDays !== null &&
+      (!Number.isInteger(catchUpDays) || catchUpDays < 1 || catchUpDays > MAX_CATCH_UP_DAYS)
+    ) {
+      errors.push(t.t("series.rule.catchUpInvalid"));
+    } else {
+      sessions = { rule, catchUpDays: rule === "attended_or_watched" ? catchUpDays : null };
+    }
+  }
   if (errors.length > 0 || !deliveryMode.success || !completionMode.success) return { errors };
+  // FernUSG: a paid live course never lets a recording stand in for attending (webinar brief §5).
+  const fernUsg = checkDeliveryMode({
+    deliveryMode: deliveryMode.data,
+    sessionRule: sessions?.rule,
+  }).find((issue) => issue.code === "paid_recording_replaces_session");
+  if (fernUsg) return { errors: [t.t(`common.publish.delivery.${fernUsg.code}`)] };
 
   const lint = wording(t, [
     [title, "course_title"],
@@ -184,6 +210,7 @@ export async function saveDetailsAction(_: FormState, formData: FormData): Promi
     plannedLaunch,
     slug: slugify(text(formData, "slug")),
     completionMode: completionMode.data,
+    sessions,
   });
   revalidatePath(`/studio/courses/${courseId}`, "layout");
   // Say what the new ending brought along, so nothing appears unexplained in the tabs.
@@ -241,6 +268,14 @@ export async function saveOutcomeAction(_: FormState, formData: FormData): Promi
   }
   const submissionTypes = submissionTypesSchema.safeParse(types);
   if (!submissionTypes.success) errors.push(t.t("common.actions.oneWayToHandIn"));
+  // The deadline, in the Studio's zone; both fields empty is none, a form without them leaves it.
+  let dueAt: Date | null | undefined;
+  if (formData.has("dueDate") || formData.has("dueTime")) {
+    const date = text(formData, "dueDate");
+    const time = text(formData, "dueTime");
+    dueAt = date || time ? zonedTimeToUtc(date, time, studioTimeZone()) : null;
+    if (dueAt === null && (date || time)) errors.push(t.t("series.deadline.invalid"));
+  }
 
   let rubricInput: unknown = null;
   try {
@@ -272,6 +307,7 @@ export async function saveOutcomeAction(_: FormState, formData: FormData): Promi
     artifactName,
     submissionTypes: submissionTypes.data,
     rubric: rubric.data,
+    dueAt,
   });
   revalidatePath(`/studio/courses/${courseId}`, "layout");
   return { ok: true, message: t.t("common.actions.outcomeSaved"), warnings: lint.warnings };
@@ -286,6 +322,8 @@ export async function publishCourseAction(formData: FormData): Promise<void> {
   const check = await publishCourse(getDb(), tenant.id, courseId, {
     legalLinks: tenant.settings.legal_links,
     aiReview: tenant.settings.features.ai_review,
+    onPublished: (tx, id) =>
+      registerLearnersForSessions(tx, tenant, { courseId: id, now: new Date() }),
   });
   revalidatePath("/", "layout");
   redirect(`/studio/courses/${courseId}/publish?${check.ok ? "published=1" : "blocked=1"}`);
@@ -361,14 +399,19 @@ export async function saveLessonAction(_: FormState, formData: FormData): Promis
     .filter((value): value is string => typeof value === "string" && known.has(value));
   // The editor sends its video choice ("" for none); a form without the field leaves it as it is.
   const mediaAssetId = formData.has("mediaAssetId") ? text(formData, "mediaAssetId") : null;
+  // The same for the session: "" makes it an ordinary lesson again.
+  const webinarId = formData.has("webinarId") ? text(formData, "webinarId") || null : undefined;
   const result = await updateLesson(getDb(), tenant.id, lessonId, {
     title,
     markdown,
     criterionIds,
     questions,
     mediaAssetIds: mediaAssetId === null ? undefined : mediaAssetId ? [mediaAssetId] : [],
+    webinarId,
     userId: viewer.userId,
+    onSessionsChanged: sessionsChangedFor(tenant),
   });
+  if (result.sessionRefused) return { errors: [t.t("series.lesson.refused")] };
   revalidatePath(`/studio/courses/${editor.course.id}`, "layout");
   const lint = wording(t, [
     [title, "lesson_text"],
@@ -431,7 +474,13 @@ export async function moveLessonAction(formData: FormData): Promise<void> {
 export async function deleteLessonAction(formData: FormData): Promise<void> {
   const courseId = courseIdSchema.parse(text(formData, "courseId"));
   const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/lessons`);
-  await deleteLesson(getDb(), tenant.id, courseId, text(formData, "key"));
+  await deleteLesson(
+    getDb(),
+    tenant.id,
+    courseId,
+    text(formData, "key"),
+    sessionsChangedFor(tenant),
+  );
   revalidatePath(`/studio/courses/${courseId}`, "layout");
   redirect(`/studio/courses/${courseId}/lessons`);
 }

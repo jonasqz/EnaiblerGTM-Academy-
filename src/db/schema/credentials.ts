@@ -57,6 +57,8 @@ export const credentials = pgTable(
     basis: credentialBasis("basis").notNull().default("work"),
     /** What it rests on (core/credentials/evidence): work, quiz, sessions live or caught up. */
     evidence: text("evidence").array().$type<CredentialEvidence[]>().notNull().default([]),
+    /** Sessions the course asked for at issue ("attended all 4"); null when it asked for none. */
+    sessionCount: integer("session_count"),
     /**
      * What the learner built, in every language the course had at issue
      * (like the course title); null when the course ended with a test alone.

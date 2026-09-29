@@ -15,7 +15,7 @@ import {
   openBadgeJwtPayload,
 } from "@/core/credentials/open-badges";
 import { requiresTest } from "@/core/courses/completion";
-import { artifactNameFor, proofLine } from "@/core/credentials/proof";
+import { artifactNameFor, proofLine, sessionsLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
@@ -119,25 +119,31 @@ export interface OpenBadgeExport {
 }
 
 /** The learner's credential as a signed Open Badges 3.0 VC-JWT. */
-/** What the achievement asked for: the work, the final test, or both (core/credentials/proof). */
+/**
+ * What the achievement asked for: the work, the final test, or both, and the
+ * sessions of a series (core/credentials/proof).
+ */
 function achievementTexts(t: Translator, credential: CredentialView, course: string) {
   const artifact = artifactNameFor(t, credential) ?? "";
+  const sessions = sessionsLine(t, credential);
+  const withSessions = (texts: { description: string; criteriaNarrative: string }) =>
+    sessions ? { ...texts, criteriaNarrative: `${texts.criteriaNarrative} ${sessions}.` } : texts;
   switch (credential.basis) {
     case "work":
-      return {
+      return withSessions({
         description: t.t("openBadge.description", { course, artifact }),
         criteriaNarrative: t.t("openBadge.criteria", { artifact }),
-      };
+      });
     case "test":
-      return {
+      return withSessions({
         description: t.t("openBadge.descriptionTest", { course }),
         criteriaNarrative: t.t("openBadge.criteriaTest"),
-      };
+      });
     case "work_and_test":
-      return {
+      return withSessions({
         description: t.t("openBadge.descriptionWorkAndTest", { course, artifact }),
         criteriaNarrative: t.t("openBadge.criteriaWorkAndTest", { artifact }),
-      };
+      });
   }
 }
 
@@ -178,6 +184,7 @@ export async function openBadgeFor(
       narrative: [
         credential.artifactName ? t.t("openBadge.evidence") : null,
         requiresTest(credential.basis) ? t.t("openBadge.evidenceTest") : null,
+        sessionsLine(t, credential) ? `${sessionsLine(t, credential)}.` : null,
       ]
         .filter((part): part is string => part !== null)
         .join(" "),

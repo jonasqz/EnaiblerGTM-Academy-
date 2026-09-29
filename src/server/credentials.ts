@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import type { CompletionMode } from "@/core/courses/completion";
+import type { CredentialEvidence } from "@/core/credentials/evidence";
 import { normalizePublicId } from "@/core/credentials/public-id";
 import type { LocalizedText } from "@/core/i18n/locales";
 import type { TenantContext } from "@/core/tenant/context";
@@ -20,6 +21,9 @@ export interface CredentialView {
   basis: CompletionMode;
   /** In every language the course had at issue; null when earned by the test alone. */
   artifactName: LocalizedText | null;
+  /** What it rests on (core/credentials/evidence), and the sessions a series asked for. */
+  evidence: CredentialEvidence[];
+  sessionCount: number | null;
   issuedAt: Date;
   visibility: "private" | "public";
   /** Where it was issued: here, or on the platform the academy used before. */
@@ -82,6 +86,8 @@ export async function loadCredential(
       courseTitle: credential.courseTitle,
       basis: credential.basis,
       artifactName: credential.artifactName,
+      evidence: credential.evidence,
+      sessionCount: credential.sessionCount,
       issuedAt: credential.issuedAt,
       visibility: credential.visibility,
       source:

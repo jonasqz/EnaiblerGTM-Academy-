@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, max, or, sql } from "drizzle-orm";
 
 import { lessonKeyFor } from "@/core/courses/lessons";
 import type { Locale } from "@/core/i18n/locales";
@@ -13,9 +13,11 @@ import {
   mediaAssets,
   rubrics,
   sources,
+  webinars,
 } from "@/db/schema";
 import type { LessonBlock } from "@/db/schema/catalog";
 import { withTenant } from "@/db/tenant-scope";
+import { webinarIdOf } from "@/server/courses/sessions";
 
 /*
  * Lessons (brief §4, §7 step 4): per locale, linked across translations by
@@ -57,19 +59,70 @@ export function mediaAssetIdsOf(blocks: readonly LessonBlock[]): string[] {
 }
 
 /**
- * The video first (a re-live lesson opens with it), then the text, then the
+ * A live session first (the lesson is the webinar, its text prepares it),
+ * then the video (a re-live lesson opens with it), then the text, then the
  * knowledge check at the end; a lesson without questions has no check.
  */
 function lessonBlocks(
   markdown: string,
   questions: CheckQuestion[],
   mediaAssetIds: readonly string[] = [],
+  webinarId: string | null = null,
 ): LessonBlock[] {
   return [
+    ...(webinarId ? [{ type: "webinar" as const, webinarId }] : []),
     ...mediaAssetIds.map((assetId) => ({ type: "media" as const, assetId })),
     { type: "markdown", markdown },
     ...(questions.length > 0 ? [{ type: "check" as const, questions }] : []),
   ];
+}
+
+/** A lesson's blocks with its session set (or taken away), everything else as it was. */
+function withSession(blocks: readonly LessonBlock[], webinarId: string | null): LessonBlock[] {
+  return lessonBlocks(
+    markdownOf(blocks),
+    checkQuestionsOf(blocks),
+    mediaAssetIdsOf(blocks),
+    webinarId,
+  );
+}
+
+/**
+ * Webinars an author can make a lesson of this course: the academy's, not
+ * cancelled, not in another course, and not a session of another lesson here.
+ */
+export async function sessionOptions(
+  db: Database,
+  tenantId: string,
+  lesson: { courseId: string; key: string },
+) {
+  return withTenant(db, tenantId, async (tx) => {
+    const taken = new Set(
+      (
+        await tx
+          .select({ key: lessons.key, blocks: lessons.blocks })
+          .from(lessons)
+          .where(eq(lessons.courseId, lesson.courseId))
+      )
+        .filter((row) => row.key !== lesson.key)
+        .map((row) => webinarIdOf(row.blocks))
+        .filter((id): id is string => id !== null),
+    );
+    const rows = await tx
+      .select({
+        id: webinars.id,
+        title: webinars.title,
+        status: webinars.status,
+        startsAt: webinars.startsAt,
+        durationMinutes: webinars.durationMinutes,
+        timeZone: webinars.timeZone,
+        courseId: webinars.courseId,
+      })
+      .from(webinars)
+      .where(or(isNull(webinars.courseId), eq(webinars.courseId, lesson.courseId)))
+      .orderBy(asc(webinars.startsAt));
+    return rows.filter((row) => !taken.has(row.id));
+  });
 }
 
 export async function createLesson(
@@ -85,6 +138,7 @@ export async function createLesson(
         locale: lessons.locale,
         position: lessons.position,
         criterionIds: lessons.criterionIds,
+        blocks: lessons.blocks,
       })
       .from(lessons)
       .where(eq(lessons.courseId, courseId));
@@ -92,6 +146,7 @@ export async function createLesson(
     let key: string;
     let position: number;
     let criterionIds: string[] = [];
+    let webinarId: string | null = null;
     const source = input.translationOf
       ? rows.find((row) => row.key === input.translationOf)
       : undefined;
@@ -103,6 +158,8 @@ export async function createLesson(
       position = source.position;
       // A translation teaches the same criteria; its text starts empty, never as a copy.
       criterionIds = source.criterionIds;
+      // A session is the same webinar in every language.
+      webinarId = webinarIdOf(source.blocks);
     } else {
       key = lessonKeyFor(
         input.title,
@@ -111,7 +168,7 @@ export async function createLesson(
       position = rows.reduce((highest, row) => Math.max(highest, row.position + 1), 0);
     }
 
-    const blocks: LessonBlock[] = [{ type: "markdown", markdown: "" }];
+    const blocks = lessonBlocks("", [], [], webinarId);
     const [lesson] = await tx
       .insert(lessons)
       .values({
@@ -236,9 +293,78 @@ export async function setLessonSources(
 }
 
 /**
- * Saves a new version; unchanged content saves nothing. The knowledge check
- * and the video are part of the content (versions keep them); left out, they
- * stay as they are.
+ * The webinar a lesson may become (sessionOptions' rules), or null when it
+ * may not: another course's, or a session of another lesson here.
+ */
+async function sessionWebinar(
+  tx: Transaction,
+  lesson: { courseId: string; key: string },
+  webinarId: string,
+): Promise<{ id: string; courseId: string | null } | null> {
+  if (!UUID.test(webinarId)) return null;
+  const [webinar] = await tx
+    .select({ id: webinars.id, courseId: webinars.courseId })
+    .from(webinars)
+    .where(eq(webinars.id, webinarId));
+  if (!webinar || (webinar.courseId && webinar.courseId !== lesson.courseId)) return null;
+  const others = await tx
+    .select({ key: lessons.key, blocks: lessons.blocks })
+    .from(lessons)
+    .where(eq(lessons.courseId, lesson.courseId));
+  const elsewhere = others.some(
+    (row) => row.key !== lesson.key && webinarIdOf(row.blocks) === webinar.id,
+  );
+  return elsewhere ? null : webinar;
+}
+
+/**
+ * Makes the lesson a live session (or an ordinary lesson again) in every
+ * language it exists in, each translation with a new version. The webinar
+ * joins the course (`webinars.course_id` follows); taking it away leaves the
+ * webinar leading into the course, as a standalone session can.
+ */
+async function setSession(
+  tx: Transaction,
+  tenantId: string,
+  lesson: { id: string; courseId: string; key: string },
+  webinarId: string | null,
+  userId: string,
+): Promise<void> {
+  const translations = await tx
+    .select()
+    .from(lessons)
+    .where(and(eq(lessons.courseId, lesson.courseId), eq(lessons.key, lesson.key)));
+  for (const row of translations) {
+    if (row.id === lesson.id || webinarIdOf(row.blocks) === webinarId) continue;
+    const blocks = withSession(row.blocks, webinarId);
+    const version = row.version + 1;
+    await tx.update(lessons).set({ blocks, version }).where(eq(lessons.id, row.id));
+    await tx
+      .insert(lessonVersions)
+      .values({ tenantId, lessonId: row.id, version, title: row.title, blocks, createdBy: userId });
+  }
+  if (webinarId) {
+    await tx
+      .update(webinars)
+      .set({ courseId: lesson.courseId })
+      .where(and(eq(webinars.id, webinarId), isNull(webinars.courseId)));
+  }
+}
+
+/**
+ * What the course does when its sessions change, in the same transaction:
+ * learners get a seat in an added one (server/webinars/series), and one taken
+ * away may finish learners who had done everything else.
+ */
+export type SessionsChanged = (
+  tx: Transaction,
+  input: { courseId: string; added: string | null; removed: string | null },
+) => Promise<unknown>;
+
+/**
+ * Saves a new version; unchanged content saves nothing. The knowledge check,
+ * the video and the session are part of the content (versions keep them);
+ * left out, they stay as they are.
  */
 export async function updateLesson(
   db: Database,
@@ -251,9 +377,12 @@ export async function updateLesson(
     questions?: CheckQuestion[];
     /** The media library's videos the lesson shows ([] for none). */
     mediaAssetIds?: string[];
+    /** The webinar the lesson is (a session of the series), null for none. */
+    webinarId?: string | null;
     userId: string;
+    onSessionsChanged?: SessionsChanged;
   },
-): Promise<{ version: number; changed: boolean }> {
+): Promise<{ version: number; changed: boolean; sessionRefused?: boolean }> {
   return withTenant(db, tenantId, async (tx) => {
     const [lesson] = await tx.select().from(lessons).where(eq(lessons.id, lessonId));
     if (!lesson) throw new Error("Lesson not found");
@@ -261,12 +390,23 @@ export async function updateLesson(
     const media = input.mediaAssetIds
       ? await libraryVideos(tx, input.mediaAssetIds)
       : mediaAssetIdsOf(lesson.blocks);
-    const blocks = lessonBlocks(input.markdown, questions, media);
+    const current = webinarIdOf(lesson.blocks);
+    let webinarId = current;
+    if (input.webinarId !== undefined && input.webinarId !== current) {
+      const allowed = input.webinarId ? await sessionWebinar(tx, lesson, input.webinarId) : null;
+      // Taken meanwhile by another course or lesson: nothing is saved, the author picks again.
+      if (input.webinarId !== null && allowed === null) {
+        return { version: lesson.version, changed: false, sessionRefused: true };
+      }
+      webinarId = allowed?.id ?? null;
+    }
+    const blocks = lessonBlocks(input.markdown, questions, media, webinarId);
     const unchanged =
       lesson.title === input.title &&
       markdownOf(lesson.blocks) === input.markdown &&
       sameJson(checkQuestionsOf(lesson.blocks), questions) &&
       mediaAssetIdsOf(lesson.blocks).join() === media.join() &&
+      current === webinarId &&
       JSON.stringify([...lesson.criterionIds].sort()) ===
         JSON.stringify([...input.criterionIds].sort());
     if (unchanged) return { version: lesson.version, changed: false };
@@ -279,6 +419,14 @@ export async function updateLesson(
     await tx
       .insert(lessonVersions)
       .values({ tenantId, lessonId, version, title: input.title, blocks, createdBy: input.userId });
+    if (current !== webinarId) {
+      await setSession(tx, tenantId, lesson, webinarId, input.userId);
+      await input.onSessionsChanged?.(tx, {
+        courseId: lesson.courseId,
+        added: webinarId,
+        removed: current,
+      });
+    }
     await tx.update(courses).set({ updatedAt: new Date() }).where(eq(courses.id, lesson.courseId));
     return { version, changed: true };
   });
@@ -308,6 +456,7 @@ export async function restoreLessonVersion(
           // The check as it was then: restoring a version without one removes today's.
           questions: checkQuestionsOf(row.blocks),
           mediaAssetIds: mediaAssetIdsOf(row.blocks),
+          // The session stays as it is: it holds every translation and the learners' seats.
           criterionIds: lesson.criterionIds,
         }
       : null;
@@ -351,15 +500,24 @@ export async function deleteLesson(
   tenantId: string,
   courseId: string,
   key: string,
+  onSessionsChanged?: SessionsChanged,
 ): Promise<void> {
   await withTenant(db, tenantId, async (tx) => {
-    const ids = (
-      await tx
-        .select({ id: lessons.id })
-        .from(lessons)
-        .where(and(eq(lessons.courseId, courseId), eq(lessons.key, key)))
-    ).map((row) => row.id);
-    if (ids.length > 0) await tx.delete(lessons).where(inArray(lessons.id, ids));
+    const rows = await tx
+      .select({ id: lessons.id, blocks: lessons.blocks })
+      .from(lessons)
+      .where(and(eq(lessons.courseId, courseId), eq(lessons.key, key)));
+    if (rows.length > 0) {
+      await tx.delete(lessons).where(
+        inArray(
+          lessons.id,
+          rows.map((row) => row.id),
+        ),
+      );
+    }
+    // The webinar stays with the course; it just is no session of it any more.
+    const session = rows.map((row) => webinarIdOf(row.blocks)).find((id) => id !== null);
+    if (session) await onSessionsChanged?.(tx, { courseId, added: null, removed: session });
     await tx
       .update(courses)
       .set({ updatedAt: sql`now()` })
