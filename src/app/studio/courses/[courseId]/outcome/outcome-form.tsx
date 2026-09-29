@@ -4,7 +4,11 @@ import { Sparkles } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 import { saveOutcomeAction, type FormState } from "@/app/studio/actions";
-import { draftRubricAction } from "@/app/studio/courses/[courseId]/outcome/draft-actions";
+import {
+  draftAssignmentAction,
+  draftRubricAction,
+  type AssignmentDraftState,
+} from "@/app/studio/courses/[courseId]/outcome/draft-actions";
 import {
   draftFromRubric,
   RubricEditor,
@@ -159,6 +163,72 @@ function RubricDraftPanel(props: {
   );
 }
 
+/**
+ * "Suggest from your sources" (core/authoring/assignment-draft): name,
+ * assignment and rubric from what the recordings and documents teach, put
+ * into the form unsaved.
+ */
+function AssignmentDraftPanel(props: {
+  courseId: string;
+  form: React.RefObject<HTMLFormElement | null>;
+  /** Whether replacing asks first: something typed, or lessons linked to criteria. */
+  confirm: boolean;
+  onDraft: (draft: Extract<AssignmentDraftState, { status: "done" }>) => void;
+}) {
+  const t = useStudioText();
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ tone: "good" | "error"; text: string } | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
+
+  const run = () => {
+    if (props.confirm && !window.confirm(t.t("drafts.assignment.replaceConfirm"))) return;
+    const data = new FormData(props.form.current ?? undefined);
+    data.set("courseId", props.courseId);
+    setMessage(null);
+    setNotes([]);
+    startTransition(async () => {
+      const result = await draftAssignmentAction(data);
+      if (result.status === "error") {
+        setMessage({ tone: "error", text: result.message });
+        return;
+      }
+      props.onDraft(result);
+      setNotes(result.notes);
+      setMessage({ tone: "good", text: t.t("drafts.assignment.ready") });
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="btn btn-secondary btn-sm" onClick={run} disabled={pending}>
+          <Sparkles aria-hidden size={16} />{" "}
+          {pending ? t.t("drafts.assignment.running") : t.t("drafts.assignment.run")}
+        </button>
+        <p className="text-sm text-muted">{t.t("drafts.assignment.intro")}</p>
+      </div>
+      <div aria-live="polite" className="space-y-1">
+        {message && (
+          <p
+            role={message.tone === "error" ? "alert" : undefined}
+            className="text-sm font-semibold"
+            style={message.tone === "error" ? { color: "var(--status-critical)" } : undefined}
+          >
+            {message.text}
+          </p>
+        )}
+        {notes.length > 0 && (
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function OutcomeForm(props: OutcomeFormProps) {
   const t = useStudioText();
   const primary = props.languages[0] ?? "en";
@@ -170,6 +240,22 @@ export function OutcomeForm(props: OutcomeFormProps) {
     return result;
   }, {});
   const [artifactName, setArtifactName] = useState<LocalizedText>(props.artifactName);
+  const [prompt, setPrompt] = useState<LocalizedText>(props.prompt);
+  /** A drafted rubric in the editor: new criteria get their ids from the labels on save. */
+  const takeRubric = (rubric: Rubric, exemplars: RubricDraft["exemplars"] | null) =>
+    setDraft((current) => {
+      const drafted = draftFromRubric(rubric);
+      return {
+        ...drafted,
+        criteria: drafted.criteria.map((criterion, index) => ({
+          ...criterion,
+          key: `ai-${Date.now()}-${index}`,
+          id: "",
+        })),
+        policy: current.policy,
+        exemplars: exemplars ?? current.exemplars,
+      };
+    });
   const [useForm, setUseForm] = useState(props.formSchema !== null);
   const formRef = useRef<HTMLFormElement>(null);
   const twoColumns = props.languages.length > 1 ? "lg:grid-cols-2" : "";
@@ -189,6 +275,22 @@ export function OutcomeForm(props: OutcomeFormProps) {
             {t.t("authoring.outcome.build.body", { artifact: props.artifactTerm })}
           </p>
         </div>
+        {props.aiAvailable && (
+          <AssignmentDraftPanel
+            courseId={props.courseId}
+            form={formRef}
+            confirm={
+              props.lessonCount > 0 ||
+              Object.values(artifactName).some((value) => value?.trim()) ||
+              Object.values(prompt).some((value) => value?.trim())
+            }
+            onDraft={(result) => {
+              setArtifactName(result.artifactName);
+              setPrompt(result.prompt);
+              takeRubric(result.rubric, null);
+            }}
+          />
+        )}
         <div className={`grid gap-5 ${twoColumns}`}>
           {props.languages.map((locale, index) => (
             <div key={locale} className="space-y-4">
@@ -220,7 +322,8 @@ export function OutcomeForm(props: OutcomeFormProps) {
                   rows={7}
                   maxLength={4000}
                   required={index === 0}
-                  defaultValue={props.prompt[locale] ?? ""}
+                  value={prompt[locale] ?? ""}
+                  onChange={(event) => setPrompt({ ...prompt, [locale]: event.target.value })}
                 />
                 <p className="hint">{t.t("authoring.outcome.promptHint")}</p>
               </div>
@@ -367,25 +470,15 @@ export function OutcomeForm(props: OutcomeFormProps) {
             form={formRef}
             lessonCount={props.lessonCount}
             onDraft={(rubric, example) =>
-              setDraft((current) => {
-                const drafted = draftFromRubric(rubric);
-                return {
-                  ...drafted,
-                  // New criteria: ids are given on save, from the labels.
-                  criteria: drafted.criteria.map((criterion, index) => ({
-                    ...criterion,
-                    key: `ai-${Date.now()}-${index}`,
-                    id: "",
-                  })),
-                  policy: current.policy,
-                  exemplars: example
-                    ? [
-                        ...current.exemplars.filter((exemplar) => exemplar.id !== "ai-example"),
-                        { id: "ai-example", expected_pass: true, content: example },
-                      ].slice(-10)
-                    : current.exemplars,
-                };
-              })
+              takeRubric(
+                rubric,
+                example
+                  ? [
+                      ...draft.exemplars.filter((exemplar) => exemplar.id !== "ai-example"),
+                      { id: "ai-example", expected_pass: true, content: example },
+                    ].slice(-10)
+                  : null,
+              )
             }
           />
         )}

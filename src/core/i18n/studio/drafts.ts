@@ -49,6 +49,16 @@ export const en = {
   "drafts.quiz.ready.other": "{n} questions drafted and added below. Check them, then save.",
   "drafts.quiz.full": "The test already holds as many questions as it can.",
 
+  // Assignment and rubric from the sources
+  "drafts.assignment.run": "Suggest from your sources",
+  "drafts.assignment.running": "Drafting…",
+  "drafts.assignment.intro":
+    "Proposes what learners build, the assignment and a rubric whose criteria your sources teach.",
+  "drafts.assignment.replaceConfirm":
+    "This puts the suggestion in place of the name, the assignment and the rubric. Nothing is saved until you save. Go ahead?",
+  "drafts.assignment.ready":
+    "Suggestion ready: name and assignment here, the rubric below. Read it all, change what does not fit, then save.",
+
   // Knowledge-check questions
   "drafts.check.run": "Draft questions from this lesson",
   "drafts.check.running": "Drafting…",
@@ -107,6 +117,15 @@ export const de: Record<keyof typeof en, string> = {
   "drafts.quiz.ready.one": "{n} Frage entworfen und unten ergänzt. Prüf sie und speichere dann.",
   "drafts.quiz.ready.other": "{n} Fragen entworfen und unten ergänzt. Prüf sie und speichere dann.",
   "drafts.quiz.full": "Der Test hat schon so viele Fragen, wie er fassen kann.",
+
+  "drafts.assignment.run": "Aus deinen Quellen vorschlagen",
+  "drafts.assignment.running": "Wird entworfen…",
+  "drafts.assignment.intro":
+    "Schlägt vor, was Lernende bauen, die Aufgabe und ein Bewertungsraster mit Kriterien, die deine Quellen vermitteln.",
+  "drafts.assignment.replaceConfirm":
+    "Der Vorschlag ersetzt Name, Aufgabe und Bewertungsraster. Gespeichert wird erst, wenn du speicherst. Weiter?",
+  "drafts.assignment.ready":
+    "Vorschlag steht: Name und Aufgabe hier, das Bewertungsraster unten. Lies alles, ändere, was nicht passt, und speichere dann.",
 
   "drafts.check.run": "Fragen aus dieser Lektion entwerfen",
   "drafts.check.running": "Wird entworfen…",

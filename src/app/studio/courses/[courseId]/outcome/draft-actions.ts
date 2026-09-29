@@ -3,11 +3,13 @@
 import { z } from "zod";
 
 import { localized, text } from "@/app/studio/form-data";
-import { isLocale } from "@/core/i18n/locales";
+import { isLocale, localize, type LocalizedText } from "@/core/i18n/locales";
+import { draftErrorText } from "@/core/i18n/studio/helpers";
 import type { Rubric } from "@/core/review/rubric";
 import { AiAllowanceUsedUp, allowanceResetsAt } from "@/core/usage/allowance";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { draftAssignmentFromSources } from "@/server/authoring/assignment-drafting";
 import { authoringModel, meteredModel } from "@/server/authoring/model";
 import { draftRubric } from "@/server/authoring/rubric";
 import { fileBytes, loadFile } from "@/server/files";
@@ -20,7 +22,61 @@ export type RubricDraftState =
   | { status: "done"; rubric: Rubric; notes: string[]; example: string }
   | { status: "error"; message: string };
 
+export type AssignmentDraftState =
+  | {
+      status: "done";
+      artifactName: LocalizedText;
+      prompt: LocalizedText;
+      rubric: Rubric;
+      notes: string[];
+    }
+  | { status: "error"; message: string };
+
 const HOUR = 60 * 60_000;
+
+/**
+ * Drafts the assignment and its rubric from the course's sources
+ * (core/authoring/assignment-draft), starting from what the author typed.
+ * Nothing is saved: the outcome form shows the draft for the author to change.
+ */
+export async function draftAssignmentAction(formData: FormData): Promise<AssignmentDraftState> {
+  const courseId = z.uuid().parse(text(formData, "courseId"));
+  const { tenant } = await requireCapability("courses.edit", `/studio/courses/${courseId}/outcome`);
+  const t = await getStudioText();
+  const editor = await getCourseEditor(tenant.id, courseId);
+  if (!editor?.assignment) return { status: "error", message: t.t("common.actions.noAssignment") };
+  const model = authoringModel();
+  if (!model) return { status: "error", message: t.t("drafts.noGateway") };
+  // One hourly budget with the rubric drafts: both draft the same thing.
+  if (!rateLimit(`rubric-draft:${tenant.id}`, 20, HOUR)) {
+    return { status: "error", message: t.t("authoring.draft.rateLimited") };
+  }
+  const languages = editor.course.languages.filter(isLocale);
+  const primary = languages[0];
+  if (!primary) return { status: "error", message: t.t("common.actions.noAssignment") };
+  const result = await draftAssignmentFromSources(
+    getDb(),
+    tenant.id,
+    courseId,
+    {
+      languages,
+      courseTitle: localize(editor.course.title, primary, languages),
+      current: {
+        artifactName: text(formData, `artifactName.${primary}`),
+        prompt: text(formData, `prompt.${primary}`),
+      },
+    },
+    model,
+  );
+  if (!result.ok) return { status: "error", message: draftErrorText(t, result.error) };
+  return {
+    status: "done",
+    artifactName: result.artifactName,
+    prompt: result.prompt,
+    rubric: result.rubric,
+    notes: result.notes,
+  };
+}
 
 /**
  * Drafts a rubric from the outcome as currently typed (saved or not) and an

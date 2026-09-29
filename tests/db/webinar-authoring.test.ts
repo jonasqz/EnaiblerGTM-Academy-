@@ -8,6 +8,7 @@ import type { TranscriptSegment } from "@/db/schema/authoring";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
 import { setAiAllowance } from "@/server/ai-allowance";
+import { draftAssignmentFromSources } from "@/server/authoring/assignment-drafting";
 import { draftFaqLesson } from "@/server/authoring/faq";
 import type { AuthoringModel } from "@/server/authoring/model";
 import { draftCheckQuestions, draftTestQuestions } from "@/server/authoring/quiz-drafting";
@@ -389,6 +390,55 @@ describe.skipIf(!hasDatabase)("webinar → course authoring", () => {
       error: "ai_allowance_used_up",
     });
     expect(calls).toHaveLength(1);
+  });
+
+  it("suggests the assignment and a rubric from the sources, without saving them", async () => {
+    const courseId = await newCourse(["en"]);
+    const level = (score: number) => ({ score, description: { en: `Level ${score}` } });
+    const calls: LlmCallOptions[] = [];
+    const model = fakeModel(
+      {
+        assignment_draft: {
+          artifact_name: { en: "Reminder playbook" },
+          prompt: {
+            en: "Write the three reminders you will send for a late invoice, with the day each goes out.",
+          },
+          criteria: ["Timing", "Tone", "Fees"].map((label) => ({
+            label: { en: label },
+            description: { en: `${label} as the webinar teaches it.` },
+            weight: 1,
+            levels: [0, 1, 2, 3].map(level),
+          })),
+          pass_threshold: 70,
+          notes: [],
+        },
+      },
+      calls,
+    );
+    const input = {
+      languages: ["en"] as const,
+      courseTitle: "Get paid on time",
+      current: { artifactName: "Reminder plan", prompt: "" },
+    };
+    expect(await draftAssignmentFromSources(dbs.app.db, tenant.id, courseId, input, model)).toEqual(
+      { ok: false, error: "no_sources" },
+    );
+    await recording(courseId, "Webinar: Reminders", [
+      { startSec: 0, endSec: 60, title: "Timing", text: "Three days after the due date." },
+    ]);
+    const before = await loadCourseEditor(dbs.app.db, tenant.id, courseId);
+    const result = await draftAssignmentFromSources(dbs.app.db, tenant.id, courseId, input, model);
+    expect(result).toMatchObject({
+      ok: true,
+      artifactName: { en: "Reminder playbook" },
+      rubric: { pass_threshold: 70, criteria: [{ id: "timing" }, { id: "tone" }, { id: "fees" }] },
+    });
+    expect(promptOf(calls[0])).toContain("Artifact: Reminder plan");
+    expect(promptOf(calls[0])).toContain("C1 · Webinar: Reminders · Timing (0:00–1:00)");
+    expect((await usageOf(courseId)).map((row) => row.kind)).toEqual(["rubric_draft"]);
+    const after = await loadCourseEditor(dbs.app.db, tenant.id, courseId);
+    expect(after?.assignment).toEqual(before?.assignment);
+    expect(after?.rubric).toEqual(before?.rubric);
   });
 
   it("refuses an FAQ without questions or answers", async () => {
