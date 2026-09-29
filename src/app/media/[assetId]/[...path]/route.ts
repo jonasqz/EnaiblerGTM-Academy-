@@ -2,14 +2,13 @@ import { createHash } from "node:crypto";
 
 import type { NextRequest } from "next/server";
 
-import { can } from "@/core/access/roles";
 import { isLocale } from "@/core/i18n/locales";
-import { canWatch } from "@/core/media/access";
 import { captionCues, toWebVtt } from "@/core/media/captions";
 import { hlsContentType, isHlsPath } from "@/core/media/transcode";
 import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
-import { loadVideo, mediaKey, type MediaAsset } from "@/server/media/library";
+import { mediaKey, type MediaAsset } from "@/server/media/library";
+import { servableVideo } from "@/server/media/viewer";
 import { getTenant } from "@/server/request";
 import { getObject } from "@/server/storage";
 
@@ -19,8 +18,9 @@ const notFound = () => new Response("Not found", { status: 404 });
  * A video's playlists, segments, poster and captions on the academy's own
  * domain (storage itself stays private). Access is checked on every request:
  * public videos play for anyone here, the others for signed-in members of the
- * academy. The files of a transcode run never change, so public ones are
- * cached for good and private ones are revalidated (a 304 after the check).
+ * academy, a webinar's recording only for its registrants unless its host
+ * allowed more. The files of a transcode run never change, so public ones
+ * are cached for good and private ones are revalidated (a 304 after the check).
  */
 export async function GET(
   request: NextRequest,
@@ -28,17 +28,12 @@ export async function GET(
 ): Promise<Response> {
   const { assetId, path } = await context.params;
   const tenant = await getTenant();
-  const asset = await loadVideo(getDb(), tenant.id, assetId);
-  if (!asset || asset.kind !== "upload" || asset.status !== "ready" || !asset.hlsRun) {
-    return notFound();
-  }
+  const asset = await servableVideo(getDb(), tenant.id, assetId, async () => {
+    const session = await getSession();
+    return session && { userId: session.viewer.userId, roles: session.roles };
+  });
+  if (!asset?.hlsRun) return notFound();
   const isPublic = asset.access === "public";
-  const session = isPublic ? null : await getSession();
-  const viewer = session && {
-    member: session.roles.length > 0,
-    canEditCourses: can(session.roles, "courses.edit"),
-  };
-  if (!canWatch(asset.access, viewer)) return notFound();
 
   if (path[0] === "captions" && path.length === 2) return captions(request, asset, path[1]!);
   const [run, ...rest] = path;

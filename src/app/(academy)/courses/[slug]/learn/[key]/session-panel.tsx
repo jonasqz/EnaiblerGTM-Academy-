@@ -98,7 +98,7 @@ export function SessionPanel(props: {
   requirement: SessionRequirement;
   watchedPercent: number;
   recording: MediaAsset | undefined;
-  viewer: MediaViewer;
+  viewer: MediaViewer | null;
   progress: (WatchResult & { positionSec: number | null }) | null;
   now: Date;
 }) {

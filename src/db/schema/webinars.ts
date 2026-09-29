@@ -93,6 +93,10 @@ export const webinars = pgTable(
     unique("webinars_tenant_slug").on(table.tenantId, table.slug),
     unique("webinars_tenant_id").on(table.tenantId, table.id),
     index("webinars_starts_idx").on(table.tenantId, table.status, table.startsAt),
+    // A video is the recording of one webinar at most: its access follows that webinar.
+    uniqueIndex("webinars_recording")
+      .on(table.tenantId, table.recordingAssetId)
+      .where(sql`${table.recordingAssetId} is not null`),
     foreignKey({
       name: "webinars_course_fk",
       columns: [table.tenantId, table.courseId],
@@ -149,6 +153,11 @@ export const webinarRegistrations = pgTable(
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     promotedAt: timestamp("promoted_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /**
+     * When the recording was mailed to them, in its own mail or with the
+     * follow-up: once, however often the video is replaced or prepared again.
+     */
+    reliveMailedAt: timestamp("relive_mailed_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

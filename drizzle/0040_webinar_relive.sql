@@ -1,0 +1,2 @@
+ALTER TABLE "webinar_registrations" ADD COLUMN "relive_mailed_at" timestamp with time zone;--> statement-breakpoint
+CREATE UNIQUE INDEX "webinars_recording" ON "webinars" USING btree ("tenant_id","recording_asset_id") WHERE "webinars"."recording_asset_id" is not null;

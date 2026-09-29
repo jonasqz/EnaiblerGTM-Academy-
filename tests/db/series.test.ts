@@ -27,6 +27,7 @@ import type { Enqueue } from "@/server/jobs/producer";
 import { ensureLearner } from "@/server/learners";
 import { loadLearnerCourse, submitAssignment } from "@/server/learning";
 import { recordProgress } from "@/server/media/progress";
+import { signedUpIn } from "@/server/media/viewer";
 import { dispatchNotifications } from "@/server/notifications";
 import { exportMyData } from "@/server/profile";
 import { recordDecision } from "@/server/review/process-submission";
@@ -800,5 +801,35 @@ describe.skipIf(!hasDatabase)("webinar series as courses", () => {
     expect(data.webinarRegistrations).toHaveLength(1);
     expect(data.webinarAttendance).toHaveLength(1);
     expect(data.mails.some((mail) => mail.kind === "course")).toBe(true);
+  });
+  it("lets the series' learners watch a session's recording, not a linked course's", async () => {
+    const { courseId, sessionIds } = await series({
+      rule: "attended_or_watched",
+      sessions: [{ hours: 24 }],
+    });
+    const learner = await enroll((await slugOf(courseId))!);
+    await moveTo(sessionIds[0]!, -3);
+    const recording = await recordingFor(sessionIds[0]!);
+    // Their seat is gone, the series is not: they catch up in the course.
+    await inTenant((tx) =>
+      tx
+        .update(webinarRegistrations)
+        .set({ status: "cancelled", cancelledAt: new Date() })
+        .where(eq(webinarRegistrations.webinarId, sessionIds[0]!)),
+    );
+    expect(await inTenant((tx) => signedUpIn(tx, learner, [recording]))).toEqual(
+      new Set([recording]),
+    );
+
+    // A webinar that only leads into a course keeps its recording for its registrants.
+    const { courseId: linkedCourse } = await series({ rule: "none", sessions: [] });
+    const standalone = await webinar(linkedCourse, 24);
+    expect(await publishWebinar(dbs.app.db, tenant, standalone)).toEqual({ ok: true });
+    await moveTo(standalone, -3);
+    const standaloneRecording = await recordingFor(standalone);
+    const courseLearner = await enroll((await slugOf(linkedCourse))!);
+    expect(await inTenant((tx) => signedUpIn(tx, courseLearner, [standaloneRecording]))).toEqual(
+      new Set(),
+    );
   });
 });

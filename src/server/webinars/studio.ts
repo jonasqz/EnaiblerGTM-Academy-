@@ -26,6 +26,7 @@ import {
   type WebinarPublishIssue,
   type WebinarSetup,
 } from "@/core/webinars/setup";
+import { watchedRecording } from "@/core/webinars/relive";
 import { toolAdapter } from "@/core/webinars/tools";
 import type { Database, Transaction } from "@/db/client";
 import {
@@ -42,6 +43,7 @@ import { withTenant } from "@/db/tenant-scope";
 import { completeWaitingLearners } from "@/server/courses/completion";
 import { courseSessions } from "@/server/courses/sessions";
 import { planReminders, queueWebinarMail, skipWebinarMails } from "@/server/webinars/mail";
+import { registrantsWatching } from "@/server/webinars/recording";
 import { promoteWaitlist, recordAttendance } from "@/server/webinars/registration";
 import { registerLearnersForWebinar } from "@/server/webinars/series";
 
@@ -637,21 +639,30 @@ export async function registrationDigest(
 export type WebinarFunnel = Array<{ step: WebinarFunnelStep; count: number }>;
 
 /**
- * Views → registrations → confirmed → attended, then the linked course
+ * Views → registrations → confirmed → attended → watched the recording (past
+ * the academy's threshold, while it has one), then the linked course
  * (started, handed in, passed) among registrants, counting only what they
  * did after registering: the webinar brought them there.
  */
 export async function webinarFunnel(
   db: Database,
-  tenantId: string,
+  tenant: Pick<TenantContext, "id" | "settings">,
   webinarId: string,
 ): Promise<WebinarFunnel | null> {
+  const tenantId = tenant.id;
   return withTenant(db, tenantId, async (tx) => {
     const [webinar] = await tx
-      .select({ id: webinars.id, courseId: webinars.courseId })
+      .select({
+        id: webinars.id,
+        courseId: webinars.courseId,
+        recordingAssetId: webinars.recordingAssetId,
+      })
       .from(webinars)
       .where(eq(webinars.id, webinarId));
     if (!webinar) return null;
+    const watching = webinar.recordingAssetId
+      ? await registrantsWatching(tx, webinar.id, webinar.recordingAssetId)
+      : [];
     const ofWebinar = sql`${events.props}->>'webinar_id' = ${webinarId}`;
     const [views] = await tx
       .select({ n })
@@ -701,12 +712,17 @@ export async function webinarFunnel(
       registrations: registrations?.n ?? 0,
       confirmed: confirmed?.n ?? 0,
       attended: attended?.n ?? 0,
+      relive_watched: watching.filter((row) =>
+        watchedRecording(row.watchedPercent, tenant.settings.video.watched_percent),
+      ).length,
       course_started: await afterRegistering(["course_started"]),
       course_submitted: await afterRegistering(["assignment_submitted", "test_submitted"]),
       course_passed: await afterRegistering(["course_completed"]),
     };
     return WEBINAR_FUNNEL_STEPS.filter(
-      (step) => webinar.courseId || !step.startsWith("course_"),
+      (step) =>
+        (webinar.courseId || !step.startsWith("course_")) &&
+        (webinar.recordingAssetId || step !== "relive_watched"),
     ).map((step) => ({ step, count: counts[step] }));
   });
 }

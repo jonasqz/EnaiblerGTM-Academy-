@@ -290,6 +290,7 @@ export async function exportMyData(db: Database, tenant: TenantContext, userId: 
           confirmedAt: webinarRegistrations.confirmedAt,
           promotedAt: webinarRegistrations.promotedAt,
           cancelledAt: webinarRegistrations.cancelledAt,
+          recordingMailedAt: webinarRegistrations.reliveMailedAt,
         })
         .from(webinarRegistrations)
         .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))

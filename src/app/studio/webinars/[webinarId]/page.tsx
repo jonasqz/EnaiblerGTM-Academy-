@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { WebinarEmbedCode } from "@/app/studio/webinars/[webinarId]/embed-code";
 import { getStudioWebinar } from "@/app/studio/webinars/[webinarId]/load";
+import { ReliveNumbersView } from "@/app/studio/webinars/[webinarId]/recording/relive-numbers";
 import {
   cancelWebinarAction,
   deleteWebinarAction,
@@ -23,6 +24,7 @@ import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
 import { academyOrigin } from "@/server/platform/config";
 import { getStudioText } from "@/server/studio-text";
+import { reliveNumbers } from "@/server/webinars/recording";
 import { webinarChecklist, webinarFunnel } from "@/server/webinars/studio";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -48,9 +50,10 @@ export default async function StudioWebinarOverview({
   const { webinar, counts } = loaded;
   const now = new Date();
   const phase = webinarPhase(webinar, now);
-  const [issues, funnel] = await Promise.all([
+  const [issues, funnel, relive] = await Promise.all([
     webinarChecklist(getDb(), tenant, webinar.id, now),
-    webinarFunnel(getDb(), tenant.id, webinar.id),
+    webinarFunnel(getDb(), tenant, webinar.id),
+    reliveNumbers(getDb(), tenant, webinar.id),
   ]);
   const errors = (issues ?? []).filter((issue) => issue.severity === "error");
   const warnings = (issues ?? []).filter((issue) => issue.severity === "warning");
@@ -194,6 +197,28 @@ export default async function StudioWebinarOverview({
             }))}
           />
           {webinar.courseId && <p className="hint">{t.t("webinars.overview.funnelHint")}</p>}
+        </section>
+      )}
+
+      {relive && (
+        <section className="card-flat space-y-4 p-5 sm:p-6" aria-labelledby="relive-heading">
+          <div className="space-y-1">
+            <h2 id="relive-heading" className="text-lg font-semibold">
+              {t.t("webinars.recording.title")}
+            </h2>
+            <p className="text-sm text-muted">
+              {t.t("webinars.recording.numbersIntro", {
+                percent: tenant.settings.video.watched_percent,
+              })}
+            </p>
+          </div>
+          <ReliveNumbersView
+            t={t}
+            numbers={relive}
+            percent={tenant.settings.video.watched_percent}
+            editor={can(roles, "courses.edit")}
+            settings={`/studio/webinars/${webinar.id}/recording`}
+          />
         </section>
       )}
 

@@ -1,6 +1,6 @@
 {
-  "id": "b1e41cce-7a5b-4015-8cde-aef7bfbdf42f",
-  "prevId": "44ef27d5-6dc3-48e5-b7eb-6568360bc14a",
+  "id": "a34fdc01-7c4d-4216-9c92-aa78f957e637",
+  "prevId": "b1e41cce-7a5b-4015-8cde-aef7bfbdf42f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2911,6 +2911,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'"
+        },
+        "session_count": {
+          "name": "session_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "artifact_name": {
           "name": "artifact_name",
@@ -7082,7 +7088,8 @@
         "level_up",
         "team_invite",
         "review_waiting",
-        "webinar"
+        "webinar",
+        "course"
       ]
     },
     "public.notification_status": {

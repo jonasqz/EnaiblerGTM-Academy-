@@ -2,7 +2,8 @@ import { ImageResponse } from "next/og";
 
 import type { Translator } from "@/core/i18n/translator";
 import type { TenantContext } from "@/core/tenant/context";
-import { formatWebinarTime } from "@/core/webinars/time";
+import type { ReliveState } from "@/core/webinars/relive";
+import { formatWebinarDate, formatWebinarTime } from "@/core/webinars/time";
 import type { Database } from "@/db/client";
 import { fileBytes, loadFile } from "@/server/files";
 import { reportError } from "@/server/observability/report";
@@ -37,24 +38,26 @@ async function logoPng(db: Database, tenant: TenantContext): Promise<string | nu
 /**
  * The link preview of a webinar's page, drawn from the academy's theme
  * (webinar brief §2.2), like the credential images. Fonts are the bundled
- * families closest to the theme's.
+ * families closest to the theme's. Over with a recording, it says so and
+ * when it was held, like the page (never a time to be there).
  */
 export async function renderWebinarImage(
   db: Database,
   tenant: TenantContext,
   webinar: PublicWebinar,
   t: Translator,
+  relive: ReliveState = "none",
 ): Promise<ArrayBuffer> {
   const { theme } = tenant;
   const logo = await logoPng(db, tenant);
   const outlined = theme.visual_style === "outlined";
   const border = `${theme.border_width} solid ${outlined ? theme.colors.ink : `${theme.colors.ink}26`}`;
-  const time = formatWebinarTime(
-    webinar.startsAt,
-    webinar.durationMinutes,
-    webinar.timeZone,
-    t.locale,
-  );
+  const time =
+    relive === "none"
+      ? formatWebinarTime(webinar.startsAt, webinar.durationMinutes, webinar.timeZone, t.locale)
+      : t.t("webinar.recordedOn", {
+          date: formatWebinarDate(webinar.startsAt, webinar.timeZone, t.locale),
+        });
   const academy = tenant.settings.author_display_name;
   const element = (
     <div

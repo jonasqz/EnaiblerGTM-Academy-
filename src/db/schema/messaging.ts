@@ -74,6 +74,8 @@ export interface WebinarMailPayload {
   plannedFor?: string;
   /** A cancelled registration that had a seat: only then is there a calendar entry to remove. */
   hadSeat?: boolean;
+  /** It brings the recording (a follow-up or a confirmation after the end): decided when queued. */
+  recording?: boolean;
 }
 
 /**

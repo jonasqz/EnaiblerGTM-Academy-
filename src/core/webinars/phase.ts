@@ -43,12 +43,18 @@ export function checkinOpen(webinar: WebinarTimes, now: Date): boolean {
 
 export type WebinarStatus = "draft" | "published" | "cancelled";
 
-/** People can register (or join the waitlist) for a published webinar until it ends. */
+/**
+ * People can register (or join the waitlist) for a published webinar until
+ * it ends, and afterwards for its recording while it has one, ready or
+ * being prepared (core/webinars/relive).
+ */
 export function registrationOpen(
   webinar: WebinarTimes & { status: WebinarStatus },
   now: Date,
+  relive: "none" | "coming" | "ready" = "none",
 ): boolean {
-  return webinar.status === "published" && webinarPhase(webinar, now) !== "ended";
+  if (webinar.status !== "published") return false;
+  return webinarPhase(webinar, now) !== "ended" || relive !== "none";
 }
 
 /**

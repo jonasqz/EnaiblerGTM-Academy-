@@ -46,8 +46,19 @@ export interface RecordingOption {
   pending: boolean;
 }
 
-/** Upload, course recording or YouTube/Vimeo link: the three ways into the media library. */
-export function AddVideo(props: { locales: Locale[]; recordings: RecordingOption[] }) {
+/**
+ * Upload, course recording or YouTube/Vimeo link: the three ways into the
+ * media library. A webinar's Recording tab uses it too, with its own action
+ * that makes the new video the webinar's recording.
+ */
+export function AddVideo(props: {
+  locales: Locale[];
+  recordings: RecordingOption[];
+  action?: (previous: FormState, formData: FormData) => Promise<FormState>;
+  /** Fields the action needs besides the video's (the webinar's id). */
+  hidden?: Record<string, string>;
+  heading?: string;
+}) {
   const t = useStudioText();
   const uid = useId();
   const [kind, setKind] = useState<Kind>("upload");
@@ -56,9 +67,10 @@ export function AddVideo(props: { locales: Locale[]; recordings: RecordingOption
   const [uploadError, setUploadError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const action = props.action ?? addVideoAction;
   const { state, pending, onSubmit, submit } = useActionForm<FormState>(
     async (previous, formData) => {
-      const result = await addVideoAction(previous, formData);
+      const result = await action(previous, formData);
       if (result.ok) {
         formRef.current?.reset();
         setFile(null);
@@ -95,7 +107,7 @@ export function AddVideo(props: { locales: Locale[]; recordings: RecordingOption
   return (
     <section aria-labelledby={`${uid}-heading`} className="card space-y-5 p-5 sm:p-6">
       <h2 id={`${uid}-heading`} className="text-lg font-semibold">
-        {t.t("media.add.title")}
+        {props.heading ?? t.t("media.add.title")}
       </h2>
       <div role="tablist" aria-label={t.t("media.add.kind")} className="flex flex-wrap gap-2">
         {KINDS.map((option) => (
@@ -123,6 +135,9 @@ export function AddVideo(props: { locales: Locale[]; recordings: RecordingOption
         className="grid gap-4 sm:grid-cols-2"
       >
         <input type="hidden" name="kind" value={kind} />
+        {Object.entries(props.hidden ?? {}).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
 
         {kind === "upload" && (
           <div className="field sm:col-span-2">
