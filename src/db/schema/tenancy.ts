@@ -43,10 +43,19 @@ export const tenants = pgTable(
      * admins edit in the Studio and manifests replace.
      */
     aiAllowanceMicroUsd: bigint("ai_allowance_micro_usd", { mode: "number" }),
+    /**
+     * Video storage quota in bytes (core/media/quota): null is the platform
+     * default (MEDIA_STORAGE_QUOTA_GB), -1 no limit. The operator's alone,
+     * like the allowance.
+     */
+    mediaStorageQuotaBytes: bigint("media_storage_quota_bytes", { mode: "number" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [check("tenants_ai_allowance", sql`${table.aiAllowanceMicroUsd} >= -1`)],
+  (table) => [
+    check("tenants_ai_allowance", sql`${table.aiAllowanceMicroUsd} >= -1`),
+    check("tenants_media_storage_quota", sql`${table.mediaStorageQuotaBytes} >= -1`),
+  ],
 );
 
 export const tenantDomains = pgTable(

@@ -20,7 +20,12 @@ const startsWith = (bytes: Uint8Array, signature: readonly number[], offset = 0)
   bytes.length >= offset + signature.length &&
   signature.every((byte, index) => bytes[offset + index] === byte);
 
+/** Boxes an older QuickTime movie may start with instead of `ftyp`. */
+const QUICKTIME_BOXES = new Set(["moov", "mdat", "wide", "free", "pnot"]);
+
 function isoMedia(head: Uint8Array): SniffedType | null {
+  if (head.length >= 8 && QUICKTIME_BOXES.has(ascii(head, 4, 4)))
+    return { mime: "video/quicktime", ext: "mov", family: "video" };
   if (head.length < 12 || ascii(head, 4, 4) !== "ftyp") return null;
   const brand = ascii(head, 8, 4);
   if (brand === "M4A " || brand === "M4B ")

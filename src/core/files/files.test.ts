@@ -19,6 +19,10 @@ describe("file type sniffing", () => {
     expect(sniffFileType(bytes("RIFF", 0, 0, 0, 0, "WEBPVP8 "))?.mime).toBe("image/webp");
     expect(sniffFileType(bytes(0, 0, 0, 0x20, "ftypisom", 0, 0))?.mime).toBe("video/mp4");
     expect(sniffFileType(bytes(0, 0, 0, 0x20, "ftypM4A ", 0, 0))?.family).toBe("audio");
+    // QuickTime: iPhone and Mac recordings name their brand; older movies start with other boxes.
+    expect(sniffFileType(bytes(0, 0, 0, 0x14, "ftypqt  ", 0, 0))?.mime).toBe("video/quicktime");
+    expect(sniffFileType(bytes(0, 0, 0, 0x08, "wide", 0, 0, 0, 0))?.ext).toBe("mov");
+    expect(sniffFileType(bytes(0, 0, 0x10, 0, "moov", 0, 0, 0, 0))?.mime).toBe("video/quicktime");
     expect(sniffFileType(bytes(0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x82, 0x84, "webm"))?.mime).toBe(
       "video/webm",
     );
@@ -59,6 +63,13 @@ describe("upload rules", () => {
     expect(uploadIssue("submission", pdf, 6 * 1024 * 1024, 5 * 1024 * 1024)).toBe("too_large");
     expect(uploadIssue("source", video, 1_000)).toBeNull();
     expect(uploadIssue("brand_logo", null, 10)).toBe("unknown_type");
+    // The media library takes MP4, MOV and WebM videos, nothing else.
+    const mov = { mime: "video/quicktime", ext: "mov", family: "video" as const };
+    const mkv = { mime: "video/x-matroska", ext: "mkv", family: "video" as const };
+    expect(uploadIssue("video", mov, 3 * 1024 * 1024 * 1024)).toBeNull();
+    expect(uploadIssue("video", mkv, 1_000)).toBe("type_not_allowed");
+    expect(uploadIssue("video", pdf, 1_000)).toBe("type_not_allowed");
+    expect(uploadIssue("video", video, 5 * 1024 * 1024 * 1024)).toBe("too_large");
   });
 
   it("makes download names safe", () => {
@@ -139,5 +150,9 @@ describe("file read access", () => {
     expect(canReadFile(media, null)).toBe(true);
     expect(canReadFile(source, reviewer)).toBe(false);
     expect(canReadFile(source, author)).toBe(true);
+    // A video's original: learners watch its renditions through /media, never the file.
+    const original = { purpose: "video" as const, status: "attached" as const, ownerUserId: null };
+    expect(canReadFile(original, learner)).toBe(false);
+    expect(canReadFile(original, author)).toBe(true);
   });
 });

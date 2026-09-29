@@ -24,6 +24,7 @@ import {
 } from "@/core/i18n/locales";
 import { MESSAGE_KEYS } from "@/core/i18n/messages";
 import { levelSchemeSchema } from "@/core/levels/rules";
+import { DEFAULT_WATCHED_PERCENT } from "@/core/media/ranges";
 import { REVIEW_TONES } from "@/core/review/prompt";
 import { slugSchema, slugify } from "@/core/shared/slug";
 import { termOverrideEntries, termOverrideSchema } from "@/core/terminology/terms";
@@ -100,6 +101,14 @@ const sharingSchema = z.strictObject({
   hashtags: z.array(hashtagSchema).max(5).default([]),
 });
 
+/**
+ * Videos in lessons and re-lives (webinar brief §2.4): the share of a video
+ * a learner must actually play before it counts as watched.
+ */
+export const videoSchema = z.strictObject({
+  watched_percent: z.number().int().min(10).max(100).default(DEFAULT_WATCHED_PERCENT),
+});
+
 export const FEATURE_KEYS = ["paths", "levels", "cohorts", "ai_review", "showcase"] as const;
 
 export const featuresSchema = z.strictObject({
@@ -155,6 +164,7 @@ export const tenantSettingsSchema = z.strictObject({
   linkedin_organization_id: z.string().regex(/^\d+$/).optional(),
   sharing: sharingSchema.prefault({}),
   review_tone: z.enum(REVIEW_TONES).default("warm"),
+  video: videoSchema.prefault({}),
 });
 export type TenantSettings = z.output<typeof tenantSettingsSchema>;
 

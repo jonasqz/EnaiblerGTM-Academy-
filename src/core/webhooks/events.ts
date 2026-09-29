@@ -40,6 +40,8 @@ export const WEBHOOK_EVENT_GROUPS = {
     "review_overridden",
     "course_completed",
     "level_up",
+    "video_started",
+    "video_watched",
   ],
   credentials: ["credential_made_public", "credential_shared_linkedin", "verification_cta_clicked"],
   consent: CONSENT_EVENTS,

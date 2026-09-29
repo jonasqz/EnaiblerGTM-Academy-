@@ -235,6 +235,8 @@ export const en = {
   "settings.webhooks.event.review_overridden": "Result changed by a reviewer",
   "settings.webhooks.event.course_completed": "Completed a course",
   "settings.webhooks.event.level_up": "Reached a level",
+  "settings.webhooks.event.video_started": "Started watching a video",
+  "settings.webhooks.event.video_watched": "Watched a video",
   "settings.webhooks.event.credential_made_public": "Made a certificate public",
   "settings.webhooks.event.credential_shared_linkedin": "Shared a certificate on LinkedIn",
   "settings.webhooks.event.verification_cta_clicked":
@@ -613,6 +615,8 @@ export const de: Record<keyof typeof en, string> = {
   "settings.webhooks.event.review_overridden": "Ergebnis von Prüfer:in geändert",
   "settings.webhooks.event.course_completed": "Hat einen Kurs abgeschlossen",
   "settings.webhooks.event.level_up": "Hat ein Level erreicht",
+  "settings.webhooks.event.video_started": "Hat ein Video begonnen",
+  "settings.webhooks.event.video_watched": "Hat ein Video angesehen",
   "settings.webhooks.event.credential_made_public":
     "Hat eine Abschlussbescheinigung veröffentlicht",
   "settings.webhooks.event.credential_shared_linkedin":
