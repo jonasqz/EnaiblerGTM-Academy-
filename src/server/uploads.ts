@@ -34,6 +34,7 @@ const STUDIO_PURPOSES: Partial<Record<FilePurpose, "courses.edit" | "academy.man
   source: "courses.edit",
   exemplar: "courses.edit",
   path_visual: "courses.edit",
+  presenter_photo: "courses.edit",
   brand_logo: "academy.manage",
   brand_font: "academy.manage",
 };
