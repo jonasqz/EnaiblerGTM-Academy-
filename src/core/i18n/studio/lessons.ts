@@ -112,7 +112,7 @@ export const en = {
   // Sources ({lessons} is a link to the Lessons tab)
   "lessons.sources.title": "Sources",
   "lessons.sources.intro":
-    "What the AI drafts your lessons from: screen recordings with narration, documents, your web pages and an interview with you.",
+    "What the AI drafts your lessons from: screen recordings and webinars, documents, your web pages, an interview with you and the questions from a live Q&A.",
   "lessons.sources.drafting": "Drafting starts on the {lessons} tab.",
   "lessons.sources.draftingReady.one":
     "Drafting starts on the {lessons} tab and uses the {n} ready source.",
@@ -346,7 +346,7 @@ export const de: Record<keyof typeof en, string> = {
 
   "lessons.sources.title": "Quellen",
   "lessons.sources.intro":
-    "Daraus entwirft die KI deine Lektionen: Bildschirmaufnahmen mit Kommentar, Dokumente, deine Webseiten und ein Interview mit dir.",
+    "Daraus entwirft die KI deine Lektionen: Bildschirmaufnahmen und Webinare, Dokumente, deine Webseiten, ein Interview mit dir und die Fragen aus einer Live-Fragerunde.",
   "lessons.sources.drafting": "Das Entwerfen startest du im Tab {lessons}.",
   "lessons.sources.draftingReady.one":
     "Das Entwerfen startest du im Tab {lessons}; es nutzt {n} einsatzbereite Quelle.",
