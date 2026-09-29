@@ -56,6 +56,7 @@ export default async function TestPage({
       <TestEditor
         courseId={editor.course.id}
         languages={editor.course.languages.filter(isLocale)}
+        aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
         test={{
           questions: test?.questions ?? [],
           passPercent: test?.passPercent ?? DEFAULT_PASS_PERCENT,

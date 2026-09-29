@@ -7,12 +7,15 @@ import { aiUsage, lessons, sources } from "@/db/schema";
 import type { TranscriptSegment } from "@/db/schema/authoring";
 import { withTenant } from "@/db/tenant-scope";
 import { findTenantById } from "@/db/tenants";
+import { setAiAllowance } from "@/server/ai-allowance";
 import { draftFaqLesson } from "@/server/authoring/faq";
 import type { AuthoringModel } from "@/server/authoring/model";
+import { draftCheckQuestions, draftTestQuestions } from "@/server/authoring/quiz-drafting";
 import { createSource, extractSource, listSources } from "@/server/authoring/sources";
 import type { Enqueue } from "@/server/jobs/producer";
 import type { LlmCallOptions } from "@/server/llm";
-import { createCourse } from "@/server/studio/courses";
+import { createCourse, loadCourseEditor } from "@/server/studio/courses";
+import { saveCourseTest } from "@/server/studio/tests";
 
 import {
   createTenant,
@@ -232,6 +235,160 @@ describe.skipIf(!hasDatabase)("webinar → course authoring", () => {
       fakeModel({ faq_lesson: "not json" }, []),
     );
     expect(broken).toMatchObject({ ok: true, fallback: "invalid_drafts" });
+  });
+
+  it("drafts final-test questions from the sources, citing the chapter each comes from", async () => {
+    const courseId = await newCourse();
+    await recording(courseId, "Webinar: Reminders", [
+      {
+        startSec: 0,
+        endSec: 130,
+        title: "The first reminder",
+        text: "Send the first reminder three days after the due date. Keep it friendly and short.",
+      },
+      {
+        startSec: 130,
+        endSec: 300,
+        title: "Late fees",
+        text: "A business client who pays late owes a flat fee of 40 euros.",
+      },
+    ]);
+    const calls: LlmCallOptions[] = [];
+    const question = (ref: string, en: string, de: string) => ({
+      prompt: { en, de },
+      options: [
+        {
+          text: { en: "Three days after the due date", de: "Drei Tage nach Fälligkeit" },
+          correct: true,
+        },
+        { text: { en: "A month later", de: "Einen Monat später" }, correct: false },
+        { text: { en: "Never", de: "Nie" }, correct: false },
+      ],
+      explanation: { en: "The webinar says three days.", de: "Das Webinar sagt drei Tage." },
+      source_ref: ref,
+    });
+    const model = fakeModel(
+      {
+        quiz_draft: {
+          questions: [
+            question(
+              "C1",
+              "When does the first reminder go out?",
+              "Wann geht die erste Erinnerung raus?",
+            ),
+            question("C9", "When do you send it?", "Wann schickst du sie?"),
+          ],
+          notes: [],
+        },
+      },
+      calls,
+    );
+
+    const result = await draftTestQuestions(dbs.app.db, tenant.id, courseId, { count: 5 }, model);
+    expect(result).toMatchObject({ ok: true });
+    const questions = result.ok ? result.questions : [];
+    expect(questions).toHaveLength(2);
+    expect(questions[0]).toMatchObject({
+      prompt: {
+        en: "When does the first reminder go out?",
+        de: "Wann geht die erste Erinnerung raus?",
+      },
+      explanation: { en: "The webinar says three days." },
+      source: "Webinar: Reminders · The first reminder (0:00–2:10)",
+    });
+    // An unknown ref is no source, not a made-up one.
+    expect(questions[1]).not.toHaveProperty("source");
+    expect(calls[0]?.jsonSchema?.name).toBe("quiz_draft");
+    expect(promptOf(calls[0])).toContain("C2 · Webinar: Reminders · Late fees (2:10–5:00)");
+    expect((await usageOf(courseId)).map((row) => row.kind)).toEqual(["question_draft"]);
+    // Nothing is saved: the test is as it was.
+    expect(
+      (await loadCourseEditor(dbs.app.db, tenant.id, courseId))?.test?.questions ?? [],
+    ).toEqual([]);
+
+    // Saved as drafted, they are a valid test.
+    await saveCourseTest(dbs.app.db, tenant.id, courseId, {
+      questions,
+      passPercent: 80,
+      showMistakes: true,
+    });
+
+    expect(await draftTestQuestions(dbs.app.db, tenant.id, courseId, { count: 5 }, null)).toEqual({
+      ok: false,
+      error: "gateway_missing",
+    });
+    const empty = await newCourse(["en"]);
+    expect(await draftTestQuestions(dbs.app.db, tenant.id, empty, { count: 5 }, model)).toEqual({
+      ok: false,
+      error: "no_sources",
+    });
+    expect(
+      await draftTestQuestions(
+        dbs.app.db,
+        tenant.id,
+        courseId,
+        { count: 5 },
+        fakeModel({ quiz_draft: { questions: [], notes: [] } }, []),
+      ),
+    ).toEqual({ ok: false, error: "invalid_drafts" });
+  });
+
+  it("drafts practice questions for a lesson and stops when the allowance is used up", async () => {
+    const other = (await findTenantById(dbs.app.db, await createTenant(dbs.owner.db)))!;
+    const courseId = await createCourse(dbs.app.db, other.id, {
+      languages: ["de"],
+      title: "Pünktlich bezahlt werden",
+      artifactName: "Mahnplan",
+      outcome: "Schreib deinen Mahnplan.",
+      deliveryMode: "free_async",
+    });
+    const markdown =
+      "## Die erste Erinnerung\n\nSchick die erste Erinnerung drei Tage nach Fälligkeit. Nenn den Betrag, die Rechnungsnummer und ein neues Datum. Bleib freundlich: Die meisten Kunden haben es einfach vergessen.";
+    const calls: LlmCallOptions[] = [];
+    const model = fakeModel(
+      {
+        check_draft: {
+          questions: [
+            {
+              prompt: "Wann geht die erste Erinnerung raus?",
+              options: [
+                { text: "Drei Tage nach Fälligkeit", correct: true },
+                { text: "Nach einem Monat", correct: false },
+              ],
+              explanation: "Früh, aber nicht am selben Tag.",
+            },
+          ],
+        },
+      },
+      calls,
+    );
+    const input = {
+      courseId,
+      lessonId: "00000000-0000-4000-8000-000000000001",
+      locale: "de" as const,
+      title: "Die erste Erinnerung",
+      markdown,
+      existing: [],
+      count: 3,
+    };
+    const drafted = await draftCheckQuestions(dbs.app.db, other.id, input, model);
+    expect(drafted).toMatchObject({
+      ok: true,
+      questions: [
+        { prompt: "Wann geht die erste Erinnerung raus?", explanation: expect.any(String) },
+      ],
+    });
+    expect(promptOf(calls[0])).toContain("drei Tage nach Fälligkeit");
+    expect(
+      await draftCheckQuestions(dbs.app.db, other.id, { ...input, markdown: "Kurz." }, model),
+    ).toEqual({ ok: false, error: "no_lesson_text" });
+
+    await setAiAllowance(dbs.app.db, other.slug, { kind: "amount", microUsd: 0 });
+    expect(await draftCheckQuestions(dbs.app.db, other.id, input, model)).toEqual({
+      ok: false,
+      error: "ai_allowance_used_up",
+    });
+    expect(calls).toHaveLength(1);
   });
 
   it("refuses an FAQ without questions or answers", async () => {

@@ -9,7 +9,7 @@ import { text } from "@/app/studio/form-data";
 import { defaultQuestions, interviewText } from "@/core/authoring/interview";
 import { parseQaExport, qaText } from "@/core/authoring/qa";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
-import { jobErrorText } from "@/core/i18n/studio/helpers";
+import { draftErrorText, jobErrorText } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
 import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import { getDb } from "@/db/client";
@@ -141,7 +141,7 @@ export async function draftFaqAction(formData: FormData): Promise<FaqState> {
   const model = authoringModel();
   // Without the AI nothing is spent: only drafts that call the model count against the hour.
   if (model && !rateLimit(`faq-draft:${tenant.id}`, 10, HOUR)) {
-    return { status: "error", message: t.t("drafts.faq.rateLimited") };
+    return { status: "error", message: t.t("drafts.rateLimited") };
   }
   const result = await draftFaqLesson(
     getDb(),
@@ -149,7 +149,7 @@ export async function draftFaqAction(formData: FormData): Promise<FaqState> {
     { sourceId, locale, requestedBy: viewer.userId },
     model,
   );
-  if (!result.ok) return { status: "error", message: jobErrorText(t, result.error)! };
+  if (!result.ok) return { status: "error", message: draftErrorText(t, result.error) };
   revalidatePath(`/studio/courses/${courseId}`, "layout");
   return {
     status: "done",

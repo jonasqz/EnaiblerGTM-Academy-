@@ -37,12 +37,31 @@ export const en = {
   "drafts.faq.left.one": "{n} question had no answer and was left out:",
   "drafts.faq.left.other": "{n} questions had no answer and were left out:",
   "drafts.faq.fallback": "Written without the AI: {reason}",
-  "drafts.faq.rateLimited": "Too many drafts this hour. Try again later.",
+
+  // Final-test questions
+  "drafts.quiz.title": "Draft questions with AI",
+  "drafts.quiz.intro":
+    "Drafts questions in every course language from your sources and lessons, each with an explanation and where it comes from. They are added below, unsaved: check every one, then save.",
+  "drafts.quiz.count": "How many",
+  "drafts.quiz.run": "Draft questions",
+  "drafts.quiz.running": "Drafting…",
+  "drafts.quiz.ready.one": "{n} question drafted and added below. Check it, then save.",
+  "drafts.quiz.ready.other": "{n} questions drafted and added below. Check them, then save.",
+  "drafts.quiz.full": "The test already holds as many questions as it can.",
+
+  // Knowledge-check questions
+  "drafts.check.run": "Draft questions from this lesson",
+  "drafts.check.running": "Drafting…",
+  "drafts.check.ready.one": "{n} question drafted and added below. Saving the lesson keeps it.",
+  "drafts.check.ready.other":
+    "{n} questions drafted and added below. Saving the lesson keeps them.",
 
   // Shared
+  "drafts.badge": "AI draft, not saved yet",
   "drafts.allowance":
     "Your academy's AI allowance for this month is used up, so there is no draft until {date}.",
   "drafts.noGateway": "Drafting needs the AI gateway (LLM_BASE_URL).",
+  "drafts.rateLimited": "Too many drafts this hour. Try again later.",
 } as const;
 
 export const de: Record<keyof typeof en, string> = {
@@ -78,9 +97,27 @@ export const de: Record<keyof typeof en, string> = {
   "drafts.faq.left.one": "{n} Frage hatte keine Antwort und wurde weggelassen:",
   "drafts.faq.left.other": "{n} Fragen hatten keine Antwort und wurden weggelassen:",
   "drafts.faq.fallback": "Ohne KI geschrieben: {reason}",
-  "drafts.faq.rateLimited": "Zu viele Entwürfe in dieser Stunde. Versuch es später noch einmal.",
 
+  "drafts.quiz.title": "Fragen mit KI entwerfen",
+  "drafts.quiz.intro":
+    "Entwirft Fragen in jeder Kurssprache aus deinen Quellen und Lektionen, jede mit Erklärung und Herkunft. Sie kommen ungespeichert unten dazu: Prüf jede einzelne und speichere dann.",
+  "drafts.quiz.count": "Wie viele",
+  "drafts.quiz.run": "Fragen entwerfen",
+  "drafts.quiz.running": "Wird entworfen…",
+  "drafts.quiz.ready.one": "{n} Frage entworfen und unten ergänzt. Prüf sie und speichere dann.",
+  "drafts.quiz.ready.other": "{n} Fragen entworfen und unten ergänzt. Prüf sie und speichere dann.",
+  "drafts.quiz.full": "Der Test hat schon so viele Fragen, wie er fassen kann.",
+
+  "drafts.check.run": "Fragen aus dieser Lektion entwerfen",
+  "drafts.check.running": "Wird entworfen…",
+  "drafts.check.ready.one":
+    "{n} Frage entworfen und unten ergänzt. Mit dem Speichern der Lektion bleibt sie.",
+  "drafts.check.ready.other":
+    "{n} Fragen entworfen und unten ergänzt. Mit dem Speichern der Lektion bleiben sie.",
+
+  "drafts.badge": "KI-Entwurf, noch nicht gespeichert",
   "drafts.allowance":
     "Das KI-Kontingent deiner Akademie für diesen Monat ist aufgebraucht, deshalb gibt es bis zum {date} keinen Entwurf.",
   "drafts.noGateway": "Zum Entwerfen braucht es das KI-Gateway (LLM_BASE_URL).",
+  "drafts.rateLimited": "Zu viele Entwürfe in dieser Stunde. Versuch es später noch einmal.",
 };

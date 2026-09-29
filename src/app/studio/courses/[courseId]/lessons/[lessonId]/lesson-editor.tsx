@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { saveLessonAction, type FormState } from "@/app/studio/actions";
 import { CheckEditor } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/check-editor";
+import { draftCheckAction } from "@/app/studio/courses/[courseId]/lessons/[lessonId]/draft-actions";
 import { KnowledgeCheck, type KnowledgeCheckLabels } from "@/components/knowledge-check";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
@@ -18,7 +19,7 @@ import type { Locale } from "@/core/i18n/locales";
 import { languageName, wordingText } from "@/core/i18n/studio/helpers";
 import type { StudioKey } from "@/core/i18n/studio/index";
 import { cleanCheckQuestions, previewCheckQuestions } from "@/core/questions/knowledge-check";
-import type { CheckQuestion } from "@/core/questions/questions";
+import { QUESTION_LIMITS, type CheckQuestion } from "@/core/questions/questions";
 import { canonicalJson, sameJson } from "@/core/shared/json";
 
 type Mode = "write" | "split" | "preview";
@@ -57,6 +58,8 @@ export interface LessonEditorProps {
   academyTheme: Record<string, string>;
   /** The knowledge check's words in the preview, in a language the academy offers. */
   checkLabels: KnowledgeCheckLabels;
+  /** Whether the AI can draft knowledge-check questions (LLM_BASE_URL). */
+  aiAvailable: boolean;
 }
 
 export function LessonEditor(props: LessonEditorProps) {
@@ -65,6 +68,8 @@ export function LessonEditor(props: LessonEditorProps) {
   const [markdown, setMarkdown] = useState(props.markdown);
   const [selected, setSelected] = useState<string[]>(props.selected);
   const [questions, setQuestions] = useState<CheckQuestion[]>(props.questions);
+  // Questions the AI drafted: marked until a save keeps them.
+  const [drafted, setDrafted] = useState<ReadonlySet<string>>(new Set());
   const [saved, setSaved] = useState({
     title: props.title,
     markdown: props.markdown,
@@ -126,6 +131,26 @@ export function LessonEditor(props: LessonEditorProps) {
     !sameJson(cleanQuestions, saved.questions);
   const words = markdown.trim() ? markdown.trim().split(/\s+/).length : 0;
   const findings = lintWording(`${title}\n${markdown}`, "lesson_text");
+  const savedIds = new Set(saved.questions.map((question) => question.id));
+  const unsavedDrafts = new Set([...drafted].filter((id) => !savedIds.has(id)));
+
+  /** Practice questions from the lesson as it stands in the editor, added to the check. */
+  const draftQuestions = async () => {
+    const data = new FormData();
+    data.set("courseId", props.courseId);
+    data.set("lessonId", props.lessonId);
+    data.set("title", title);
+    data.set("markdown", markdown);
+    data.set("existing", JSON.stringify(questions.map((question) => question.prompt)));
+    const result = await draftCheckAction(data);
+    if (result.status === "done") {
+      setQuestions((current) =>
+        [...current, ...result.questions].slice(0, QUESTION_LIMITS.checkQuestions),
+      );
+      setDrafted((current) => new Set([...current, ...result.questions.map((q) => q.id)]));
+    }
+    return { ok: result.status === "done", message: result.message };
+  };
 
   // Cmd/Ctrl+S saves; leaving with unsaved changes asks first.
   useEffect(() => {
@@ -286,7 +311,12 @@ export function LessonEditor(props: LessonEditorProps) {
         />
       )}
 
-      <CheckEditor questions={questions} onChange={setQuestions} />
+      <CheckEditor
+        questions={questions}
+        onChange={setQuestions}
+        drafted={unsavedDrafts}
+        onDraft={props.aiAvailable ? draftQuestions : undefined}
+      />
 
       {props.criteria === null ? (
         // A test-only course keeps the lesson's links for when it asks for work again.

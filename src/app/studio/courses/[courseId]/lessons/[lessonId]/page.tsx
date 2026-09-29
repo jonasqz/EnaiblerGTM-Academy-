@@ -135,6 +135,7 @@ export default async function LessonEditorPage({
           questions={data.questions}
           academyTheme={themeToCssVariables(tenant.theme)}
           checkLabels={knowledgeCheckLabels(tenantTranslator(tenant, locale))}
+          aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
           reference={
             reference && isLocale(reference.locale)
               ? {

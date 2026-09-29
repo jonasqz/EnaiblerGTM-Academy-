@@ -1,15 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ListChecks, Plus, Trash, TriangleAlert } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ListChecks, Plus, Sparkles, Trash, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import type { FormState } from "@/app/studio/actions";
-import { saveTestAction } from "@/app/studio/courses/[courseId]/test/actions";
+import {
+  draftTestQuestionsAction,
+  saveTestAction,
+} from "@/app/studio/courses/[courseId]/test/actions";
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
+import { MAX_DRAFTED_QUESTIONS } from "@/core/authoring/quiz-draft";
 import { lintLocalizedWording } from "@/core/compliance/wording-lint";
 import type { Locale } from "@/core/i18n/locales";
 import { languageName, wordingText } from "@/core/i18n/studio/helpers";
@@ -96,11 +101,102 @@ function CountField(props: {
   );
 }
 
+/**
+ * "Draft questions with AI" (core/authoring/quiz-draft): the drafts join the
+ * editor's unsaved draft, marked, for the author to check and save.
+ */
+function QuestionDraftPanel(props: {
+  courseId: string;
+  /** Questions the test still has room for. */
+  room: number;
+  onDraft: (questions: TestQuestion[]) => void;
+}) {
+  const t = useStudioText();
+  const uid = useId();
+  const [count, setCount] = useState(5);
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ tone: "good" | "error"; text: string } | null>(null);
+  const [notes, setNotes] = useState<string[]>([]);
+  const choices = [3, 5, 10, MAX_DRAFTED_QUESTIONS].filter((n) => n <= props.room);
+
+  const run = () => {
+    const data = new FormData();
+    data.set("courseId", props.courseId);
+    data.set("count", String(Math.min(count, props.room)));
+    setMessage(null);
+    setNotes([]);
+    startTransition(async () => {
+      const result = await draftTestQuestionsAction(data);
+      if (result.status === "error") {
+        setMessage({ tone: "error", text: result.message });
+        return;
+      }
+      props.onDraft(result.questions);
+      setNotes(result.notes);
+      setMessage({ tone: "good", text: result.message });
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-card border border-line bg-subtle p-4">
+      <div>
+        <p className="flex items-center gap-2 font-semibold">
+          <Sparkles aria-hidden size={16} /> {t.t("drafts.quiz.title")}
+        </p>
+        <p className="text-sm text-muted">{t.t("drafts.quiz.intro")}</p>
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        {choices.length > 1 && (
+          <div className="field">
+            <label htmlFor={`${uid}-count`} className="label">
+              {t.t("drafts.quiz.count")}
+            </label>
+            {/* A select: Enter in it must not save the test around it. */}
+            <select
+              id={`${uid}-count`}
+              className="select"
+              value={Math.min(count, props.room)}
+              onChange={(event) => setCount(Number(event.target.value))}
+            >
+              {choices.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <button type="button" className="btn btn-secondary" onClick={run} disabled={pending}>
+          <Sparkles aria-hidden size={16} />{" "}
+          {pending ? t.t("drafts.quiz.running") : t.t("drafts.quiz.run")}
+        </button>
+      </div>
+      <div aria-live="polite" className="space-y-1">
+        {message && (
+          <p
+            role={message.tone === "error" ? "alert" : undefined}
+            className="text-sm font-semibold"
+            style={message.tone === "error" ? { color: "var(--status-critical)" } : undefined}
+          >
+            {message.text}
+          </p>
+        )}
+        {notes.map((note) => (
+          <p key={note} className="text-sm text-muted">
+            {note}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface TestEditorProps {
   courseId: string;
   /** The course languages: every question needs each of them before publishing. */
   languages: Locale[];
   test: CourseTestDefinition;
+  aiAvailable: boolean;
 }
 
 export function TestEditor(props: TestEditorProps) {
@@ -109,10 +205,15 @@ export function TestEditor(props: TestEditorProps) {
   const uid = useId();
   const [draft, setDraft] = useState<CourseTestDefinition>(props.test);
   const [saved, setSaved] = useState<unknown>(() => cleanTestDraft(props.test));
+  // Questions the AI drafted since the last save: marked until the author saves them.
+  const [drafted, setDrafted] = useState<ReadonlySet<string>>(new Set());
   const formRef = useRef<HTMLFormElement>(null);
   const { state, pending, onSubmit } = useActionForm<FormState>(async (previous, formData) => {
     const result = await saveTestAction(previous, formData);
-    if (result.ok) setSaved(cleanTestDraft(JSON.parse(String(formData.get("test")))));
+    if (result.ok) {
+      setSaved(cleanTestDraft(JSON.parse(String(formData.get("test")))));
+      setDrafted(new Set());
+    }
     return result;
   }, {});
   // Compared as saved: whitespace and the order answers were ticked in are no change.
@@ -266,6 +367,19 @@ export function TestEditor(props: TestEditorProps) {
           </p>
         </div>
 
+        {props.aiAvailable && draft.questions.length < QUESTION_LIMITS.testQuestions && (
+          <QuestionDraftPanel
+            courseId={props.courseId}
+            room={QUESTION_LIMITS.testQuestions - draft.questions.length}
+            onDraft={(questions) => {
+              setQuestions((all) => [...all, ...questions].slice(0, QUESTION_LIMITS.testQuestions));
+              setDrafted(
+                (current) => new Set([...current, ...questions.map((question) => question.id)]),
+              );
+            }}
+          />
+        )}
+
         {draft.questions.length === 0 ? (
           <EmptyState
             icon={ListChecks}
@@ -290,7 +404,14 @@ export function TestEditor(props: TestEditorProps) {
                   className="space-y-4 rounded-card border border-line bg-card p-4 sm:p-5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold">{t.t("courses.test.question", { n })}</p>
+                    <p className="flex flex-wrap items-center gap-2 font-semibold">
+                      {t.t("courses.test.question", { n })}
+                      {drafted.has(question.id) && (
+                        <Badge tone="info" icon={Sparkles}>
+                          {t.t("drafts.badge")}
+                        </Badge>
+                      )}
+                    </p>
                     <div className="flex gap-1">
                       <button
                         type="button"

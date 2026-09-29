@@ -1,10 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ListChecks, Plus, Trash, TriangleAlert, X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ListChecks,
+  Plus,
+  Sparkles,
+  Trash,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { FormFeedback } from "@/components/studio/form-feedback";
 import { useStudioText } from "@/components/studio/studio-text";
+import { Badge } from "@/components/ui/badge";
 import { lintWording } from "@/core/compliance/wording-lint";
 import { wordingText } from "@/core/i18n/studio/helpers";
 import { checkIds, moveItem, newCheckQuestion, unusedId } from "@/core/questions/knowledge-check";
@@ -31,10 +41,34 @@ const written = (question: CheckQuestion) => questionTexts(question).some((text)
 export function CheckEditor(props: {
   questions: CheckQuestion[];
   onChange: (questions: CheckQuestion[]) => void;
+  /** Questions the AI drafted that no save has kept yet. */
+  drafted?: ReadonlySet<string>;
+  /** Drafts questions from the lesson (core/authoring/quiz-draft); absent without the AI. */
+  onDraft?: () => Promise<{ ok: boolean; message: string }>;
 }) {
   const { questions, onChange } = props;
   const t = useStudioText();
   const uid = useId();
+  const [drafting, startDrafting] = useTransition();
+  const [draftMessage, setDraftMessage] = useState<{ ok: boolean; message: string } | null>(null);
+  const draft = () => {
+    const onDraft = props.onDraft;
+    if (!onDraft) return;
+    setDraftMessage(null);
+    startDrafting(async () => setDraftMessage(await onDraft()));
+  };
+  const draftButton =
+    props.onDraft && questions.length < QUESTION_LIMITS.checkQuestions ? (
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm shrink-0"
+        onClick={draft}
+        disabled={drafting}
+      >
+        <Sparkles aria-hidden size={16} />{" "}
+        {drafting ? t.t("drafts.check.running") : t.t("drafts.check.run")}
+      </button>
+    ) : null;
   // Where focus goes once a change is on screen: into a new field, or away from a removed one.
   const focusNext = useRef<string | null>(null);
   useEffect(() => {
@@ -127,14 +161,17 @@ export function CheckEditor(props: {
             <ListChecks aria-hidden size={18} className="mt-0.5 shrink-0" />
             {t.t("lessons.check.empty")}
           </p>
-          <button
-            id={addId}
-            type="button"
-            className="btn btn-secondary btn-sm shrink-0"
-            onClick={addQuestion}
-          >
-            <Plus aria-hidden size={16} /> {t.t("lessons.check.addFirst")}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              id={addId}
+              type="button"
+              className="btn btn-secondary btn-sm shrink-0"
+              onClick={addQuestion}
+            >
+              <Plus aria-hidden size={16} /> {t.t("lessons.check.addFirst")}
+            </button>
+            {draftButton}
+          </div>
         </div>
       ) : (
         <>
@@ -147,8 +184,13 @@ export function CheckEditor(props: {
                 <li key={question.id} className="rounded-card border border-line p-4">
                   <fieldset className="min-w-0">
                     {/* Floated, so the legend and the buttons share a line inside the card. */}
-                    <legend className="float-left py-1.5 font-semibold">
+                    <legend className="float-left flex flex-wrap items-center gap-2 py-1.5 font-semibold">
                       {t.t("lessons.check.question", { n })}
+                      {props.drafted?.has(question.id) && (
+                        <Badge tone="info" icon={Sparkles}>
+                          {t.t("drafts.badge")}
+                        </Badge>
+                      )}
                     </legend>
                     <div className="float-right flex gap-1">
                       <button
@@ -319,14 +361,17 @@ export function CheckEditor(props: {
             })}
           </ol>
           {questions.length < QUESTION_LIMITS.checkQuestions ? (
-            <button
-              id={addId}
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={addQuestion}
-            >
-              <Plus aria-hidden size={16} /> {t.t("lessons.check.add")}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                id={addId}
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={addQuestion}
+              >
+                <Plus aria-hidden size={16} /> {t.t("lessons.check.add")}
+              </button>
+              {draftButton}
+            </div>
           ) : (
             <p className="hint">
               {t.t("lessons.check.limit", { max: QUESTION_LIMITS.checkQuestions })}
@@ -334,6 +379,18 @@ export function CheckEditor(props: {
           )}
         </>
       )}
+
+      <div aria-live="polite">
+        {draftMessage && (
+          <p
+            role={draftMessage.ok ? undefined : "alert"}
+            className="text-sm font-semibold"
+            style={draftMessage.ok ? undefined : { color: "var(--status-critical)" }}
+          >
+            {draftMessage.message}
+          </p>
+        )}
+      </div>
 
       {findings.length > 0 && (
         <FormFeedback
