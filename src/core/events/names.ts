@@ -16,6 +16,10 @@ export const EVENT_NAMES = [
   "credential_shared_linkedin",
   "verification_page_viewed",
   "verification_cta_clicked",
+  /** A signed-in viewer pressed play on a video for the first time (props: asset_id). */
+  "video_started",
+  /** Their played ranges covered the academy's threshold, once per video (props: asset_id, percent). */
+  "video_watched",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

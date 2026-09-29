@@ -8,6 +8,7 @@ export const STORAGE_AREAS = [
   "assets",
   "credentials",
   "exports",
+  "media",
 ] as const;
 export type StorageArea = (typeof STORAGE_AREAS)[number];
 

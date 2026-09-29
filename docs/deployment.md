@@ -70,6 +70,7 @@ Environment variables (Coolify → Environment). Required ones are marked; every
 | `LLM_EMBEDDING_MODEL`                                                    | worker      | Embeddings for source retrieval (1024 dimensions). Without it, drafting retrieves by keywords.                                      |
 | `WHISPER_BASE_URL`, `WHISPER_MODEL`, `WHISPER_API_KEY`                   | worker      | Self-hosted transcription, see §8. Without it, recordings are not transcribed.                                                      |
 | `AI_MONTHLY_ALLOWANCE_USD`, `AI_UNPRICED_CALL_USD`                       | web, worker | Monthly AI allowance per academy in USD of provider cost (unset: no limit) and what an unpriced call counts (default 0.05), see §11 |
+| `MEDIA_STORAGE_QUOTA_GB`                                                 | web, worker | Video storage per academy in GB: uploaded originals and their HLS renditions (unset: no limit), see §11                             |
 | `PLATFORM_HOST`, `ACADEMY_DOMAIN`                                        | web, worker | Self-serve signup, see §5. Unset: academies from manifests only.                                                                    |
 | `PLATFORM_TERMS_URL`, `PLATFORM_DPA_URL`                                 | web         | Terms and DPA kept elsewhere, each replacing its built-in page (§5). Signup needs both in force: here, or built in and final.       |
 | `PLATFORM_PRIVACY_URL`, `PLATFORM_IMPRINT_URL`                           | web         | Privacy policy and imprint kept elsewhere, each replacing its built-in page (§5)                                                    |
@@ -88,6 +89,8 @@ Environment variables (Coolify → Environment). Required ones are marked; every
 | `LOG_FORMAT`                                                             | web, worker | `json` (default in production: one JSON object per line) or `text`                                                                  |
 
 Leave `HOSTNAME=0.0.0.0` as the Dockerfile sets it: the proxy's rewrite to the platform pages only stays inside the server when Next's own origin matches the request. Never set `SAFE_FETCH_ALLOWED_HOSTS` outside local tests, because it exempts hosts from the private-address check of the brand import, source reading and webhooks.
+
+**Video.** The worker transcodes the media library's videos with ffmpeg (in its image) on its own queue, `media.transcode`, one video at a time, so the review queue never waits behind a long recording; `media.transcribe` writes their captions through Whisper. A transcode copies the original to the container's temporary directory and writes the renditions next to it, so give the worker free disk of about three times the largest upload (a 2-hour webinar in 1080p: some 10 GB), and expect it to keep a CPU core busy for about as long as the video runs. Renditions and posters live in the bucket under `tenants/<id>/media/<video id>/`; learners fetch them through `/media/…`, which checks access on every request, never from the bucket.
 
 **Outbound traffic.** The `web` container fetches customer websites (brand import). The `worker` reads web page sources, posts webhooks to the academies' endpoints and resolves DNS for domain checks. Both need outbound HTTP and HTTPS; `safe-fetch` only lets them reach public addresses.
 
@@ -170,7 +173,8 @@ A course shell in a manifest may say how the course ends: `completion: work` (th
 - Migrations are reviewed. Any new tenant table has RLS forced (see `CLAUDE.md`).
 - Manifest warnings are resolved for live academies: legal links and sender.
 - Before signup opens: counsel has reviewed enaibler's legal pages in both languages and they are final (§5, step 4), a test report reaches `PLATFORM_ABUSE_EMAIL` with its confirmation, and a test academy has gone through §5, step 6.
-- Before signup opens: `AI_MONTHLY_ALLOWANCE_USD` is set on `web` and `worker` (§11), so no new academy can run up the provider bill.
+- Before signup opens: `AI_MONTHLY_ALLOWANCE_USD` is set on `web` and `worker` (§11), so no new academy can run up the provider bill, and `MEDIA_STORAGE_QUOTA_GB` too, so none can fill the storage.
+- Video: a test upload in Studio → Videos is transcoded and plays on an iPhone (Safari's own HLS) and in Chrome or Firefox (hls.js), with captions.
 - Storage: the bucket exists, and a test hand-in with a PDF uploads and downloads.
 - Own domains: a test domain verifies, gets a certificate and redirects its other addresses.
 - LinkedIn "Add to profile" prefill is click-tested on a real account.
@@ -192,6 +196,8 @@ Months are calendar months in Berlin time; without `--month` the report covers t
 
 **Monthly allowance.** Until AI use is priced, each academy may spend a monthly allowance in US dollars of provider cost, counted per calendar month in Berlin time like the report. `AI_MONTHLY_ALLOWANCE_USD` on `web` and `worker` sets it for every academy (unset: no limit; `0`: no AI). One academy can get its own amount, no limit, or the default back with `npm run academy -- allowance <slug> <dollars|unlimited|default>` (§12), which writes `tenants.ai_allowance_micro_usd` (null is the default, -1 no limit) and shows the month's spend. Academy admins cannot change it: it is in neither the manifest nor the Studio settings. Every model call checks it first, so the last call of a month can go a little over; a change applies from the next call.
 
+**Video storage.** Every re-live keeps its original and its renditions (about as much again), so storage grows with every video. Until storage is priced (webinar brief §9, open question 2), `MEDIA_STORAGE_QUOTA_GB` on `web` and `worker` caps it for every academy (unset: no limit), and `npm run academy -- storage <slug> <GB|unlimited|default>` (§12) gives one academy its own quota, writing `tenants.media_storage_quota_bytes` (null is the default, -1 no limit). It counts uploaded originals and the renditions and posters made from them, not YouTube or Vimeo videos and not course sources. An upload over the quota is refused with a message in Studio → Videos, which shows the share used and warns from 80 %; a transcode's renditions are estimated by their original, so the last video can go a little over. Like the allowance, it is in neither the manifest nor the Studio settings.
+
 What counts is the cost LiteLLM reports. So that no model is free by accident, a call without a price counts at `AI_UNPRICED_CALL_USD` (default 0.05), and transcription on our own Whisper at 0.006 a minute of audio. Once the allowance is used up, hand-ins wait for a person (the review queue says why), authoring jobs stop with a message in the Studio, the brand import keeps its rule-based proposal, and learners notice nothing but a later reply. Academies see the share they used in Settings → Usage, and the Studio overview warns from 80 %. The report adds `counted` (what counts against the allowance), `allowance` and `used` for each academy, against the allowances as set today. It reads both variables like the app, so run it where they are set, for example on the `worker`.
 
 ## 12. Operator tasks per academy
@@ -205,6 +211,7 @@ npm run academy -- resume <slug>
 npm run academy -- export <slug> <file.zip> [--with-files]  # every row (and file) of the academy, for the customer
 npm run academy -- delete <slug> --confirm <slug>           # irreversible: files, rows, and accounts no other academy knows
 npm run academy -- allowance <slug> [25|unlimited|default]  # its monthly AI allowance in dollars (§11); without a value: show it
+npm run academy -- storage <slug> [50|unlimited|default]    # its video storage quota in GB (§11); without a value: show it
 ```
 
 - **Suspend** for abuse or an unpaid account: learners, certificates and the Studio are unreachable, nothing is deleted.

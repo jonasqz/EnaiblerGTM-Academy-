@@ -6,8 +6,10 @@
  *   npm run academy -- export <slug> <file.zip> [--with-files]
  *   npm run academy -- delete <slug> --confirm <slug>
  *   npm run academy -- allowance <slug> [25|unlimited|default]   monthly AI allowance in dollars
+ *   npm run academy -- storage <slug> [50|unlimited|default]     video storage quota in GB
  * Runs as enaibler_owner (DATABASE_MIGRATION_URL); the S3_* variables for files.
  */
+import { formatGb, parseQuota, type QuotaStatus } from "@/core/media/quota";
 import { parseAllowance, type AllowanceStatus } from "@/core/usage/allowance";
 import { createDatabase } from "@/db/client";
 import { findTenantBySlug } from "@/db/tenants";
@@ -18,6 +20,7 @@ import {
   setAcademyStatus,
 } from "@/server/operator/academies";
 import { readAiAllowance, setAiAllowance } from "@/server/ai-allowance";
+import { readMediaQuota, setMediaQuota } from "@/server/media/quota";
 import { storageConfigured } from "@/server/storage";
 
 const USAGE = `Usage:
@@ -26,7 +29,8 @@ const USAGE = `Usage:
   academy resume <slug>
   academy export <slug> <file.zip> [--with-files]
   academy delete <slug> --confirm <slug>
-  academy allowance <slug> [dollars|unlimited|default]`;
+  academy allowance <slug> [dollars|unlimited|default]
+  academy storage <slug> [gigabytes|unlimited|default]`;
 
 const dollars = (microUsd: number) => `$${(microUsd / 1_000_000).toFixed(2)}`;
 
@@ -37,6 +41,14 @@ function describeAllowance(status: AllowanceStatus): string {
     status.allowanceMicroUsd === null ? "no limit" : `${dollars(status.allowanceMicroUsd)} a month`;
   const used = `${dollars(status.spentMicroUsd)} used in ${status.month}`;
   return `${limit} (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
+}
+
+/** "video storage 50.00 GB (own), 12.30 GB used (24 %)" */
+function describeQuota(status: QuotaStatus): string {
+  const kind = status.setting.kind === "amount" ? "own" : status.setting.kind;
+  const limit = status.quotaBytes === null ? "without limit" : formatGb(status.quotaBytes);
+  const used = `${formatGb(status.usedBytes)} used`;
+  return `video storage ${limit} (${kind}), ${used}${status.percentUsed === null ? "" : ` (${status.percentUsed} %)`}`;
 }
 
 const args = process.argv.slice(2);
@@ -112,6 +124,17 @@ try {
           throw new Error(`"${file}" is not an amount in dollars, "unlimited" or "default".`);
         const updated = await setAiAllowance(db, slug, setting);
         console.log(`✓ ${slug}: ${describeAllowance(updated!)}`);
+      }
+    } else if (command === "storage") {
+      // Like the allowance: the third word is the new quota; without it, the quota is only shown.
+      if (file === undefined) {
+        console.log(`${slug}: ${describeQuota((await readMediaQuota(db, slug))!)}`);
+      } else {
+        const setting = parseQuota(file);
+        if (!setting)
+          throw new Error(`"${file}" is not an amount in gigabytes, "unlimited" or "default".`);
+        const updated = await setMediaQuota(db, slug, setting);
+        console.log(`✓ ${slug}: ${describeQuota(updated!)}`);
       }
     } else {
       throw new Error(USAGE);

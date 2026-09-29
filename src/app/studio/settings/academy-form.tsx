@@ -26,6 +26,8 @@ export function AcademyForm(props: {
   replyTo: string;
   legalLinks: { imprint?: string; privacy?: string; terms?: string };
   features: Features;
+  /** A video counts as watched once this share of it was played. */
+  videoWatchedPercent: number;
 }) {
   const t = useStudioText();
   const { state, pending, onSubmit } = useActionForm<FormState>(saveAcademySettingsAction, {});
@@ -192,6 +194,36 @@ export function AcademyForm(props: {
               </span>
             </label>
           ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="videos-heading" className="card-flat space-y-4 p-5 sm:p-6">
+        <h2 id="videos-heading" className="text-lg font-semibold">
+          {t.t("media.settings.heading")}
+        </h2>
+        <div className="field max-w-md">
+          <label htmlFor="academy-video-watched" className="label">
+            {t.t("media.settings.threshold")}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="academy-video-watched"
+              name="videoWatchedPercent"
+              type="number"
+              inputMode="numeric"
+              min={10}
+              max={100}
+              step={1}
+              required
+              className="input w-24"
+              defaultValue={props.videoWatchedPercent}
+              aria-describedby="academy-video-watched-hint"
+            />
+            <span aria-hidden>%</span>
+          </div>
+          <p id="academy-video-watched-hint" className="hint">
+            {t.t("media.settings.thresholdHint")}
+          </p>
         </div>
       </section>
 

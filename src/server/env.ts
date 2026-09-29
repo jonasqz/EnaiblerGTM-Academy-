@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { parseGb } from "@/core/media/quota";
 import { parseUsd } from "@/core/usage/allowance";
 
 /**
@@ -56,6 +57,15 @@ const envSchema = z.object({
   AI_MONTHLY_ALLOWANCE_USD: usd,
   /** What a model call counts against the allowance when the gateway reports no price; default 0.05. */
   AI_UNPRICED_CALL_USD: usd,
+  /**
+   * Video storage of an academy without its own quota, in gigabytes
+   * (core/media/quota; read by name in server/media/quota). Unset: no limit.
+   */
+  MEDIA_STORAGE_QUOTA_GB: z
+    .string()
+    .trim()
+    .refine((value) => parseGb(value) !== null, "an amount in gigabytes, such as 50 or 2.5")
+    .optional(),
   /**
    * Self-serve: the platform site where customers create academies, e.g.
    * enaibler.app. Development defaults to plain localhost. Unset in

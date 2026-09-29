@@ -15,6 +15,7 @@ import {
 
 import type { OutlineRecord } from "@/core/authoring/outline";
 import type { CoverageBasis, SourceCoverageEntry } from "@/core/authoring/source-coverage";
+import type { TimedText } from "@/core/authoring/transcript";
 import { createdAt, tenantIsolation, updatedAt } from "@/db/schema/_shared";
 import { user } from "@/db/schema/auth";
 import { courses } from "@/db/schema/catalog";
@@ -65,6 +66,8 @@ export const sources = pgTable(
     fileId: uuid("file_id"),
     url: text("url"),
     transcript: jsonb("transcript").$type<TranscriptSegment[]>(),
+    /** Recordings: Whisper's own timed segments, which a re-live's captions are made from. */
+    segments: jsonb("segments").$type<TimedText[]>(),
     /** Plain text of documents, web pages and interviews (recordings: the transcript). */
     content: text("content"),
     /** Watching sources for changes (brief §7, auto-update): hash of the last content read. */

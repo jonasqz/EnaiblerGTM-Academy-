@@ -359,11 +359,14 @@ export async function saveLessonAction(_: FormState, formData: FormData): Promis
   const criterionIds = formData
     .getAll("criteria")
     .filter((value): value is string => typeof value === "string" && known.has(value));
+  // The editor sends its video choice ("" for none); a form without the field leaves it as it is.
+  const mediaAssetId = formData.has("mediaAssetId") ? text(formData, "mediaAssetId") : null;
   const result = await updateLesson(getDb(), tenant.id, lessonId, {
     title,
     markdown,
     criterionIds,
     questions,
+    mediaAssetIds: mediaAssetId === null ? undefined : mediaAssetId ? [mediaAssetId] : [],
     userId: viewer.userId,
   });
   revalidatePath(`/studio/courses/${editor.course.id}`, "layout");

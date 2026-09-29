@@ -43,6 +43,9 @@ export default async function StudioLayout({ children }: LayoutProps<"/studio">)
     ...(can(roles, "courses.view")
       ? [{ icon: "courses", href: "/studio/courses", label: t.t("common.nav.courses") } as const]
       : []),
+    ...(can(roles, "courses.edit")
+      ? [{ icon: "videos", href: "/studio/videos", label: t.t("media.nav") } as const]
+      : []),
     // Like cohorts: nothing to manage until the academy turns paths on (Settings → Academy).
     ...(tenant.settings.features.paths && can(roles, "courses.edit")
       ? [{ icon: "paths", href: "/studio/paths", label: t.t("common.nav.paths") } as const]

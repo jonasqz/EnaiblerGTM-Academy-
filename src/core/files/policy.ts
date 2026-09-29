@@ -17,6 +17,7 @@ export const FILE_PURPOSES = [
   "path_visual",
   "showcase",
   "export",
+  "video",
 ] as const;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -136,6 +137,15 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     access: "owner",
     area: "exports",
     ownerPrefix: true,
+  },
+  // Originals of the media library's videos: learners watch the HLS renditions made from them.
+  video: {
+    families: ["video"],
+    mimes: ["video/mp4", "video/quicktime", "video/webm"],
+    maxBytes: 4096 * MB,
+    access: "studio",
+    area: "media",
+    ownerPrefix: false,
   },
 };
 

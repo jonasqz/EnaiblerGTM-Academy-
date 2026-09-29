@@ -37,15 +37,18 @@ export async function POST(request: Request): Promise<Response> {
   if (!session) return json({ error: "sign_in" }, 401);
   if (!storageConfigured()) return json({ error: "storage_unavailable" }, 503);
 
-  const grant = await authorizeUpload(session, purpose, params);
-  if ("error" in grant) return json({ error: grant.error }, grant.status);
-  const studio = grant.status === "attached";
+  const authorized = await authorizeUpload(session, purpose, params);
+  if ("error" in authorized) return json({ error: authorized.error }, authorized.status);
+  const { quotaLimited, ...grant } = authorized;
+  // Over the academy's video storage, "too large" means "no room left".
+  const tooLarge = quotaLimited ? "storage_quota" : "too_large";
+  const studio = grant.status === "attached" || purpose === "video";
   if (!rateLimit(`upload:${tenant.id}:${session.viewer.userId}`, studio ? 300 : 60, HOUR)) {
     return json({ error: "rate_limited" }, 429);
   }
   const declared = Number(request.headers.get("content-length") ?? "");
   if (grant.maxBytes && Number.isFinite(declared) && declared > grant.maxBytes) {
-    return json({ error: "too_large" }, 413);
+    return json({ error: tooLarge }, 413);
   }
   if (!request.body) return json({ error: "empty" }, 400);
 
@@ -70,7 +73,8 @@ export async function POST(request: Request): Promise<Response> {
     );
   } catch (error) {
     if (error instanceof UploadRejected) {
-      return json({ error: error.issue, detail: error.message }, STATUS[error.issue]);
+      const issue = error.issue === "too_large" ? tooLarge : error.issue;
+      return json({ error: issue, detail: error.message }, STATUS[error.issue]);
     }
     console.error("[uploads] storing a file failed", error);
     return json({ error: "storage_failed" }, 502);

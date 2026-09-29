@@ -109,7 +109,7 @@ export async function updateSource(
   db: Database,
   tenantId: string,
   sourceId: string,
-  patch: Partial<Pick<Source, "status" | "error" | "transcript" | "title">>,
+  patch: Partial<Pick<Source, "status" | "error" | "transcript" | "segments" | "title">>,
 ): Promise<void> {
   await withTenant(db, tenantId, (tx) =>
     tx.update(sources).set(patch).where(eq(sources.id, sourceId)),

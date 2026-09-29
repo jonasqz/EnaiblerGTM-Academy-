@@ -1,6 +1,15 @@
 "use client";
 
-import { Circle, CircleCheck, Columns2, Eye, ImagePlus, PencilLine } from "lucide-react";
+import {
+  Circle,
+  CircleCheck,
+  Columns2,
+  ExternalLink,
+  Eye,
+  Film,
+  ImagePlus,
+  PencilLine,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { saveLessonAction, type FormState } from "@/app/studio/actions";
@@ -60,6 +69,8 @@ export interface LessonEditorProps {
   checkLabels: KnowledgeCheckLabels;
   /** Whether the AI can draft knowledge-check questions (LLM_BASE_URL). */
   aiAvailable: boolean;
+  /** The media library's video the lesson shows ("" for none), and the videos to pick from. */
+  video: { selected: string; options: Array<{ id: string; title: string; ready: boolean }> };
 }
 
 export function LessonEditor(props: LessonEditorProps) {
@@ -70,11 +81,13 @@ export function LessonEditor(props: LessonEditorProps) {
   const [questions, setQuestions] = useState<CheckQuestion[]>(props.questions);
   // Questions the AI drafted: marked until a save keeps them.
   const [drafted, setDrafted] = useState<ReadonlySet<string>>(new Set());
+  const [video, setVideo] = useState(props.video.selected);
   const [saved, setSaved] = useState({
     title: props.title,
     markdown: props.markdown,
     selected: props.selected,
     questions: cleanCheckQuestions(props.questions),
+    video: props.video.selected,
   });
   const [mode, setMode] = useState<Mode>("write");
   const formRef = useRef<HTMLFormElement>(null);
@@ -116,6 +129,7 @@ export function LessonEditor(props: LessonEditorProps) {
         markdown: String(formData.get("markdown") ?? ""),
         selected: formData.getAll("criteria").map(String),
         questions: JSON.parse(String(formData.get("questions") ?? "[]")) as CheckQuestion[],
+        video: String(formData.get("mediaAssetId") ?? ""),
       });
     }
     return result;
@@ -128,7 +142,9 @@ export function LessonEditor(props: LessonEditorProps) {
     title.trim() !== saved.title ||
     markdown !== saved.markdown ||
     [...selected].sort().join() !== [...saved.selected].sort().join() ||
-    !sameJson(cleanQuestions, saved.questions);
+    !sameJson(cleanQuestions, saved.questions) ||
+    video !== saved.video;
+  const videoTitle = props.video.options.find((option) => option.id === video)?.title;
   const words = markdown.trim() ? markdown.trim().split(/\s+/).length : 0;
   const findings = lintWording(`${title}\n${markdown}`, "lesson_text");
   const savedIds = new Set(saved.questions.map((question) => question.id));
@@ -190,6 +206,38 @@ export function LessonEditor(props: LessonEditorProps) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
+      </div>
+
+      <div className="field">
+        <label htmlFor="lesson-video" className="label">
+          {t.t("media.lesson.label")}
+        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            id="lesson-video"
+            name="mediaAssetId"
+            className="select w-auto max-w-full min-w-60"
+            value={video}
+            onChange={(event) => setVideo(event.target.value)}
+          >
+            <option value="">{t.t("media.lesson.none")}</option>
+            {props.video.options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.ready ? option.title : t.t("media.lesson.pending", { title: option.title })}
+              </option>
+            ))}
+          </select>
+          {/* A new tab: the lesson may have unsaved changes. */}
+          <a
+            href="/studio/videos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-semibold underline"
+          >
+            {t.t("media.lesson.manage")} <ExternalLink aria-hidden size={14} />
+          </a>
+        </div>
+        <p className="hint">{t.t("media.lesson.hint")}</p>
       </div>
 
       <div className="space-y-2">
@@ -284,6 +332,12 @@ export function LessonEditor(props: LessonEditorProps) {
                 <h2 className="mb-4 font-display text-2xl leading-tight">
                   {title || t.t("common.actions.untitledLesson")}
                 </h2>
+                {videoTitle && (
+                  <p className="mb-4 flex items-center gap-2 rounded-control bg-subtle p-3 text-sm text-muted">
+                    <Film aria-hidden size={16} />
+                    {t.t("media.lesson.previewNote", { title: videoTitle })}
+                  </p>
+                )}
                 {markdown.trim() ? (
                   <Markdown source={markdown} />
                 ) : (

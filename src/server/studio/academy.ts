@@ -47,6 +47,8 @@ export interface AcademySettingsInput {
   ctaLabel?: LocalizedText;
   /** Modules on or off; unchanged when omitted. */
   features?: Features;
+  /** When a video counts as watched (percent played); unchanged when omitted. */
+  videoWatchedPercent?: number;
 }
 
 /** Keeps a manifest's sender name and address; only the reply address is set here. */
@@ -108,6 +110,12 @@ export async function updateAcademySettings(
         label: input.ctaLabel ?? row.config.verification_cta.label,
       },
       features: input.features ?? row.config.features,
+      video: {
+        ...row.config.video,
+        ...(input.videoWatchedPercent === undefined
+          ? {}
+          : { watched_percent: input.videoWatchedPercent }),
+      },
     }),
   );
   if (!validation.ok) return { ok: false, errors: validation.errors };

@@ -125,8 +125,20 @@ describe("manifest validation", () => {
       showcase: false,
     });
     expect(result.manifest.tenant.anonymity_mode).toBe(true);
+    expect(result.manifest.tenant.video).toEqual({ watched_percent: 80 });
     expect(result.manifest.theme).toBeUndefined();
     expect(result.manifest.paths).toEqual([]);
+  });
+
+  it("lets the academy set when a video counts as watched, within reason", () => {
+    const result = validateTenantManifest(baseManifest({ video: { watched_percent: 95 } }));
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(result.manifest.tenant.video.watched_percent).toBe(95);
+    for (const percent of [5, 101, 80.5]) {
+      expect(errorsOf(baseManifest({ video: { watched_percent: percent } })).join()).toMatch(
+        /^tenant\.video\.watched_percent: /,
+      );
+    }
   });
 
   it("requires default_locale to be one of the locales", () => {

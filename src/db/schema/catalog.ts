@@ -171,6 +171,8 @@ export type LessonBlock =
   | { type: "markdown"; markdown: string }
   | { type: "image"; key: string; alt: string; caption?: string }
   | { type: "video"; key: string; caption?: string; poster?: string }
+  /** A video of the academy's media library (media_assets), with the re-live player. */
+  | { type: "media"; assetId: string }
   /** Knowledge check at the end of the lesson: practice, checked in the browser. */
   | { type: "check"; questions: CheckQuestion[] };
 

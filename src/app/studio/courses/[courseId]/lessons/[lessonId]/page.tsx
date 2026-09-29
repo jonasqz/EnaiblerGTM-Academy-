@@ -23,7 +23,8 @@ import { rubricSchema } from "@/core/review/rubric";
 import { themeToCssVariables } from "@/core/theme/css";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
-import { loadLessonEditor, markdownOf } from "@/server/studio/lessons";
+import { listVideos } from "@/server/media/library";
+import { loadLessonEditor, markdownOf, mediaAssetIdsOf } from "@/server/studio/lessons";
 import { getStudioText } from "@/server/studio-text";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -54,6 +55,7 @@ export default async function LessonEditorPage({
     (language) => !data.translations.some((row) => row.locale === language),
   );
   const changedSource = data.sources.find((row) => row.id === changedSourceOf(lesson.flagReason));
+  const videos = await listVideos(getDb(), tenant.id);
   const t = await getStudioText();
   // The source's link sits inside the sentence, wherever the language puts it.
   const [changedBefore, changedAfter] = lesson.flaggedAt
@@ -136,6 +138,20 @@ export default async function LessonEditorPage({
           academyTheme={themeToCssVariables(tenant.theme)}
           checkLabels={knowledgeCheckLabels(tenantTranslator(tenant, locale))}
           aiAvailable={Boolean(process.env.LLM_BASE_URL?.trim())}
+          video={{
+            selected: mediaAssetIdsOf(lesson.blocks)[0] ?? "",
+            // A failed video is no choice, unless the lesson already shows it.
+            options: videos
+              .filter(
+                (video) =>
+                  video.status !== "failed" || mediaAssetIdsOf(lesson.blocks).includes(video.id),
+              )
+              .map((video) => ({
+                id: video.id,
+                title: video.title,
+                ready: video.status === "ready",
+              })),
+          }}
           reference={
             reference && isLocale(reference.locale)
               ? {

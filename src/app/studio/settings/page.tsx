@@ -19,6 +19,7 @@ export default async function AcademySettingsPage() {
       replyTo={settings.email_sender?.reply_to ?? ""}
       legalLinks={settings.legal_links}
       features={settings.features}
+      videoWatchedPercent={settings.video.watched_percent}
     />
   );
 }
