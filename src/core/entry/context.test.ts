@@ -90,6 +90,10 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/courses/validation-lab/learn/intro")).toBe(
       "/courses/validation-lab/learn/intro",
     );
+    // A webinar form's magic link comes back to confirm the seat.
+    expect(safeNextPath("/webinars/pricing-live/confirm?token=abc_DEF-123")).toBe(
+      "/webinars/pricing-live/confirm?token=abc_DEF-123",
+    );
   });
 
   it("drops everything else", async () => {

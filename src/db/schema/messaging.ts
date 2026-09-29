@@ -66,6 +66,8 @@ export interface WebinarMailPayload {
   registrationId: string;
   step: WebinarMailStep;
   plannedFor?: string;
+  /** A cancelled registration that had a seat: only then is there a calendar entry to remove. */
+  hadSeat?: boolean;
 }
 
 export type NotificationPayload =

@@ -54,3 +54,41 @@ export function reminderSchedule(
 export function isReminderStep(step: string): step is ReminderStep {
   return (REMINDER_STEPS as readonly string[]).includes(step);
 }
+
+/**
+ * Whether a queued mail still says something true when its time comes, or
+ * why it stays unsent: the person cancelled, moved up from the waitlist,
+ * the webinar moved (it re-planned its own reminders) or was cancelled.
+ */
+export function webinarMailDue(
+  step: WebinarMailStep,
+  state: {
+    registration: "pending" | "registered" | "waitlist" | "cancelled";
+    webinar: "draft" | "published" | "cancelled";
+    /** The start a reminder was planned for, and the start now. */
+    plannedFor?: string;
+    startsAt: Date;
+  },
+): "send" | "superseded" | "rescheduled" | "webinar_cancelled" {
+  const seated = state.registration === "registered";
+  const confirmed = seated || state.registration === "waitlist";
+  if (step === "cancelled") {
+    return state.webinar === "cancelled" && confirmed ? "send" : "superseded";
+  }
+  if (step === "registration_cancelled") {
+    return state.registration === "cancelled" ? "send" : "superseded";
+  }
+  if (state.webinar !== "published") return "webinar_cancelled";
+  switch (step) {
+    case "confirmation":
+    case "promoted":
+      return seated ? "send" : "superseded";
+    case "waitlist":
+      return state.registration === "waitlist" ? "send" : "superseded";
+    case "rescheduled":
+      return confirmed ? "send" : "superseded";
+    default:
+      if (!seated) return "superseded";
+      return state.plannedFor === state.startsAt.toISOString() ? "send" : "rescheduled";
+  }
+}

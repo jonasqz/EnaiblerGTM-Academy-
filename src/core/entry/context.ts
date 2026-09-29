@@ -136,7 +136,7 @@ export function entryEventProperties(
   return props;
 }
 
-const NEXT_SECTIONS = ["/studio", "/me", "/courses", "/paths", "/join"];
+const NEXT_SECTIONS = ["/studio", "/me", "/courses", "/paths", "/join", "/webinars"];
 
 /**
  * Where to go after sign-in when it was not an entry link (e.g. /studio).

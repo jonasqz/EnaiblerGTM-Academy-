@@ -25,7 +25,12 @@ import {
   webinarPhase,
 } from "@/core/webinars/phase";
 import { givenConsents, isConfirmed } from "@/core/webinars/registration";
-import { isReminderStep, reminderSchedule, reminderTime } from "@/core/webinars/reminders";
+import {
+  isReminderStep,
+  reminderSchedule,
+  reminderTime,
+  webinarMailDue,
+} from "@/core/webinars/reminders";
 import { joinUrlIssue, linkAdapter, OFFERED_TOOLS, toolAdapter } from "@/core/webinars/tools";
 
 const start = new Date("2026-10-06T16:00:00Z");
@@ -168,6 +173,44 @@ describe("reminder schedule", () => {
     expect(reminderTime("starting", webinar)).toEqual(start);
     expect(isReminderStep("starting")).toBe(true);
     expect(isReminderStep("confirmation")).toBe(false);
+  });
+});
+
+describe("queued webinar mail", () => {
+  const state = {
+    registration: "registered" as const,
+    webinar: "published" as const,
+    plannedFor: start.toISOString(),
+    startsAt: start,
+  };
+
+  it("goes out while it is still true", () => {
+    expect(webinarMailDue("confirmation", state)).toBe("send");
+    expect(webinarMailDue("reminder_1h", state)).toBe("send");
+    expect(webinarMailDue("waitlist", { ...state, registration: "waitlist" })).toBe("send");
+    expect(webinarMailDue("rescheduled", { ...state, registration: "waitlist" })).toBe("send");
+    expect(
+      webinarMailDue("cancelled", { ...state, webinar: "cancelled", registration: "waitlist" }),
+    ).toBe("send");
+    expect(webinarMailDue("registration_cancelled", { ...state, registration: "cancelled" })).toBe(
+      "send",
+    );
+  });
+
+  it("stays unsent once the registration or the webinar changed", () => {
+    expect(webinarMailDue("confirmation", { ...state, registration: "cancelled" })).toBe(
+      "superseded",
+    );
+    // Moved up before the waitlist mail went out: the seat mail says it all.
+    expect(webinarMailDue("waitlist", state)).toBe("superseded");
+    expect(webinarMailDue("reminder_24h", { ...state, plannedFor: at(-60).toISOString() })).toBe(
+      "rescheduled",
+    );
+    expect(webinarMailDue("starting", { ...state, webinar: "cancelled" })).toBe(
+      "webinar_cancelled",
+    );
+    expect(webinarMailDue("followup", { ...state, registration: "waitlist" })).toBe("superseded");
+    expect(webinarMailDue("registration_cancelled", state)).toBe("superseded");
   });
 });
 

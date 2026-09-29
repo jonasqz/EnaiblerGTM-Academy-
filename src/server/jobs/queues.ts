@@ -38,7 +38,7 @@ export interface JobPayloads {
   "domains.check": Record<string, never>;
   /** Every minute, for every academy: webhook deliveries that are due (see server/webhooks.ts). */
   "webhooks.dispatch": Record<string, never>;
-  /** Daily, for every academy: delivery logs and sent mail past their retention. */
+  /** Daily, for every academy: delivery logs, sent mail and unconfirmed webinar forms past their time. */
   "housekeeping.run": Record<string, never>;
   /** Daily, for every academy: web page sources read again; changes flag lessons (brief §7). */
   "sources.recheck": Record<string, never>;
