@@ -11,6 +11,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { viewersPerMinute } from "@/core/media/retention";
+import { isHlsPath } from "@/core/media/transcode";
 import type { TenantContext } from "@/core/tenant/context";
 import { validateTenantManifest } from "@/core/tenant/manifest";
 import {
@@ -525,10 +526,13 @@ describe.skipIf(!hasStorage || !hasFfmpeg)("media library: transcoding and capti
       await getObjectBytes(tenant.id, mediaKey(tenant.id, created.id, run, "360p/index.m3u8")),
     );
     expect(playlist).toContain("#EXT-X-PLAYLIST-TYPE:VOD");
-    expect(playlist).toContain("seg-00000.ts");
+    expect(playlist).toContain('#EXT-X-MAP:URI="init.mp4"');
+    expect(playlist).toContain("seg-00000.m4s");
     const keys = await keysOf(created.id);
     expect(keys.some((key) => key.endsWith(`${run}/poster.jpg`))).toBe(true);
-    expect(keys.some((key) => key.endsWith(`${run}/360p/seg-00000.ts`))).toBe(true);
+    expect(keys.some((key) => key.endsWith(`${run}/360p/seg-00000.m4s`))).toBe(true);
+    // Every file the transcode writes is one the media route serves.
+    for (const key of keys) expect(isHlsPath(key.split(`/${run}/`)[1] ?? ""), key).toBe(true);
 
     // pg-boss retries: the second run takes over and the first one's files go.
     await transcodeVideo(dbs.app.db, tenant.id, created.id, { finalAttempt: false });

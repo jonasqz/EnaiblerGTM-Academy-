@@ -89,6 +89,8 @@ describe("renditions", () => {
     expect(line).toContain("-b:v:1 2800k");
     expect(line).toContain("-force_key_frames expr:gte(t,n_forced*6)");
     expect(line).toContain("-hls_time 6");
+    expect(line).toContain("-hls_segment_type fmp4");
+    expect(line).toContain("/tmp/out/%v/seg-%05d.m4s");
     expect(args[args.indexOf("-var_stream_map") + 1]).toBe("v:0,a:0,name:360p v:1,a:1,name:720p");
     expect(args.at(-1)).toBe("/tmp/out/%v/index.m3u8");
 
@@ -111,14 +113,22 @@ describe("renditions", () => {
 
 describe("serving", () => {
   it("serves only the files a transcode writes", () => {
-    for (const path of ["master.m3u8", "poster.jpg", "720p/index.m3u8", "1080p/seg-00012.ts"]) {
+    for (const path of [
+      "master.m3u8",
+      "poster.jpg",
+      "720p/index.m3u8",
+      "720p/init_1.mp4",
+      "360p/init.mp4",
+      "1080p/seg-00012.m4s",
+    ]) {
       expect(isHlsPath(path), path).toBe(true);
     }
-    for (const path of ["../master.m3u8", "720p/../../x", "720p/seg-1.ts", "x.mp4", ""]) {
+    for (const path of ["../master.m3u8", "720p/../../x", "720p/seg-1.m4s", "x.mp4", ""]) {
       expect(isHlsPath(path), path).toBe(false);
     }
     expect(hlsContentType("720p/index.m3u8")).toBe("application/vnd.apple.mpegurl");
-    expect(hlsContentType("720p/seg-00001.ts")).toBe("video/mp2t");
+    expect(hlsContentType("720p/seg-00001.m4s")).toBe("video/iso.segment");
+    expect(hlsContentType("720p/init_1.mp4")).toBe("video/mp4");
     expect(hlsContentType("poster.jpg")).toBe("image/jpeg");
     expect(isRunId("rk3j2h1g0f")).toBe(true);
     expect(isRunId("../r1")).toBe(false);

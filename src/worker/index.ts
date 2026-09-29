@@ -298,9 +298,12 @@ await boss.work(
   { batchSize: 1, localConcurrency: 1 },
   reported(QUEUES.mediaTranscode, async (jobs: Job<JobPayloads["media.transcode"]>[]) => {
     for (const job of jobs) {
+      const started = Date.now();
       await transcodeVideo(db, job.data.tenantId, job.data.assetId, {
         finalAttempt: finalTry(job, QUEUES.mediaTranscode),
       });
+      // Failures are on the video (status and code); this is for how long videos take.
+      log.info("video transcode done", { assetId: job.data.assetId, ms: Date.now() - started });
     }
   }),
 );

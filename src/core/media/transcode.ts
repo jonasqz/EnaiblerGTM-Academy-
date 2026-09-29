@@ -2,7 +2,9 @@
  * Uploaded re-lives become HLS (webinar brief §6): renditions up to the
  * source's own size, six-second segments, one master playlist, a poster
  * frame. The worker runs ffmpeg with the arguments built here; nothing is
- * scaled up, so a 720p recording never pretends to be 1080p.
+ * scaled up, so a 720p recording never pretends to be 1080p. Segments are
+ * fragmented MP4 (H.264 and AAC): browsers with Media Source Extensions play
+ * them without converting each one first, and Safari plays them natively.
  */
 
 export interface VideoProbe {
@@ -144,8 +146,13 @@ export function transcodeArgs(input: {
     "vod",
     "-hls_flags",
     "independent_segments",
+    "-hls_segment_type",
+    "fmp4",
+    // Written next to each rendition's playlist: init_<n>.mp4, or init.mp4 when there is one.
+    "-hls_fmp4_init_filename",
+    "init.mp4",
     "-hls_segment_filename",
-    `${input.outputDir}/%v/seg-%05d.ts`,
+    `${input.outputDir}/%v/seg-%05d.m4s`,
     "-master_pl_name",
     MASTER_PLAYLIST,
     "-var_stream_map",
@@ -163,7 +170,8 @@ export function posterTime(durationSec: number): number {
 }
 
 /** Files of a transcoded video as the media route serves them. */
-const HLS_PATH = /^(?:master\.m3u8|poster\.jpg|\d{3,4}p\/(?:index\.m3u8|seg-\d{5}\.ts))$/;
+const HLS_PATH =
+  /^(?:master\.m3u8|poster\.jpg|\d{3,4}p\/(?:index\.m3u8|init(?:_\d{1,2})?\.mp4|seg-\d{5}\.m4s))$/;
 
 export function isHlsPath(path: string): boolean {
   return HLS_PATH.test(path);
@@ -171,7 +179,8 @@ export function isHlsPath(path: string): boolean {
 
 export function hlsContentType(path: string): string {
   if (path.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
-  if (path.endsWith(".ts")) return "video/mp2t";
+  if (path.endsWith(".m4s")) return "video/iso.segment";
+  if (path.endsWith(".mp4")) return "video/mp4";
   if (path.endsWith(".jpg")) return "image/jpeg";
   if (path.endsWith(".vtt")) return "text/vtt; charset=utf-8";
   return "application/octet-stream";
