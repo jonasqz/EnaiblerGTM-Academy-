@@ -7,11 +7,14 @@ import { z } from "zod";
 import type { FormState } from "@/app/studio/actions";
 import { text } from "@/app/studio/form-data";
 import { defaultQuestions, interviewText } from "@/core/authoring/interview";
+import { parseQaExport, qaText } from "@/core/authoring/qa";
 import { isLocale, localize, type Locale } from "@/core/i18n/locales";
+import { jobErrorText } from "@/core/i18n/studio/helpers";
 import { rubricSchema } from "@/core/review/rubric";
 import { AiAllowanceUsedUp } from "@/core/usage/allowance";
 import { getDb } from "@/db/client";
 import { requireCapability } from "@/server/access";
+import { draftFaqLesson } from "@/server/authoring/faq";
 import { suggestInterviewQuestions } from "@/server/authoring/interview";
 import { requestLessonDraft } from "@/server/authoring/lesson-drafting";
 import { authoringModel, meteredModel } from "@/server/authoring/model";
@@ -88,6 +91,25 @@ export async function addSourceAction(_: FormState, formData: FormData): Promise
       },
       enqueue,
     );
+  } else if (kind === "qa") {
+    // Parsed here, so names and addresses in the export are never stored.
+    const pairs = parseQaExport(text(formData, "qa"));
+    if (pairs.length === 0) return { errors: [t.t("drafts.qa.empty")] };
+    await createSource(
+      getDb(),
+      tenant.id,
+      {
+        courseId,
+        kind: "qa",
+        title: text(formData, "title") || t.t("drafts.qa.defaultTitle"),
+        locale: sourceLocale,
+        content: qaText(pairs),
+        createdBy: viewer.userId,
+      },
+      enqueue,
+    );
+    revalidatePath(`/studio/courses/${courseId}/sources`);
+    return { ok: true, message: t.n("drafts.qa.added", pairs.length) };
   } else {
     return { errors: [t.t("lessons.addSource.chooseKind")] };
   }
@@ -98,6 +120,47 @@ export async function addSourceAction(_: FormState, formData: FormData): Promise
       kind === "recording"
         ? t.t("lessons.addSource.recordingAdded")
         : t.t("lessons.addSource.added"),
+  };
+}
+
+export type FaqState =
+  | { status: "done"; lessonId: string; open: string[]; notes: string[]; fallback: string | null }
+  | { status: "error"; message: string };
+
+/** An FAQ lesson from a live Q&A source (core/authoring/faq); the lesson opens for editing. */
+export async function draftFaqAction(formData: FormData): Promise<FaqState> {
+  const { tenant, viewer, courseId, languages } = await courseFor(formData);
+  const t = await getStudioText();
+  const sourceId = z.uuid().parse(text(formData, "sourceId"));
+  const locale = text(formData, "locale");
+  if (!isLocale(locale) || !languages.includes(locale)) throw new Error("Unknown course language");
+  const source = await loadSource(getDb(), tenant.id, sourceId);
+  if (source?.courseId !== courseId || source.kind !== "qa") {
+    return { status: "error", message: jobErrorText(t, "file_missing")! };
+  }
+  const model = authoringModel();
+  // Without the AI nothing is spent: only drafts that call the model count against the hour.
+  if (model && !rateLimit(`faq-draft:${tenant.id}`, 10, HOUR)) {
+    return { status: "error", message: t.t("drafts.faq.rateLimited") };
+  }
+  const result = await draftFaqLesson(
+    getDb(),
+    tenant.id,
+    { sourceId, locale, requestedBy: viewer.userId },
+    model,
+  );
+  if (!result.ok) return { status: "error", message: jobErrorText(t, result.error)! };
+  revalidatePath(`/studio/courses/${courseId}`, "layout");
+  return {
+    status: "done",
+    lessonId: result.lessonId,
+    open: result.open,
+    notes: result.notes,
+    // Without a gateway the panel already says the questions go in as asked.
+    fallback:
+      result.fallback && result.fallback !== "gateway_missing"
+        ? jobErrorText(t, result.fallback)
+        : null,
   };
 }
 

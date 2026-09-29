@@ -3,6 +3,7 @@ import {
   Globe,
   Library,
   MessageSquareQuote,
+  MessagesSquare,
   RefreshCw,
   Trash,
   Video,
@@ -36,7 +37,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.t("lessons.sources.title") };
 }
 
-const ICONS = { recording: Video, document: FileText, url: Globe, interview: MessageSquareQuote };
+const ICONS = {
+  recording: Video,
+  document: FileText,
+  url: Globe,
+  interview: MessageSquareQuote,
+  qa: MessagesSquare,
+};
 
 const CHECKED: Record<
   string,
@@ -54,6 +61,7 @@ const KIND_LABELS = {
   document: "lessons.sources.kind.document",
   url: "lessons.sources.kind.url",
   interview: "lessons.sources.kind.interview",
+  qa: "lessons.sources.kind.qa",
 } satisfies Record<keyof typeof ICONS, StudioKey>;
 
 export default async function SourcesPage({
@@ -127,8 +135,15 @@ export default async function SourcesPage({
                         {duration ? ` · ${formatClock(duration)}` : ""}
                       </span>
                     )}
-                    {row.kind !== "recording" && row.contentLength > 0 && (
-                      <span>{t.n("lessons.sources.words", Math.round(row.contentLength / 6))}</span>
+                    {row.kind === "qa" ? (
+                      <span>{t.n("drafts.qa.count", row.questions)}</span>
+                    ) : (
+                      row.kind !== "recording" &&
+                      row.contentLength > 0 && (
+                        <span>
+                          {t.n("lessons.sources.words", Math.round(row.contentLength / 6))}
+                        </span>
+                      )
                     )}
                     {row.kind === "url" && row.checkedAt && (
                       <span>

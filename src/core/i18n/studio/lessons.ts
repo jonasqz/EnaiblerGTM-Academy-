@@ -129,6 +129,7 @@ export const en = {
   "lessons.sources.kind.document": "Document",
   "lessons.sources.kind.url": "Web page",
   "lessons.sources.kind.interview": "Interview",
+  "lessons.sources.kind.qa": "Live Q&A",
   "lessons.sources.empty": "No sources yet",
   "lessons.sources.emptyBody":
     "Lessons can be drafted without sources too, but they will be generic. A ten-minute recording of you doing the work is the best source.",
@@ -365,6 +366,7 @@ export const de: Record<keyof typeof en, string> = {
   "lessons.sources.kind.document": "Dokument",
   "lessons.sources.kind.url": "Webseite",
   "lessons.sources.kind.interview": "Interview",
+  "lessons.sources.kind.qa": "Live-Fragerunde",
   "lessons.sources.empty": "Noch keine Quellen",
   "lessons.sources.emptyBody":
     "Lektionen lassen sich auch ohne Quellen entwerfen, bleiben dann aber allgemein. Die beste Quelle ist eine zehnminütige Aufnahme, in der du die Arbeit selbst machst.",

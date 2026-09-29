@@ -160,6 +160,11 @@ export const en = {
   "common.jobError.read_failed": "Reading the source failed.",
   "common.jobError.ai_allowance_used_up":
     "Your academy's AI allowance for the month was used up. Try again once it starts again on the 1st.",
+  "common.jobError.no_sources": "Add a source first, and wait until it has been read.",
+  "common.jobError.no_questions": "No questions were found in it.",
+  "common.jobError.no_answers":
+    "None of the questions has an answer yet. Add answers to the Q&A, or let the AI answer from your sources.",
+  "common.jobError.no_lesson_text": "Write the lesson first: the questions come from its text.",
 
   // Publish checklist (core/courses/publish-check.ts)
   "common.publish.no_languages": "Choose at least one course language.",
@@ -494,6 +499,12 @@ export const de: Record<keyof typeof en, string> = {
   "common.jobError.read_failed": "Die Quelle konnte nicht gelesen werden.",
   "common.jobError.ai_allowance_used_up":
     "Das KI-Kontingent deiner Akademie für den Monat war aufgebraucht. Versuch es wieder, sobald es am 1. neu beginnt.",
+  "common.jobError.no_sources": "Füge zuerst eine Quelle hinzu und warte, bis sie gelesen ist.",
+  "common.jobError.no_questions": "Darin wurden keine Fragen gefunden.",
+  "common.jobError.no_answers":
+    "Noch keine der Fragen hat eine Antwort. Ergänze Antworten in der Fragerunde oder lass die KI aus deinen Quellen antworten.",
+  "common.jobError.no_lesson_text":
+    "Schreib zuerst die Lektion: Die Fragen entstehen aus ihrem Text.",
 
   "common.publish.no_languages": "Wähle mindestens eine Kurssprache.",
   "common.publish.missing_title": "Ergänze den Kurstitel auf {language}.",

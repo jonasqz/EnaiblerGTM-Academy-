@@ -25,7 +25,14 @@ import { tenants } from "@/db/schema/tenancy";
  */
 export const EMBEDDING_DIMENSIONS = 1024;
 
-export const sourceKind = pgEnum("source_kind", ["recording", "document", "url", "interview"]);
+/** `qa`: questions (and answers) from a live Q&A, pasted or exported (core/authoring/qa). */
+export const sourceKind = pgEnum("source_kind", [
+  "recording",
+  "document",
+  "url",
+  "interview",
+  "qa",
+]);
 export const sourceStatus = pgEnum("source_status", ["pending", "processing", "ready", "failed"]);
 
 /** One topic of a recording: its time span, what was said, and a screenshot of that step. */
@@ -38,7 +45,7 @@ export interface TranscriptSegment {
   keyframeFileId?: string;
 }
 
-/** Authoring sources (brief §7): recordings, documents, URLs and expert interviews. */
+/** Authoring sources (brief §7): recordings, documents, URLs, expert interviews and live Q&As. */
 export const sources = pgTable(
   "sources",
   {
