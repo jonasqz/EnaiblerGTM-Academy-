@@ -3,10 +3,12 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ErrorTextProvider } from "@/components/ui/error-view";
 import { can } from "@/core/access/roles";
+import { getDb } from "@/db/client";
 import { getSession } from "@/server/access";
 import { pageAnalytics } from "@/server/analytics";
 import { platformOrigin } from "@/server/platform/config";
 import { getOrigin, getTenant, getTranslator } from "@/server/request";
+import { hasPublicWebinars } from "@/server/webinars/public";
 
 /** Learner chrome: the tenant's brand in front, "Powered by enaibler" at the bottom. */
 export default async function AcademyLayout({ children }: LayoutProps<"/">) {
@@ -15,6 +17,7 @@ export default async function AcademyLayout({ children }: LayoutProps<"/">) {
   const session = await getSession();
   const analytics = pageAnalytics();
   const platform = platformOrigin();
+  const webinars = await hasPublicWebinars(getDb(), tenant.id);
   return (
     <>
       <SiteHeader
@@ -24,6 +27,7 @@ export default async function AcademyLayout({ children }: LayoutProps<"/">) {
         locales={tenant.settings.locales}
         signedIn={session !== null}
         showStudio={session !== null && can(session.roles, "studio.view")}
+        webinars={webinars}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-12">
         <ErrorTextProvider

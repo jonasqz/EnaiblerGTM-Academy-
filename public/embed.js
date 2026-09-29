@@ -1,5 +1,5 @@
 /*
- * Path picker for your website. Put this where the picker should appear:
+ * The academy on your website. Put this where it should appear:
  *
  *   <script src="https://<your academy>/embed.js" data-lang="de"
  *     data-utm-source="website" data-title="Learning paths" async></script>
@@ -8,12 +8,16 @@
  * tall as its content. Nothing is stored in the visitor's browser; a choice
  * opens the academy in a new tab. Optional: data-utm-medium, -campaign,
  * -term, -content, and data-heading="off" to leave out the heading.
+ *
+ * With data-webinar="<webinar address>" it shows that webinar's
+ * registration form instead of the path picker.
  */
 (function () {
   var script = document.currentScript;
   if (!script || !script.src || !script.parentNode) return;
   var origin = new URL(script.src).origin;
   var data = script.dataset;
+  var webinar = data.webinar && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.webinar) ? data.webinar : "";
   var params = new URLSearchParams();
   if (data.lang) params.set("lang", data.lang);
   if (data.heading === "off") params.set("heading", "0");
@@ -23,8 +27,9 @@
   });
   var query = params.toString();
   var frame = document.createElement("iframe");
-  frame.src = origin + "/embed/paths" + (query ? "?" + query : "");
-  frame.title = data.title || "Learning paths";
+  var path = webinar ? "/embed/webinars/" + webinar : "/embed/paths";
+  frame.src = origin + path + (query ? "?" + query : "");
+  frame.title = data.title || (webinar ? "Webinar registration" : "Learning paths");
   frame.loading = "lazy";
   frame.setAttribute("style", "display:block;width:100%;height:420px;border:0;overflow:hidden");
   script.parentNode.insertBefore(frame, script);

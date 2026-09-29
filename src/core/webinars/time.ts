@@ -112,6 +112,15 @@ export function utcToZonedInput(instant: Date, timeZone: string): { date: string
 
 const INTL_LOCALE: Record<string, string> = { en: "en-GB", de: "de-DE" };
 
+/** "18:15": a time of day in a zone (the agenda's items). */
+export function formatClock(instant: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale] ?? locale, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(instant);
+}
+
 /**
  * "Tue, 6 Oct 2026, 18:00–19:00 CEST": the date and time of a webinar in one
  * zone, in the reader's language. Used on the landing page (the webinar's

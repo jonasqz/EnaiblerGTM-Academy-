@@ -107,16 +107,18 @@ export function entryQuery(context: EntryContext): string {
 /**
  * Context of the embedded path picker (brief §2, entry by embed): language
  * and utm_* from the embed code, the path or course from the learner's click.
- * Unless the embed code says otherwise, the visit counts as medium "embed".
+ * Unless the embed code says otherwise, the visit counts as medium "embed",
+ * with the widget as its content (the path picker or a webinar's form).
  */
 export function embedEntryContext(
   params: URLSearchParams,
   options: { tenantLocales: readonly Locale[] },
+  widget: "path-picker" | "webinar" = "path-picker",
 ): EntryContext {
   const { lang, utm } = parseEntryParams(params, options);
   return {
     ...(lang ? { lang } : {}),
-    utm: { medium: "embed", content: "path-picker", ...utm },
+    utm: { medium: "embed", content: widget, ...utm },
   };
 }
 

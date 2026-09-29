@@ -1,4 +1,14 @@
-import { Award, BookOpen, CircleCheck, Clock, Download, Globe, Lock, Mail } from "lucide-react";
+import {
+  Award,
+  BookOpen,
+  CalendarX,
+  CircleCheck,
+  Clock,
+  Download,
+  Globe,
+  Lock,
+  Mail,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -10,20 +20,24 @@ import {
   unsubscribeNewsAction,
 } from "@/app/(academy)/me/actions";
 import { setCredentialVisibility } from "@/app/(academy)/verify/[publicId]/actions";
+import { cancelRegistrationAction } from "@/app/(academy)/webinars/[slug]/actions";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { nextStepHref } from "@/core/courses/next-step";
 import { proofLine } from "@/core/credentials/proof";
 import { localize } from "@/core/i18n/locales";
 import { pathColor } from "@/core/theme/css";
+import { formatWebinarTime } from "@/core/webinars/time";
 import { getDb } from "@/db/client";
 import { requireViewer } from "@/server/access";
 import { loadMarketingConsent } from "@/server/consent";
 import { loadMe } from "@/server/profile";
 import { getTranslator } from "@/server/request";
+import { myWebinars } from "@/server/webinars/public";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslator();
@@ -34,9 +48,10 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const { news: newsNotice } = await searchParams;
   const { tenant, viewer } = await requireViewer("/me");
   const t = await getTranslator();
-  const [me, news] = await Promise.all([
+  const [me, news, webinars] = await Promise.all([
     loadMe(getDb(), tenant, viewer.userId),
     loadMarketingConsent(getDb(), tenant.id, viewer.userId),
+    myWebinars(getDb(), tenant.id, viewer.userId),
   ]);
   const fallback = [tenant.settings.default_locale];
   const academy = tenant.settings.author_display_name;
@@ -206,6 +221,69 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
           </ul>
         )}
       </section>
+
+      {webinars.length > 0 && (
+        <section id="webinars" className="scroll-mt-8 space-y-4" aria-labelledby="webinars-heading">
+          <h2 id="webinars-heading" className="font-display text-2xl">
+            {t.t("me.webinarsTitle")}
+          </h2>
+          <ul className="card-flat divide-y divide-line">
+            {webinars.map((webinar) => (
+              <li key={webinar.registrationId} className="flex flex-wrap items-center gap-4 p-4">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Link
+                    href={`/webinars/${webinar.slug}`}
+                    className="font-semibold hover:underline"
+                    lang={webinar.locale}
+                  >
+                    {webinar.title}
+                  </Link>
+                  <p className="text-sm text-muted">
+                    {formatWebinarTime(
+                      webinar.startsAt,
+                      webinar.durationMinutes,
+                      webinar.timeZone,
+                      t.locale,
+                    )}
+                  </p>
+                </div>
+                {webinar.webinarStatus === "cancelled" ? (
+                  <Badge tone="warning" icon={CalendarX}>
+                    {t.t("me.webinar.cancelled", { academy })}
+                  </Badge>
+                ) : webinar.attended ? (
+                  <Badge tone="good" icon={CircleCheck}>
+                    {t.t("me.webinar.attended")}
+                  </Badge>
+                ) : webinar.phase === "ended" ? (
+                  <Badge icon={Clock}>{t.t("me.webinar.ended")}</Badge>
+                ) : (
+                  <>
+                    <Badge tone={webinar.status === "registered" ? "good" : "info"} icon={Clock}>
+                      {t.t(
+                        webinar.status === "registered"
+                          ? "me.webinar.registered"
+                          : "me.webinar.waitlist",
+                      )}
+                    </Badge>
+                    <form action={cancelRegistrationAction}>
+                      <input type="hidden" name="slug" value={webinar.slug} />
+                      <input type="hidden" name="registration" value={webinar.registrationId} />
+                      <input type="hidden" name="back" value="me" />
+                      <SubmitButton
+                        className="btn btn-ghost btn-sm"
+                        confirm={t.t("webinar.cancelConfirm")}
+                      >
+                        {t.t("webinar.cancel")}
+                      </SubmitButton>
+                    </form>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="grid gap-4 lg:grid-cols-2">
         <form action={saveDisplayNameAction} className="card-flat space-y-3 p-5">

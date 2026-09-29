@@ -48,7 +48,14 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy("*") }],
       },
       // Pages whose address carries a token: the next page must not see it as referrer.
-      ...["/sign-in/confirm", "/consent/confirm", "/join/:code", "/auth/:path*"].map((source) => ({
+      ...[
+        "/sign-in/confirm",
+        "/consent/confirm",
+        "/join/:code",
+        "/auth/:path*",
+        "/webinars/:slug/confirm",
+        "/webinars/:slug/cancel",
+      ].map((source) => ({
         source,
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       })),
@@ -58,6 +65,10 @@ const nextConfig: NextConfig = {
   // Keys are globs, so the brackets of the dynamic segment are escaped.
   outputFileTracingIncludes: {
     "/verify/\\[publicId\\]/image": [
+      `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
+    ],
+    // Webinar link previews, in the academy's theme.
+    "/webinars/\\[slug\\]/image": [
       `./node_modules/@fontsource/{${FONT_LIBRARY.map((font) => font.id).join(",")}}/files/*-latin-{400,700}-normal.woff`,
     ],
     // The website's link previews, in enaibler's own theme (whichever library fonts it picks).

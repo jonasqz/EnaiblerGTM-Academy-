@@ -125,6 +125,12 @@ describe("embedded path picker", () => {
     });
   });
 
+  it("names the webinar widget as the content when it is the one embedded", () => {
+    expect(embedEntryContext(new URLSearchParams("utm_source=partner"), tenant, "webinar")).toEqual(
+      { utm: { medium: "embed", content: "webinar", source: "partner" } },
+    );
+  });
+
   it("leaves the path and course to the learner's click", () => {
     expect(embed("path=validator&course=validation-lab")).not.toHaveProperty("path");
     expect(embed("path=validator&course=validation-lab")).not.toHaveProperty("course");

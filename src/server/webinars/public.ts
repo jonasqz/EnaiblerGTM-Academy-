@@ -28,8 +28,11 @@ type WebinarRow = typeof webinars.$inferSelect;
 export type PublicWebinar = Omit<WebinarRow, "joinUrl" | "checkinCode" | "externalId">;
 
 function publicPart(row: WebinarRow): PublicWebinar {
-  const { joinUrl: _join, checkinCode: _code, externalId: _external, ...rest } = row;
-  return rest;
+  const view: Partial<WebinarRow> = { ...row };
+  delete view.joinUrl;
+  delete view.checkinCode;
+  delete view.externalId;
+  return view as PublicWebinar;
 }
 
 export interface WebinarCourse {
@@ -186,6 +189,8 @@ export interface MyWebinar {
   status: "registered" | "waitlist";
   slug: string;
   title: string;
+  /** The webinar's language (its title is in it). */
+  locale: string;
   startsAt: Date;
   durationMinutes: number;
   timeZone: string;
@@ -232,6 +237,7 @@ export async function myWebinars(
     status: row.status as MyWebinar["status"],
     slug: row.webinar.slug,
     title: row.webinar.title,
+    locale: row.webinar.locale,
     startsAt: row.webinar.startsAt,
     durationMinutes: row.webinar.durationMinutes,
     timeZone: row.webinar.timeZone,
@@ -239,6 +245,30 @@ export async function myWebinars(
     phase: webinarPhase(row.webinar, now),
     attended: row.attended !== null,
   }));
+}
+
+/** The registration a mail's cancel link names (the caller has checked the link's key). */
+export async function cancellableRegistration(
+  db: Database,
+  tenantId: string,
+  registrationId: string,
+  now: Date = new Date(),
+): Promise<{ webinar: PublicWebinar; cancellable: boolean } | null> {
+  const [row] = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ status: webinarRegistrations.status, webinar: webinars })
+      .from(webinarRegistrations)
+      .innerJoin(webinars, eq(webinars.id, webinarRegistrations.webinarId))
+      .where(eq(webinarRegistrations.id, registrationId)),
+  );
+  if (!row) return null;
+  return {
+    webinar: publicPart(row.webinar),
+    cancellable:
+      (row.status === "registered" || row.status === "waitlist") &&
+      row.webinar.status === "published" &&
+      webinarPhase(row.webinar, now) !== "ended",
+  };
 }
 
 /** A visitor opened the landing page (never bots; the caller checks). */
