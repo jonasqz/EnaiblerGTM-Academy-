@@ -6,7 +6,7 @@
 # The host ports can move when something else on the machine already holds
 # them (on many Macs a Postgres from Homebrew or Postgres.app answers on 5432
 # and connections reach it instead of the container). Put the port in a file
-# named `.env` next to this one, e.g. POSTGRES_PORT=5433, run
+# named `.env` next to this one, e.g. POSTGRES_PORT=55432, run
 # `docker compose up -d` again, and use the same port in DATABASE_URL and
 # DATABASE_MIGRATION_URL in .env.local. Also: STORAGE_PORT, MAILPIT_WEB_PORT,
 # MAILPIT_SMTP_PORT (S3_ENDPOINT and SMTP_URL follow them).

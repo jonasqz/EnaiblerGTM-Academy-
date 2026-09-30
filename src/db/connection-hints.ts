@@ -154,6 +154,7 @@ export type ProjectContainer =
 export type LocalLoginCause =
   | "no_docker"
   | "container_stopped"
+  | "other_container"
   | "wrong_port"
   | "other_postgres"
   | "stale_volume"
@@ -164,7 +165,9 @@ export type LocalLoginCause =
  * docker services and what listens on the port. The order matters: on macOS a
  * Postgres from Homebrew or Postgres.app can hold the port next to Docker's,
  * and connections then reach it instead of the container, so it is looked
- * for before the container's own state is blamed.
+ * for before the container's own state is blamed. A container that cannot
+ * start because another container publishes its port is the same story one
+ * level down: what answers there is someone else's database.
  */
 export function localLoginCause(input: {
   /** The port in the connection string. */
@@ -172,15 +175,61 @@ export function localLoginCause(input: {
   container: ProjectContainer;
   /** What listens on that port (lsof), by program name. */
   listeners: ReadonlyArray<{ command: string }>;
+  /** Other docker containers that publish that port (docker ps), by name. */
+  holders: ReadonlyArray<string>;
 }): LocalLoginCause {
   const { container } = input;
   if (!container.docker) return "no_docker";
-  if (!container.running) return "container_stopped";
+  if (!container.running) return input.holders.length > 0 ? "other_container" : "container_stopped";
   if (container.publishedPort !== null && container.publishedPort !== input.port)
     return "wrong_port";
   if (input.listeners.some((entry) => /postgres/i.test(entry.command))) return "other_postgres";
   if (container.hasRoles === false) return "stale_volume";
   return "wrong_password";
+}
+
+/** A container and the host ports it publishes. */
+export interface PublishedPorts {
+  name: string;
+  ports: number[];
+}
+
+/**
+ * Reads `docker ps --format '{{.Names}}\t{{.Ports}}'`: which host ports each
+ * running container publishes. The column looks like
+ * `0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp, 1110/tcp`, and older Docker
+ * writes the IPv6 wildcard as `:::5432->…`; a range is `5440-5442->5440-5442/tcp`.
+ */
+export function parsePublishedPorts(output: string): PublishedPorts[] {
+  const host = /(?:^|[\s,])(?:\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]*\]|::):(\d+)(?:-(\d+))?->/g;
+  return output.split("\n").flatMap((line) => {
+    const [name = "", column = ""] = line.split("\t");
+    if (!name.trim()) return [];
+    const ports = new Set<number>();
+    for (const match of column.matchAll(host)) {
+      const from = Number(match[1]);
+      const to = match[2] ? Number(match[2]) : from;
+      for (let port = from; port <= Math.min(to, from + 200); port++) ports.add(port);
+    }
+    return [{ name: name.trim(), ports: [...ports] }];
+  });
+}
+
+/** The containers that publish `port`, by name. */
+export function containersHolding(port: number, containers: readonly PublishedPorts[]): string[] {
+  return containers.filter((container) => container.ports.includes(port)).map((c) => c.name);
+}
+
+/**
+ * Ports to offer for the docker services when the usual one is taken, in
+ * order. Not the neighbours everybody's other Postgres already sits on
+ * (5433, 5434): those are what a second attempt runs into.
+ */
+export const SPARE_PORTS = [55432, 55433, 55434, 55435, 15432, 25432] as const;
+
+/** The first spare port that is not taken; null when they all are. */
+export function sparePort(taken: ReadonlySet<number>): number | null {
+  return SPARE_PORTS.find((port) => !taken.has(port)) ?? null;
 }
 
 /**

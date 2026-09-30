@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   classifyConnectionError,
   connectionAdvice,
+  containersHolding,
   describeTarget,
   localLoginCause,
+  parsePublishedPorts,
   reportConnectionProblem,
+  SPARE_PORTS,
+  sparePort,
   type ProjectContainer,
 } from "@/db/connection-hints";
 
@@ -156,12 +160,33 @@ describe("reporting a failure to whoever ran a script", () => {
 describe("why a login on this machine was refused", () => {
   const running = (overrides: Partial<Extract<ProjectContainer, { running: true }>> = {}) =>
     ({ docker: true, running: true, publishedPort: 5432, hasRoles: true, ...overrides }) as const;
-  const cause = (container: ProjectContainer, listeners: string[] = ["docker-pr"], port = 5432) =>
-    localLoginCause({ port, container, listeners: listeners.map((command) => ({ command })) });
+  const cause = (
+    container: ProjectContainer,
+    listeners: string[] = ["docker-pr"],
+    holders: string[] = [],
+    port = 5432,
+  ) =>
+    localLoginCause({
+      port,
+      container,
+      listeners: listeners.map((command) => ({ command })),
+      holders,
+    });
 
   it("blames Docker when it does not answer, and a stopped container when it does not run", () => {
     expect(cause({ docker: false })).toBe("no_docker");
     expect(cause({ docker: true, running: false })).toBe("container_stopped");
+  });
+
+  it("names another container holding the port when this project's cannot start", () => {
+    // The Mac that reported it: Docker itself listens on 5432 (lsof: com.docke), for someone else's database.
+    expect(cause({ docker: true, running: false }, ["com.docke"], ["other-db-1"])).toBe(
+      "other_container",
+    );
+    // Nobody holds it, nothing to blame but the stopped container.
+    expect(cause({ docker: true, running: false }, ["com.docke"], [])).toBe("container_stopped");
+    // Running, it is the one that publishes the port: no other holder counts.
+    expect(cause(running(), ["docker-pr"], ["other-db-1"])).toBe("wrong_password");
   });
 
   it("notices .env.local pointing at another port than the container publishes", () => {
@@ -180,5 +205,60 @@ describe("why a login on this machine was refused", () => {
     expect(cause(running({ hasRoles: false }))).toBe("stale_volume");
     expect(cause(running({ hasRoles: true }))).toBe("wrong_password");
     expect(cause(running({ hasRoles: null }))).toBe("wrong_password");
+  });
+});
+
+describe("which docker containers publish which ports", () => {
+  const psOutput = [
+    "enaiblergtm-academy--mailpit-1\t0.0.0.0:1025->1025/tcp, [::]:1025->1025/tcp, 0.0.0.0:8025->8025/tcp, [::]:8025->8025/tcp, 1110/tcp",
+    "other-db-1\t0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp",
+    "legacy\t:::5433->5432/tcp, 0.0.0.0:5433->5432/tcp",
+    "cache\t6379/tcp",
+    "ranged\t0.0.0.0:5440-5442->5440-5442/tcp",
+    "",
+  ].join("\n");
+
+  it("reads host ports from both address families, ranges and unpublished ports", () => {
+    const containers = parsePublishedPorts(psOutput);
+    expect(containers.map((container) => container.name)).toEqual([
+      "enaiblergtm-academy--mailpit-1",
+      "other-db-1",
+      "legacy",
+      "cache",
+      "ranged",
+    ]);
+    expect(containers[0]!.ports).toEqual([1025, 8025]);
+    expect(containers[2]!.ports).toEqual([5433]);
+    // 6379/tcp is inside the container only.
+    expect(containers[3]!.ports).toEqual([]);
+    expect(containers[4]!.ports).toEqual([5440, 5441, 5442]);
+  });
+
+  it("finds who holds a port", () => {
+    const containers = parsePublishedPorts(psOutput);
+    expect(containersHolding(5432, containers)).toEqual(["other-db-1"]);
+    expect(containersHolding(5433, containers)).toEqual(["legacy"]);
+    expect(containersHolding(5441, containers)).toEqual(["ranged"]);
+    expect(containersHolding(5434, containers)).toEqual([]);
+  });
+
+  it("says nothing about an empty listing", () => {
+    expect(parsePublishedPorts("")).toEqual([]);
+  });
+});
+
+describe("a port to offer when the usual one is taken", () => {
+  it("skips what is taken and keeps to its order", () => {
+    expect(sparePort(new Set())).toBe(SPARE_PORTS[0]);
+    expect(sparePort(new Set([SPARE_PORTS[0], SPARE_PORTS[1]]))).toBe(SPARE_PORTS[2]);
+  });
+
+  it("does not start with the neighbours other Postgres containers sit on", () => {
+    expect(SPARE_PORTS).not.toContain(5433);
+    expect(SPARE_PORTS).not.toContain(5434);
+  });
+
+  it("has none left when they are all taken", () => {
+    expect(sparePort(new Set(SPARE_PORTS))).toBeNull();
   });
 });

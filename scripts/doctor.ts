@@ -13,10 +13,15 @@ import pg from "pg";
 
 import {
   classifyConnectionError,
+  containersHolding,
   describeTarget,
   localLoginCause,
+  parsePublishedPorts,
+  SPARE_PORTS,
+  sparePort,
   type ConnectionTarget,
   type ProjectContainer,
+  type PublishedPorts,
 } from "@/db/connection-hints";
 
 let failures = 0;
@@ -80,13 +85,44 @@ function listeners(port: number): Array<{ command: string; pid: string; on: stri
 
 const sedInPlace = process.platform === "darwin" ? "sed -i ''" : "sed -i";
 
-/** How to move the docker services to another port, when something else keeps port 5432. */
-function anotherPortSteps(port: number): string[] {
-  const moved = port === 5433 ? 5434 : 5433;
+/** The running containers and the host ports they publish; empty when Docker does not answer. */
+function dockerContainers(): PublishedPorts[] {
+  const ps = run("docker", ["ps", "--format", "{{.Names}}\t{{.Ports}}"], 10_000);
+  return ps.ok ? parsePublishedPorts(ps.out) : [];
+}
+
+/** Whether anything answers on the port, or holds it without answering. */
+async function portInUse(port: number): Promise<boolean> {
+  if ((await listens("127.0.0.1", port)) || (await listens("::1", port))) return true;
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(true));
+    server.listen({ port, host: "0.0.0.0" }, () => server.close(() => resolve(false)));
+  });
+}
+
+/** A port for the docker services that nothing uses now: not by a process, not by a container. */
+async function freeDockerPort(containers: readonly PublishedPorts[]): Promise<number | null> {
+  const published = new Set(containers.flatMap((container) => container.ports));
+  const taken = new Set<number>();
+  for (const port of SPARE_PORTS) {
+    if (published.has(port) || (await portInUse(port))) taken.add(port);
+  }
+  return sparePort(taken);
+}
+
+/** How to move the docker services from one port to another the machine has free. */
+function anotherPortSteps(from: number, to: number | null): string[] {
+  if (to === null) {
+    return [
+      "Every port I would suggest is taken. Choose a free one, then write it as POSTGRES_PORT in a file named .env",
+      "and use it in DATABASE_URL and DATABASE_MIGRATION_URL in .env.local.",
+    ];
+  }
   return [
-    `echo POSTGRES_PORT=${moved} > .env`,
+    `echo POSTGRES_PORT=${to} > .env`,
+    `${sedInPlace} 's/localhost:${from}/localhost:${to}/g' .env.local`,
     "docker compose up -d",
-    `${sedInPlace} 's/localhost:${port}/localhost:${moved}/g' .env.local`,
   ];
 }
 
@@ -119,16 +155,19 @@ function projectContainer(): ProjectContainer {
 }
 
 /** A local login was refused: which of the usual reasons it is (core: localLoginCause). */
-function explainLocalLogin(label: string, target: ConnectionTarget): void {
+async function explainLocalLogin(label: string, target: ConnectionTarget): Promise<void> {
   const where = `${target.host}:${target.port}`;
   const others = listeners(target.port);
   const who = others.map((entry) => `${entry.command} (pid ${entry.pid}) on ${entry.on}`);
   const listening = who.length ? [`Listening on port ${target.port}: ${who.join(", ")}`] : [];
   const container = projectContainer();
+  const containers = container.docker ? dockerContainers() : [];
+  const holders = containersHolding(target.port, containers);
+  const spare = await freeDockerPort(containers);
   const refused = `${label}: the login for "${target.user}" was refused at ${where}`;
-  const anotherPort = anotherPortSteps(target.port).map((step) => `  ${step}`);
+  const anotherPort = anotherPortSteps(target.port, spare).map((step) => `  ${step}`);
 
-  switch (localLoginCause({ port: target.port, container, listeners: others })) {
+  switch (localLoginCause({ port: target.port, container, listeners: others, holders })) {
     case "no_docker":
       say(
         "✗",
@@ -143,9 +182,20 @@ function explainLocalLogin(label: string, target: ConnectionTarget): void {
         "✗",
         `${refused}, and this project's Postgres container is not running`,
         "Something else answers on that port. Start the project's services: docker compose up -d",
-        `If Docker then says port ${target.port} is already allocated, another Postgres has it. Move Docker to another port:`,
+        "and read what it prints: an error there is the reason (docker compose logs postgres shows the container's own).",
+        "If the port is taken, move Docker to a free one:",
         ...anotherPort,
         ...listening,
+      );
+      return;
+    case "other_container":
+      say(
+        "✗",
+        `${label}: another Docker container holds port ${target.port}, and this project's Postgres container cannot start`,
+        `Publishing port ${target.port}: ${holders.join(", ")}`,
+        "That is what answered, and it does not know the enaibler roles. Keep it running and give this project a free port:",
+        ...anotherPort,
+        `Or, if you do not need ${holders[0]}: docker stop ${holders[0]}, then docker compose up -d`,
       );
       return;
     case "wrong_port": {
@@ -164,7 +214,7 @@ function explainLocalLogin(label: string, target: ConnectionTarget): void {
         `${label}: another Postgres answers on port ${target.port}, not this project's container`,
         ...listening,
         "Fix A: stop it (Homebrew: brew services list, then brew services stop postgresql@16; Postgres.app: quit it), then: docker compose up -d",
-        "Fix B: keep it and move Docker to another port:",
+        "Fix B: keep it and move Docker to a free port:",
         ...anotherPort,
       );
       return;
@@ -187,7 +237,7 @@ function explainLocalLogin(label: string, target: ConnectionTarget): void {
   }
 }
 
-function explainFailure(label: string, error: unknown, url: string): void {
+async function explainFailure(label: string, error: unknown, url: string): Promise<void> {
   const target = describeTarget(url);
   const problem = classifyConnectionError(error);
   const where = target ? `${target.host}:${target.port}` : "the database";
@@ -200,8 +250,10 @@ function explainFailure(label: string, error: unknown, url: string): void {
       ...(target?.local
         ? [
             "Start Docker Desktop, then: docker compose up -d",
-            `If Docker says port ${target.port} is already allocated, another Postgres has it:`,
-            ...anotherPortSteps(target.port).map((step) => `  ${step}`),
+            `If Docker says port ${target.port} is already allocated, another container has it. Use a free one:`,
+            ...anotherPortSteps(target.port, await freeDockerPort(dockerContainers())).map(
+              (step) => `  ${step}`,
+            ),
           ]
         : ["Check the address, the network and the firewall."]),
     );
@@ -217,7 +269,7 @@ function explainFailure(label: string, error: unknown, url: string): void {
         : ["Create it with deploy/postgres/init.sh (docs/deployment.md §2)."]),
     );
   } else if (target?.local) {
-    explainLocalLogin(label, target);
+    await explainLocalLogin(label, target);
   } else {
     say(
       "✗",
@@ -231,7 +283,7 @@ async function login(label: string, url: string): Promise<pg.Client | null> {
   try {
     return await open(url);
   } catch (error) {
-    explainFailure(label, error, url);
+    await explainFailure(label, error, url);
     return null;
   }
 }
