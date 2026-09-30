@@ -6,6 +6,7 @@
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 import { createDatabase } from "@/db/client";
+import { reportConnectionProblem } from "@/db/connection-hints";
 
 const url = process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
 if (!url) {
@@ -17,6 +18,9 @@ const { db, pool } = createDatabase(url, { max: 1 });
 try {
   await migrate(db, { migrationsFolder: new URL("../drizzle", import.meta.url).pathname });
   console.log("Migrations applied.");
+} catch (error) {
+  if (!reportConnectionProblem(error, url)) throw error;
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }

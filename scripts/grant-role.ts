@@ -9,6 +9,7 @@
  */
 import { isTeamRole, teamEmail } from "@/core/access/team";
 import { createDatabase } from "@/db/client";
+import { reportConnectionProblem } from "@/db/connection-hints";
 import { findTenantBySlug } from "@/db/tenants";
 import { ensureAccount, findAccount, grantRole, revokeRole } from "@/server/team";
 
@@ -56,7 +57,9 @@ try {
     `✓ ${email} ${revoke ? "no longer has" : "has"} the role ${role} in ${tenant.slug}. Studio: /studio`,
   );
 } catch (error) {
-  console.error(`✗ ${error instanceof Error ? error.message : String(error)}`);
+  if (!reportConnectionProblem(error, url)) {
+    console.error(`✗ ${error instanceof Error ? error.message : String(error)}`);
+  }
   process.exitCode = 1;
 } finally {
   await pool.end();

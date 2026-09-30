@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 
 import { parseTenantManifestYaml } from "@/core/tenant/manifest";
 import { createDatabase } from "@/db/client";
+import { reportConnectionProblem } from "@/db/connection-hints";
 import { applyTenantManifest } from "@/db/tenants";
 
 const args = process.argv.slice(2);
@@ -45,6 +46,9 @@ try {
       for (const note of applied.notes) console.log(`  · ${note}`);
     }
   }
+} catch (error) {
+  if (!reportConnectionProblem(error, url)) throw error;
+  failed = true;
 } finally {
   await handle?.pool.end();
 }

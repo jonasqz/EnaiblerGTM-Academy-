@@ -12,6 +12,7 @@
 import { formatGb, parseQuota, type QuotaStatus } from "@/core/media/quota";
 import { parseAllowance, type AllowanceStatus } from "@/core/usage/allowance";
 import { createDatabase } from "@/db/client";
+import { reportConnectionProblem } from "@/db/connection-hints";
 import { findTenantBySlug } from "@/db/tenants";
 import {
   deleteAcademy,
@@ -141,7 +142,9 @@ try {
     }
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error);
+  if (!reportConnectionProblem(error, url)) {
+    console.error(error instanceof Error ? error.message : error);
+  }
   process.exitCode = 1;
 } finally {
   await pool.end();

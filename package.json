@@ -28,6 +28,7 @@
     "role:grant": "tsx --env-file-if-exists=.env.local scripts/grant-role.ts",
     "usage:report": "tsx --env-file-if-exists=.env.local scripts/usage-report.ts",
     "academy": "tsx --env-file-if-exists=.env.local scripts/academy.ts",
+    "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts",
     "smoke": "tsx scripts/smoke.ts",
     "review:spike": "tsx --env-file-if-exists=.env.local scripts/review-spike.ts"
   },

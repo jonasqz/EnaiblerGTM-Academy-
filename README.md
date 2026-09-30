@@ -29,24 +29,39 @@ This repository covers the brief's MVP (§12) and phase 2: everything except pay
 
 ## Quickstart
 
+Needs Node 22.12 or newer and Docker (Docker Desktop on a Mac). On a Mac, with [Homebrew](https://brew.sh): `brew install git node@22 ffmpeg` and `brew install --cask docker`, then open the Docker app once. ffmpeg only matters for videos and recordings.
+
 ```bash
 npm install
 docker compose up -d                  # Postgres 16 + pgvector (roles via deploy/postgres/init.sh), SeaweedFS (S3) and Mailpit
-cp .env.example .env.local
+cp .env.example .env.local            # set BETTER_AUTH_SECRET (openssl rand -base64 32); SMTP_URL=smtp://localhost:1025 shows mail in Mailpit
 npm run db:migrate                    # as the schema owner (DATABASE_MIGRATION_URL)
 npm run tenant:apply -- config/tenants/demo.yaml config/tenants/scaling-product.yaml
 npm run role:grant -- demo you@example.com tenant_admin   # your way into the Studio
+npm run doctor                        # optional: checks the whole setup and says what to fix
 npm run dev
 npm run worker                        # second terminal: reviews, e-mail, webhooks, authoring
 ```
+
+Give Postgres about ten seconds on the first `docker compose up -d` (`docker compose ps` shows it as healthy) before `npm run db:migrate`.
 
 Then open:
 
 - http://localhost:3000 for the platform site: create an academy there, and the magic link takes you into its Studio
 - http://demo.localhost:3000 for the demo academy (enaibler's default theme)
 - http://scaling-product.localhost:3000 for tenant 0 (Scaling Product's theme and terminology)
+- http://localhost:8025 for Mailpit, where sign-in links arrive when `SMTP_URL` is set
 
-In development, `<slug>.localhost` maps to the tenant with that slug, and new academies get exactly that address. Set `DEV_DEFAULT_TENANT` to serve an academy on plain localhost instead of the platform site. Magic-link e-mails are printed to the console, or caught by Mailpit on http://localhost:8025 if you set `SMTP_URL=smtp://localhost:1025`. Sign in with the address you granted a role to and open `/studio`. Courses from manifests start as drafts: finish and publish one there to see it in the catalogue. Without `LLM_BASE_URL` the worker sends every submission to the review queue.
+In development, `<slug>.localhost` maps to the tenant with that slug, and new academies get exactly that address. Set `DEV_DEFAULT_TENANT` to serve an academy on plain localhost instead of the platform site. Magic-link e-mails are printed to the console, or caught by Mailpit on http://localhost:8025 if you set `SMTP_URL=smtp://localhost:1025`. Mailpit catches mail to any address, so locally you sign in with the address you granted a role to and take the link from Mailpit. Open `/studio` on an academy to sign in. Courses from manifests start as drafts: finish and publish one there to see it in the catalogue. Without `LLM_BASE_URL` the worker sends every submission to the review queue.
+
+### If setup fails
+
+Run `npm run doctor` first. It checks Node, both database roles, the migrations, the academies, storage, mail and ffmpeg, and says what to do about each problem. The usual ones:
+
+- **`password authentication failed for user "enaibler_owner"`** means something other than this project's container answers on port 5432, most often a Postgres from Homebrew or Postgres.app (on a Mac both can hold the port, and connections reach the other one). Stop it (`brew services list`, then `brew services stop postgresql@16`; or quit Postgres.app), or move Docker to another port: `echo POSTGRES_PORT=5433 > .env`, `docker compose up -d`, and change 5432 to 5433 in `.env.local`. The same error appears when the containers were created before `deploy/postgres/init.sh` ran: `docker compose down -v && docker compose up -d` starts over (it deletes the local database).
+- **Connection refused** means Docker is not running or the services are not up: open Docker Desktop, then `docker compose up -d`.
+- **Another port is taken** (storage 8333, Mailpit 8025 and 1025): `STORAGE_PORT`, `MAILPIT_WEB_PORT` and `MAILPIT_SMTP_PORT` in the same `.env` file move them; `S3_ENDPOINT` and `SMTP_URL` in `.env.local` follow. For the app itself, `npm run dev -- -p 3001` with `DEV_PORT=3001` in `.env.local`.
+- **An `<slug>.localhost` address does not open**: Chrome and Firefox send every `*.localhost` name to your own machine; try one of them.
 
 ## Commands
 
@@ -65,6 +80,7 @@ In development, `<slug>.localhost` maps to the tenant with that slug, and new ac
 | `npm run review:spike -- <folder> [--runs n]`                | AI review spike: agreement, stability, cost and latency on exemplars (needs `LLM_*`)                                                                  |
 | `npm run usage:report -- [--month YYYY-MM] [--csv]`          | AI usage and provider cost per academy for a month (default: the last full month), as a table or CSV                                                  |
 | `npm run academy -- list\|suspend\|resume\|export\|delete …` | Operator tasks per academy: see all, suspend, export its data, delete it, its AI allowance and video storage quota (docs/deployment.md §12)           |
+| `npm run doctor`                                             | Checks a local setup (Node, database roles, migrations, academies, storage, mail, ffmpeg) and says what to fix                                        |
 | `npm run smoke -- --academy <url> [--platform <url>]`        | Checks a running deployment from the outside: health, pages, security headers, cookies, link previews, signup                                         |
 
 ## Layout

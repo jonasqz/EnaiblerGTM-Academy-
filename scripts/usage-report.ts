@@ -20,6 +20,7 @@ import {
   type AcademyUsage,
 } from "@/core/usage/report";
 import { createDatabase } from "@/db/client";
+import { reportConnectionProblem } from "@/db/connection-hints";
 import { tenants } from "@/db/schema";
 import { aiAllowanceStatus } from "@/server/ai-allowance";
 import { usageByKind } from "@/server/studio/usage";
@@ -72,6 +73,9 @@ try {
   }
   const report = usageReport(options.month, academies);
   process.stdout.write(options.csv ? usageReportCsv(report) : `${usageReportTable(report)}\n`);
+} catch (error) {
+  if (!reportConnectionProblem(error, url)) throw error;
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }
