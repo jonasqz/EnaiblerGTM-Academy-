@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Claude Code's agent worktrees: whole copies of the repository.
     ".claude/worktrees/**",
+    // Standalone side project with its own Dockerfile, plain CommonJS.
+    "secret-drop/**",
   ]),
 ]);
 

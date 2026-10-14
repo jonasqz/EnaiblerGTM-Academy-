@@ -1,0 +1,9 @@
+{
+  "name": "secret-drop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "One file behind a shared secret, with Space Aliens for everyone without it.",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server.js" }
+}
